@@ -8,7 +8,7 @@ pub fn intersect<T: RegressionLineTrait, T2: RegressionLineTrait>(
     l1: &T,
     l2: &T2,
 ) -> Result<Point> {
-    if !(l1.isValid() && l2.isValid()) {
+    if !(l1.is_valid() && l2.is_valid()) {
         return Err(Exceptions::ILLEGAL_STATE);
     }
     let d = l1.a() * l2.b() - l1.b() * l2.a();
@@ -59,7 +59,8 @@ pub fn ToString<T: Into<usize>>(val: T, len: usize) -> Result<String> {
 }
 
 pub fn ToInt(a: &[u32]) -> Option<u32> {
-    if a.iter().sum::<u32>() > 32 {
+    let total_bits = a.iter().map(|&v| u64::from(v)).sum::<u64>();
+    if total_bits > 32 {
         return None;
     }
 

@@ -1,4 +1,4 @@
-mod base_extentions;
+mod base_extensions;
 
 pub mod bitmatrix_cursor_trait;
 pub mod concentric_finder;

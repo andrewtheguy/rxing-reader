@@ -13,7 +13,7 @@ pub trait RegressionLineTrait {
         l1: &T,
         l2: &T2,
     ) -> Option<Point> {
-        if !(l1.isValid() && l2.isValid()) {
+        if !(l1.is_valid() && l2.is_valid()) {
             return None;
         }
 
@@ -28,16 +28,16 @@ pub trait RegressionLineTrait {
     }
 
     fn evaluate(&mut self, points: &[Point]) -> bool;
-    fn evaluateSelf(&mut self) -> bool;
+    fn evaluate_self(&mut self) -> bool;
 
     fn points(&self) -> &[Point];
     fn length(&self) -> u32;
-    fn isValid(&self) -> bool;
+    fn is_valid(&self) -> bool;
     fn normal(&self) -> Point;
-    fn signedDistance(&self, p: Point) -> f32;
+    fn signed_distance(&self, p: Point) -> f32;
     fn distance_single(&self, p: Point) -> f32;
     fn project(&self, p: Point) -> Point {
-        p - self.normal() * self.signedDistance(p)
+        p - self.normal() * self.signed_distance(p)
     }
 
     fn reset(&mut self);
@@ -46,15 +46,15 @@ pub trait RegressionLineTrait {
 
     fn pop_back(&mut self);
 
-    fn setDirectionInward(&mut self, d: Point);
+    fn set_direction_inward(&mut self, d: Point);
 
     fn evaluate_max_distance(
         &mut self,
-        maxSignedDist: Option<f64>,
-        updatePoints: Option<bool>,
+        max_signed_dist: Option<f64>,
+        update_points: Option<bool>,
     ) -> bool;
 
-    fn isHighRes(&self) -> bool;
+    fn is_high_res(&self) -> bool;
     fn a(&self) -> f32;
     fn b(&self) -> f32;
     fn c(&self) -> f32;

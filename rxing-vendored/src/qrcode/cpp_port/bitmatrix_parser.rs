@@ -10,7 +10,7 @@ use crate::{
     qrcode::common::{ErrorCorrectionLevel, FormatInformation, Version, VersionRef},
 };
 
-use super::{Type, data_mask::GetDataMaskBit};
+use super::{Type, data_mask::get_data_mask_bit};
 use crate::common::cpp_essentials::AppendBit;
 
 pub fn getBit(bitMatrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -> bool {
@@ -147,8 +147,8 @@ pub fn ReadQRCodewords(
                     // Read a bit
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, xx, y, None)?
-                            != getBit(bitMatrix, xx, y, Some(formatInfo.isMirrored)),
+                        get_data_mask_bit(formatInfo.data_mask as u32, xx, y, None)?
+                            != getBit(bitMatrix, xx, y, Some(formatInfo.is_mirrored)),
                     );
                     // If we've made a whole byte, save it off
                     bitsRead += 1;
@@ -206,8 +206,8 @@ pub fn ReadMQRCodewords(
                     // Read a bit
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, xx, y, Some(true))?
-                            != getBit(bitMatrix, xx, y, Some(formatInfo.isMirrored)),
+                        get_data_mask_bit(formatInfo.data_mask as u32, xx, y, Some(true))?
+                            != getBit(bitMatrix, xx, y, Some(formatInfo.is_mirrored)),
                     );
                     bitsRead += 1;
                     // If we've made a whole byte, save it off; save early if 2x2 data block.
@@ -255,12 +255,12 @@ pub fn ReadQRCodewordsModel1(
                 for b in 0..8 {
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, x - b % 2, y - (b / 2), None)?
+                        get_data_mask_bit(formatInfo.data_mask as u32, x - b % 2, y - (b / 2), None)?
                             != getBit(
                                 bitMatrix,
                                 x - b % 2,
                                 y - (b / 2),
-                                Some(formatInfo.isMirrored),
+                                Some(formatInfo.is_mirrored),
                             ),
                     );
                 }
@@ -276,12 +276,12 @@ pub fn ReadQRCodewordsModel1(
                 for b in 0..8 {
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, x - b % 2, y - (b / 2), None)?
+                        get_data_mask_bit(formatInfo.data_mask as u32, x - b % 2, y - (b / 2), None)?
                             != getBit(
                                 bitMatrix,
                                 x - b % 2,
                                 y - (b / 2),
-                                Some(formatInfo.isMirrored),
+                                Some(formatInfo.is_mirrored),
                             ),
                     );
                 }
@@ -307,12 +307,12 @@ pub fn ReadQRCodewordsModel1(
                 for b in 0..8 {
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, x - b % 4, y - (b / 4), None)?
+                        get_data_mask_bit(formatInfo.data_mask as u32, x - b % 4, y - (b / 4), None)?
                             != getBit(
                                 bitMatrix,
                                 x - b % 4,
                                 y - (b / 4),
-                                Some(formatInfo.isMirrored),
+                                Some(formatInfo.is_mirrored),
                             ),
                     );
                 }
@@ -355,8 +355,8 @@ pub fn ReadRMQRCodewords(
                     // Read a bit
                     AppendBit(
                         &mut currentByte,
-                        GetDataMaskBit(formatInfo.data_mask as u32, xx as u32, y, None)?
-                            != getBit(bitMatrix, xx as u32, y, Some(formatInfo.isMirrored)),
+                        get_data_mask_bit(formatInfo.data_mask as u32, xx as u32, y, None)?
+                            != getBit(bitMatrix, xx as u32, y, Some(formatInfo.is_mirrored)),
                     );
                     // If we've made a whole byte, save it off
                     bitsRead += 1;

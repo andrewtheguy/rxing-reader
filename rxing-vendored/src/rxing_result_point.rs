@@ -70,7 +70,7 @@ pub fn point_i<T: Into<i64>>(x: T, y: T) -> Point {
     Point::new(x.into() as f32, y.into() as f32)
 }
 
-impl<T> Eq for PointT<T> where T: PartialEq {}
+impl<T> Eq for PointT<T> where T: Eq {}
 
 impl<T> PointT<T>
 where
@@ -366,7 +366,7 @@ where
     /**
      * Returns the z component of the cross product between vectors BC and BA.
      */
-    pub fn crossProductZ(a: PointT<T>, b: PointT<T>, c: PointT<T>) -> T {
+    pub fn cross_product_z(a: PointT<T>, b: PointT<T>, c: PointT<T>) -> T {
         ((c.x - b.x) * (a.y - b.y)) - ((c.y - b.y) * (a.x - b.x))
     }
 }
@@ -664,8 +664,8 @@ mod point_tests {
         let a = PointF::new(0.0, 0.0);
         let b = PointF::new(1.0, 0.0);
         let c = PointF::new(1.0, 1.0);
-        assert_eq!(PointF::crossProductZ(a, b, c), 1.0);
+        assert_eq!(PointF::cross_product_z(a, b, c), 1.0);
         // reversed order → -1
-        assert_eq!(PointF::crossProductZ(a, c, b), -1.0);
+        assert_eq!(PointF::cross_product_z(a, c, b), -1.0);
     }
 }

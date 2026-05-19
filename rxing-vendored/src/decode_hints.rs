@@ -190,55 +190,55 @@ pub struct DecodeHints {
     /**
      * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
      */
-    pub Other: Option<String>,
+    pub other: Option<String>,
 
     /**
      * Image is known to be of one of a few possible formats.
      * Maps to a {@link List} of {@link BarcodeFormat}s.
      */
-    pub PossibleFormats: Option<HashSet<BarcodeFormat>>,
+    pub possible_formats: Option<HashSet<BarcodeFormat>>,
 
     /**
      * Spend more time to try to find a barcode; optimize for accuracy, not speed.
      * Doesn't matter what it maps to; use {@link Boolean#TRUE}.
      */
-    pub TryHarder: Option<bool>,
+    pub try_harder: Option<bool>,
 
     /**
      * Specifies what character encoding to use when decoding, where applicable (type String)
      */
-    pub CharacterSet: Option<String>,
+    pub character_set: Option<String>,
 
     /**
      * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
      */
-    pub AllowedLengths: Option<Vec<u32>>,
+    pub allowed_lengths: Option<Vec<u32>>,
 
     /**
      * Assume Code 39 codes employ a check digit. Doesn't matter what it maps to;
      * use {@link Boolean#TRUE}.
      */
-    pub AssumeCode39CheckDigit: Option<bool>,
+    pub assume_code_39_check_digit: Option<bool>,
 
     /**
      * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
      * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn't matter what it maps to;
      * use {@link Boolean#TRUE}.
      */
-    pub AssumeGs1: Option<bool>,
+    pub assume_gs1: Option<bool>,
 
     /**
      * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
      * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
      * to not be. Doesn't matter what it maps to; use {@link Boolean#TRUE}.
      */
-    pub ReturnCodabarStartEnd: Option<bool>,
+    pub return_codabar_start_end: Option<bool>,
 
     /**
      * The caller needs to be notified via callback when a possible {@link Point}
      * is found. Maps to a {@link PointCallback}.
      */
-    pub NeedResultPointCallback: Option<PointCallback>,
+    pub need_result_point_callback: Option<PointCallback>,
 
     /**
      * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
@@ -247,12 +247,12 @@ pub struct DecodeHints {
      * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
      * at all.
      */
-    pub AllowedEanExtensions: Option<Vec<u32>>,
+    pub allowed_ean_extensions: Option<Vec<u32>>,
 
     /**
      * Translate the ASCII values parsed by the Telepen reader into the Telepen Numeric form; use {@link Boolean#TRUE}.
      */
-    pub TelepenAsNumeric: Option<bool>,
+    pub telepen_as_numeric: Option<bool>,
 }
 
 impl From<super::DecodingHintDictionary> for DecodeHints {
@@ -260,23 +260,23 @@ impl From<super::DecodingHintDictionary> for DecodeHints {
         let mut new_self: Self = Self::default();
         for (_, v) in value.into_iter() {
             match v {
-                DecodeHintValue::Other(v) => new_self.Other = Some(v),
-                DecodeHintValue::PossibleFormats(v) => new_self.PossibleFormats = Some(v),
-                DecodeHintValue::TryHarder(v) => new_self.TryHarder = Some(v),
-                DecodeHintValue::CharacterSet(v) => new_self.CharacterSet = Some(v),
-                DecodeHintValue::AllowedLengths(v) => new_self.AllowedLengths = Some(v),
+                DecodeHintValue::Other(v) => new_self.other = Some(v),
+                DecodeHintValue::PossibleFormats(v) => new_self.possible_formats = Some(v),
+                DecodeHintValue::TryHarder(v) => new_self.try_harder = Some(v),
+                DecodeHintValue::CharacterSet(v) => new_self.character_set = Some(v),
+                DecodeHintValue::AllowedLengths(v) => new_self.allowed_lengths = Some(v),
                 DecodeHintValue::AssumeCode39CheckDigit(v) => {
-                    new_self.AssumeCode39CheckDigit = Some(v)
+                    new_self.assume_code_39_check_digit = Some(v)
                 }
-                DecodeHintValue::AssumeGs1(v) => new_self.AssumeGs1 = Some(v),
+                DecodeHintValue::AssumeGs1(v) => new_self.assume_gs1 = Some(v),
                 DecodeHintValue::ReturnCodabarStartEnd(v) => {
-                    new_self.ReturnCodabarStartEnd = Some(v)
+                    new_self.return_codabar_start_end = Some(v)
                 }
                 DecodeHintValue::NeedResultPointCallback(v) => {
-                    new_self.NeedResultPointCallback = Some(v)
+                    new_self.need_result_point_callback = Some(v)
                 }
-                DecodeHintValue::AllowedEanExtensions(v) => new_self.AllowedEanExtensions = Some(v),
-                DecodeHintValue::TelepenAsNumeric(v) => new_self.TelepenAsNumeric = Some(v),
+                DecodeHintValue::AllowedEanExtensions(v) => new_self.allowed_ean_extensions = Some(v),
+                DecodeHintValue::TelepenAsNumeric(v) => new_self.telepen_as_numeric = Some(v),
             }
         }
         new_self
@@ -287,68 +287,68 @@ impl From<DecodeHints> for super::DecodingHintDictionary {
     fn from(value: DecodeHints) -> Self {
         let mut new_self = HashMap::default();
 
-        if let Some(v) = value.Other {
+        if let Some(v) = value.other {
             new_self.insert(DecodeHintType::OTHER, DecodeHintValue::Other(v));
         }
 
-        if let Some(v) = value.PossibleFormats {
+        if let Some(v) = value.possible_formats {
             new_self.insert(
                 DecodeHintType::POSSIBLE_FORMATS,
                 DecodeHintValue::PossibleFormats(v),
             );
         }
 
-        if let Some(v) = value.TryHarder {
+        if let Some(v) = value.try_harder {
             new_self.insert(DecodeHintType::TRY_HARDER, DecodeHintValue::TryHarder(v));
         }
 
-        if let Some(v) = value.CharacterSet {
+        if let Some(v) = value.character_set {
             new_self.insert(
                 DecodeHintType::CHARACTER_SET,
                 DecodeHintValue::CharacterSet(v),
             );
         }
 
-        if let Some(v) = value.AllowedLengths {
+        if let Some(v) = value.allowed_lengths {
             new_self.insert(
                 DecodeHintType::ALLOWED_LENGTHS,
                 DecodeHintValue::AllowedLengths(v),
             );
         }
 
-        if let Some(v) = value.AssumeCode39CheckDigit {
+        if let Some(v) = value.assume_code_39_check_digit {
             new_self.insert(
                 DecodeHintType::ASSUME_CODE_39_CHECK_DIGIT,
                 DecodeHintValue::AssumeCode39CheckDigit(v),
             );
         }
 
-        if let Some(v) = value.AssumeGs1 {
+        if let Some(v) = value.assume_gs1 {
             new_self.insert(DecodeHintType::ASSUME_GS1, DecodeHintValue::AssumeGs1(v));
         }
 
-        if let Some(v) = value.ReturnCodabarStartEnd {
+        if let Some(v) = value.return_codabar_start_end {
             new_self.insert(
                 DecodeHintType::RETURN_CODABAR_START_END,
                 DecodeHintValue::ReturnCodabarStartEnd(v),
             );
         }
 
-        if let Some(v) = value.NeedResultPointCallback {
+        if let Some(v) = value.need_result_point_callback {
             new_self.insert(
                 DecodeHintType::NEED_RESULT_POINT_CALLBACK,
                 DecodeHintValue::NeedResultPointCallback(v),
             );
         }
 
-        if let Some(v) = value.AllowedEanExtensions {
+        if let Some(v) = value.allowed_ean_extensions {
             new_self.insert(
                 DecodeHintType::ALLOWED_EAN_EXTENSIONS,
                 DecodeHintValue::AllowedEanExtensions(v),
             );
         }
 
-        if let Some(v) = value.TelepenAsNumeric {
+        if let Some(v) = value.telepen_as_numeric {
             new_self.insert(
                 DecodeHintType::TELEPEN_AS_NUMERIC,
                 DecodeHintValue::TelepenAsNumeric(v),
@@ -362,17 +362,17 @@ impl From<DecodeHints> for super::DecodingHintDictionary {
 impl DecodeHints {
     pub fn with(mut self, value: DecodeHintValue) -> Self {
         match value {
-            DecodeHintValue::Other(v) => self.Other = Some(v),
-            DecodeHintValue::PossibleFormats(v) => self.PossibleFormats = Some(v),
-            DecodeHintValue::TryHarder(v) => self.TryHarder = Some(v),
-            DecodeHintValue::CharacterSet(v) => self.CharacterSet = Some(v),
-            DecodeHintValue::AllowedLengths(v) => self.AllowedLengths = Some(v),
-            DecodeHintValue::AssumeCode39CheckDigit(v) => self.AssumeCode39CheckDigit = Some(v),
-            DecodeHintValue::AssumeGs1(v) => self.AssumeGs1 = Some(v),
-            DecodeHintValue::ReturnCodabarStartEnd(v) => self.ReturnCodabarStartEnd = Some(v),
-            DecodeHintValue::NeedResultPointCallback(v) => self.NeedResultPointCallback = Some(v),
-            DecodeHintValue::AllowedEanExtensions(v) => self.AllowedEanExtensions = Some(v),
-            DecodeHintValue::TelepenAsNumeric(v) => self.TelepenAsNumeric = Some(v),
+            DecodeHintValue::Other(v) => self.other = Some(v),
+            DecodeHintValue::PossibleFormats(v) => self.possible_formats = Some(v),
+            DecodeHintValue::TryHarder(v) => self.try_harder = Some(v),
+            DecodeHintValue::CharacterSet(v) => self.character_set = Some(v),
+            DecodeHintValue::AllowedLengths(v) => self.allowed_lengths = Some(v),
+            DecodeHintValue::AssumeCode39CheckDigit(v) => self.assume_code_39_check_digit = Some(v),
+            DecodeHintValue::AssumeGs1(v) => self.assume_gs1 = Some(v),
+            DecodeHintValue::ReturnCodabarStartEnd(v) => self.return_codabar_start_end = Some(v),
+            DecodeHintValue::NeedResultPointCallback(v) => self.need_result_point_callback = Some(v),
+            DecodeHintValue::AllowedEanExtensions(v) => self.allowed_ean_extensions = Some(v),
+            DecodeHintValue::TelepenAsNumeric(v) => self.telepen_as_numeric = Some(v),
         }
         self
     }

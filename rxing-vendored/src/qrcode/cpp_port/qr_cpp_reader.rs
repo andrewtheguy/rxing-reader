@@ -30,14 +30,14 @@ impl QrReader {
     ) -> crate::common::Result<Vec<RXingResult>> {
         let binImg = image.get_black_matrix()?;
         let maxSymbols = count;
-        let try_harder = hints.TryHarder.unwrap_or(false);
+        let try_harder = hints.try_harder.unwrap_or(false);
 
         let mut allFPs = FindFinderPatterns(binImg, try_harder);
 
         let mut usedFPs: Vec<ConcentricPattern> = Vec::new();
         let mut results: Vec<RXingResult> = Vec::new();
 
-        let (check_qr, check_mqr, check_rmqr) = if let Some(formats) = &hints.PossibleFormats {
+        let (check_qr, check_mqr, check_rmqr) = if let Some(formats) = &hints.possible_formats {
             (
                 formats.contains(&BarcodeFormat::QR_CODE),
                 formats.contains(&BarcodeFormat::MICRO_QR_CODE),

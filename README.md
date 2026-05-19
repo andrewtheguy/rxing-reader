@@ -11,7 +11,7 @@ Standalone Rust workspace for the QR reader used by `qrcodesecureshare`.
 
 ```sh
 cargo clippy --workspace --all-targets
-cargo test --workspace
+cargo test --workspace --release
 
 cd rxing-wasm
 npm install

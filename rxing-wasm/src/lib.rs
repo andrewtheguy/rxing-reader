@@ -118,8 +118,8 @@ fn read_inner_one_binarizer(
     // legacy-path removal. Inversion is handled by the in-place `flip_self`
     // retry inside `decode_with_optional_invert`.
     let hints = DecodeHints {
-        PossibleFormats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
-        TryHarder: Some(try_harder),
+        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
+        try_harder: Some(try_harder),
         ..DecodeHints::default()
     };
 

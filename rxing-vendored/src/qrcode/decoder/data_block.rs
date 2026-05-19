@@ -87,6 +87,9 @@ impl DataBlock {
 
         // All blocks have the same amount of data, except that the last n
         // (where n may be 0) have 1 more byte. Figure out where these start.
+        if result.is_empty() {
+            return Err(Exceptions::ILLEGAL_ARGUMENT);
+        }
         let shorterBlocksTotalCodewords = result[0].codewords.len();
         let mut longerBlocksStartAt = result.len() - 1;
         loop {

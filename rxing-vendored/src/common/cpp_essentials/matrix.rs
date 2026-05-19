@@ -26,15 +26,13 @@ impl<T: Default + Clone + Copy> Matrix<T> {
     }
 
     pub fn new(width: usize, height: usize) -> Result<Matrix<T>> {
-        if width != 0 && (width * height) / width != height {
-            return Err(Exceptions::illegal_argument_with(
-                "invalid size: width * height is too big",
-            ));
-        }
+        let size = width.checked_mul(height).ok_or_else(|| {
+            Exceptions::illegal_argument_with("invalid size: width * height is too big")
+        })?;
         Ok(Self {
             width,
             height,
-            data: vec![None; width * height],
+            data: vec![None; size],
         })
     }
 
@@ -64,16 +62,23 @@ impl<T: Default + Clone + Copy> Matrix<T> {
         }
     }
 
-    pub fn set(&mut self, x: usize, y: usize, value: T) -> T {
-        self.data[Self::get_offset(x, y, self.width)] = Some(value);
-        self.get(x, y).unwrap()
+    pub fn set(&mut self, x: usize, y: usize, value: T) -> Result<T> {
+        if x >= self.width || y >= self.height {
+            return Err(Exceptions::index_out_of_bounds_with(format!(
+                "set: coordinates ({x}, {y}) outside {}x{} matrix",
+                self.width, self.height
+            )));
+        }
+        let offset = Self::get_offset(x, y, self.width);
+        self.data[offset] = Some(value);
+        Ok(value)
     }
 
     pub fn get_point(&self, p: Point) -> Option<T> {
         self.get(p.x as usize, p.y as usize)
     }
 
-    pub fn set_point(&mut self, p: Point, value: T) -> T {
+    pub fn set_point(&mut self, p: Point, value: T) -> Result<T> {
         assert!(
             p.x.is_finite() && p.y.is_finite(),
             "set_point: non-finite coordinates ({}, {})",
@@ -83,6 +88,22 @@ impl<T: Default + Clone + Copy> Matrix<T> {
         assert!(
             p.x >= 0.0 && p.y >= 0.0,
             "set_point: negative coordinates ({}, {})",
+            p.x,
+            p.y
+        );
+        let x = f64::from(p.x);
+        let y = f64::from(p.y);
+        assert!(
+            x < self.width as f64 && y < self.height as f64,
+            "set_point: coordinates ({}, {}) outside {}x{} matrix",
+            p.x,
+            p.y,
+            self.width,
+            self.height
+        );
+        assert!(
+            x <= usize::MAX as f64 && y <= usize::MAX as f64,
+            "set_point: coordinates ({}, {}) cannot be represented as usize",
             p.x,
             p.y
         );

@@ -399,7 +399,7 @@ pub fn FitQuadrilateralToPoints(center: Point, points: &mut [Point]) -> Option<Q
         RegressionLine::with_point_slice(try_get_range(corner_positions[3], points.len())?),
     ];
 
-    if lines.iter().any(|line| !line.isValid()) {
+    if lines.iter().any(|line| !line.is_valid()) {
         return None;
     }
 
@@ -482,7 +482,7 @@ pub fn FindConcentricPatternCorners(
     Some(res)
 }
 
-#[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct ConcentricPattern {
     pub p: Point,
     pub size: i32,

@@ -101,8 +101,8 @@ fn decode_inner(
     use_hybrid_binarizer: bool,
 ) -> Option<Vec<u8>> {
     let hints = DecodeHints {
-        PossibleFormats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
-        TryHarder: Some(try_harder),
+        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
+        try_harder: Some(try_harder),
         ..DecodeHints::default()
     };
 
@@ -714,7 +714,7 @@ fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
     let source = Luma8LuminanceSource::new(luma, w, h);
     let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
     let hints = DecodeHints {
-        PossibleFormats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
+        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
         ..DecodeHints::default()
     };
     QrReader

@@ -101,9 +101,9 @@ pub trait GridSampler {
                 point.y = i_value;
             }
 
-            controls
-                .iter()
-                .for_each(|control| control.transform.transform_points_single(&mut points));
+            for control in controls {
+                control.transform.transform_points_single(&mut points)?;
+            }
             // Quick check to see if points transformed to something inside the image;
             // sufficient to check the endpoints
             self.checkAndNudgePoints(image, &mut points)?;
@@ -119,7 +119,23 @@ pub trait GridSampler {
             }
         }
 
-        Ok((bits, [Point::default(); 4]))
+        let project_corner = |p: Point| -> Point {
+            for SamplerControl { p0, p1, transform } in controls {
+                if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y
+                    && let Some(transformed) = transform.transform_point(p)
+                {
+                    return transformed + point(0.5, 0.5);
+                }
+            }
+            Point::default()
+        };
+
+        let top_left = project_corner(Point::default());
+        let top_right = project_corner(Point::from((dimensionX - 1, 0)));
+        let bottom_right = project_corner(Point::from((dimensionX - 1, dimensionY - 1)));
+        let bottom_left = project_corner(Point::from((0, dimensionY - 1)));
+
+        Ok((bits, [top_left, top_right, bottom_left, bottom_right]))
     }
 
     /**

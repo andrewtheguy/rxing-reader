@@ -22,6 +22,8 @@ use crate::{Exceptions, Point, common::Result, point};
 
 use super::Quadrilateral;
 
+const DENOMINATOR_EPSILON: f32 = 1e-6;
+
 /**
  * <p>This class implements a perspective transform in two dimensions. Given four source and four
  * destination points, it will compute the transformation implied between them. The code is based
@@ -73,46 +75,54 @@ impl PerspectiveTransform {
         if !src.is_convex() || !dst.is_convex() {
             return Err(Exceptions::ILLEGAL_STATE);
         }
-        let q_to_s = PerspectiveTransform::quadrilateralToSquare(dst);
-        let s_to_q = PerspectiveTransform::squareToQuadrilateral(src);
+        let q_to_s = PerspectiveTransform::quadrilateralToSquare(dst)?;
+        let s_to_q = PerspectiveTransform::squareToQuadrilateral(src)?;
         Ok(s_to_q * q_to_s)
     }
 
-    pub fn transform_point(&self, point: Point) -> Point {
+    pub fn transform_point(&self, point: Point) -> Option<Point> {
         let x = point.x;
         let y = point.y;
         let denominator = self.a13 * x + self.a23 * y + self.a33;
-        Point::new(
+        if denominator.abs() < DENOMINATOR_EPSILON {
+            return None;
+        }
+        Some(Point::new(
             (self.a11 * x + self.a21 * y + self.a31) / denominator,
             (self.a12 * x + self.a22 * y + self.a32) / denominator,
-        )
+        ))
     }
 
-    pub fn transform_points_single(&self, points: &mut [Point]) {
+    pub fn transform_points_single(&self, points: &mut [Point]) -> Result<()> {
         for point in points.iter_mut() {
-            *point = self.transform_point(*point);
+            *point = self.transform_point(*point).ok_or(Exceptions::NOT_FOUND)?;
         }
+        Ok(())
     }
 
-    pub fn transform_points_double(&self, x_values: &mut [f32], y_values: &mut [f32]) {
+    pub fn transform_points_double(&self, x_values: &mut [f32], y_values: &mut [f32]) -> Result<()> {
         let n = x_values.len();
         for (x, y) in x_values.iter_mut().zip(y_values.iter_mut()).take(n) {
             let ox = *x;
             let oy = *y;
             let d = self.a13 * ox + self.a23 * oy + self.a33;
+            if d.abs() < DENOMINATOR_EPSILON {
+                return Err(Exceptions::NOT_FOUND);
+            }
             *x = (self.a11 * ox + self.a21 * oy + self.a31) / d;
             *y = (self.a12 * ox + self.a22 * oy + self.a32) / d;
         }
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn squareToQuadrilateral(square: Quadrilateral) -> Self {
+    pub fn squareToQuadrilateral(square: Quadrilateral) -> Result<Self> {
         let [p0, p1, p2, p3] = square.0;
 
         let d3 = p0 - p1 + p2 - p3;
         if d3 == point(0.0, 0.0) {
             // Affine
-            PerspectiveTransform::new(
+            Ok(PerspectiveTransform::new(
                 p1.x - p0.x,
                 p2.x - p1.x,
                 p0.x,
@@ -122,15 +132,18 @@ impl PerspectiveTransform {
                 0.0,
                 0.0,
                 1.0,
-            )
+            ))
         } else {
             let d1 = p1 - p2;
             let d2 = p3 - p2;
 
             let denominator = d1.cross(d2);
+            if denominator.abs() < DENOMINATOR_EPSILON {
+                return Err(Exceptions::ILLEGAL_STATE);
+            }
             let a13 = d3.cross(d2) / denominator;
             let a23 = d1.cross(d3) / denominator;
-            PerspectiveTransform::new(
+            Ok(PerspectiveTransform::new(
                 p1.x - p0.x + a13 * p1.x,
                 p3.x - p0.x + a23 * p3.x,
                 p0.x,
@@ -140,14 +153,14 @@ impl PerspectiveTransform {
                 a13,
                 a23,
                 1.0,
-            )
+            ))
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn quadrilateralToSquare(quad: Quadrilateral) -> Self {
+    pub fn quadrilateralToSquare(quad: Quadrilateral) -> Result<Self> {
         // Here, the adjoint serves as the inverse
-        PerspectiveTransform::squareToQuadrilateral(quad).buildAdjoint()
+        Ok(PerspectiveTransform::squareToQuadrilateral(quad)?.buildAdjoint())
     }
 
     const fn buildAdjoint(&self) -> Self {

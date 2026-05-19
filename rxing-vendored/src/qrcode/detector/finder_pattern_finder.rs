@@ -75,7 +75,7 @@ impl<'a> FinderPatternFinder<'_> {
     }
 
     pub fn find(&mut self, hints: &DecodeHints) -> Result<FinderPatternInfo> {
-        let tryHarder = matches!(hints.TryHarder, Some(true));
+        let tryHarder = matches!(hints.try_harder, Some(true));
         let maxI = self.image.getHeight();
         let maxJ = self.image.getWidth();
         // We are looking for black/white/black/white/black modules in
@@ -179,7 +179,7 @@ impl<'a> FinderPatternFinder<'_> {
         }
 
         let mut patternInfo = self.selectBestPatterns()?;
-        result_point_utils::orderBestPatterns(&mut patternInfo);
+        result_point_utils::order_best_patterns(&mut patternInfo);
 
         Ok(FinderPatternInfo::new(patternInfo))
     }

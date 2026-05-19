@@ -97,7 +97,7 @@ impl GenericGF {
      * @return base 2 log of a in GF(size)
      */
     pub fn log(&self, a: i32) -> Result<i32> {
-        if a <= 0 {
+        if a <= 0 || a >= self.size as i32 {
             return Err(Exceptions::ILLEGAL_ARGUMENT);
         }
         Ok(self.logTable[a as usize])

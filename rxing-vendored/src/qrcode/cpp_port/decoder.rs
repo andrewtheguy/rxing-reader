@@ -421,6 +421,6 @@ pub fn Decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     // Decode the contents of that stream of bytes
     Ok(
         DecodeBitStream(&resultBytes, version, formatInfo.error_correction_level)?
-            .withIsMirrored(formatInfo.isMirrored),
+            .withIsMirrored(formatInfo.is_mirrored),
     )
 }

@@ -148,7 +148,7 @@ impl Version {
      * @throws FormatException if dimension is not 1 mod 4 or dimension less than 17
      */
     pub fn getProvisionalVersionForDimension(dimension: u32) -> Result<VersionRef> {
-        if dimension % 4 != 1 || dimension < 17 {
+        if dimension % 4 != 1 || dimension < 21 {
             return Err(Exceptions::format_with("dimension incorrect"));
         }
         Self::getVersionForNumber((dimension - 17) / 4)
@@ -172,7 +172,7 @@ impl Version {
             }
             // Otherwise see if this is the closest to a real version info bit string
             // we have seen so far
-            let bitsDifference = FormatInformation::numBitsDiffering(versionBits, targetVersion);
+            let bitsDifference = FormatInformation::num_bits_differing(versionBits, targetVersion);
             if bitsDifference < bestDifference {
                 bestVersion = i + 7;
                 bestDifference = bitsDifference;

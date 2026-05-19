@@ -25,6 +25,7 @@ use super::{CharacterSet, ECIEncoderSet, ECIInput, Eci};
 
 //* approximated (latch + 2 codewords)
 pub const COST_PER_ECI: usize = 3;
+const FNC1: u16 = 1000;
 
 /**
  * Class that converts a character string into a sequence of ECIs and bytes
@@ -69,13 +70,12 @@ impl ECIInput for MinimalECIInput {
         if index >= self.length() {
             return Err(Exceptions::index_out_of_bounds_with(index.to_string()));
         }
-        if self.isECI(index)? {
-            return Err(Exceptions::illegal_argument_with(format!(
-                "value at {index} is not a character but an ECI"
-            )));
-        }
         if self.isFNC1(index)? {
             Ok(self.fnc1 as u8 as char)
+        } else if self.isECI(index)? {
+            Err(Exceptions::illegal_argument_with(format!(
+                "value at {index} is not a character but an ECI"
+            )))
         } else {
             Ok(self.bytes[index] as u8 as char)
         }
@@ -132,7 +132,7 @@ impl ECIInput for MinimalECIInput {
         if index >= self.length() {
             return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
         }
-        Ok(self.bytes[index] > 255) // && self.bytes[index] <= u16::MAX)
+        Ok(self.bytes[index] > 255 && self.bytes[index] != FNC1)
     }
 
     /**
@@ -241,7 +241,7 @@ impl MinimalECIInput {
         if index >= self.length() {
             return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
         }
-        Ok(self.bytes[index] == 1000)
+        Ok(self.bytes[index] == FNC1)
     }
 
     fn addEdge(edges: &mut [Vec<Option<Arc<InputEdge>>>], to: usize, edge: Arc<InputEdge>) {

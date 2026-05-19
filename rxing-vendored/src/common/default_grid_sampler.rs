@@ -40,7 +40,9 @@ impl GridSampler for DefaultGridSampler {
         for SamplerControl { p0, p1, transform } in controls {
             // Precheck the corners of every roi to bail out early if the grid is "obviously" not completely inside the image
             let isInside = |x: f32, y: f32| {
-                image.is_in(transform.transform_point(Point::centered(point(x, y))))
+                transform
+                    .transform_point(Point::centered(point(x, y)))
+                    .is_some_and(|p| image.is_in(p))
             };
             if !transform.isValid()
                 || !isInside(p0.x, p0.y)
@@ -56,7 +58,9 @@ impl GridSampler for DefaultGridSampler {
         for SamplerControl { p0, p1, transform } in controls {
             for y in (p0.y as i32)..(p1.y as i32) {
                 for x in (p0.x as i32)..(p1.x as i32) {
-                    let p = transform.transform_point(Point::from((x, y)).centered());
+                    let p = transform
+                        .transform_point(Point::from((x, y)).centered())
+                        .ok_or(Exceptions::NOT_FOUND)?;
 
                     // Due to a "numerical instability" in the PerspectiveTransform generation/application it has been observed
                     // that even though all boundary grid points get projected inside the image, it can still happen that an
@@ -76,8 +80,10 @@ impl GridSampler for DefaultGridSampler {
 
         let projectCorner = |p: Point| -> Point {
             for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y {
-                    return transform.transform_point(p) + point(0.5, 0.5);
+                if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y
+                    && let Some(transformed) = transform.transform_point(p)
+                {
+                    return transformed + point(0.5, 0.5);
                 }
             }
             Point::default()

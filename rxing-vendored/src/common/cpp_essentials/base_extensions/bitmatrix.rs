@@ -4,20 +4,26 @@ use crate::common::Result;
 use crate::point;
 
 impl BitMatrix {
-    pub fn Deflate(
+    pub fn deflate(
         &self,
         width: u32,
         height: u32,
         top: f32,
         left: f32,
-        subSampling: f32,
+        sub_sampling: f32,
     ) -> Result<Self> {
         let mut result = BitMatrix::new(width, height)?;
 
         for y in 0..result.height() {
-            let yOffset = top + y as f32 * subSampling;
+            let y_offset = top + y as f32 * sub_sampling;
             for x in 0..result.width() {
-                if self.get_point(point(left + x as f32 * subSampling, yOffset)) {
+                let sample_x = left + x as f32 * sub_sampling;
+                if sample_x >= 0.0
+                    && sample_x < self.width() as f32
+                    && y_offset >= 0.0
+                    && y_offset < self.height() as f32
+                    && self.get_point(point(sample_x, y_offset))
+                {
                     result.set(x, y);
                 }
             }
@@ -46,13 +52,13 @@ impl BitMatrix {
         true
     }
 
-    pub fn findBoundingBox(
+    pub fn find_bounding_box(
         &self,
         left: u32,
         top: u32,
         width: u32,
         height: u32,
-        minSize: u32,
+        min_size: u32,
     ) -> (bool, u32, u32, u32, u32) {
         let mut left = left;
         let mut top = top;
@@ -63,7 +69,8 @@ impl BitMatrix {
         let mut bottom = 0;
         if !self.getTopLeftOnBitWithPosition(&mut left, &mut top)
             || !self.getBottomRightOnBitWithPosition(&mut right, &mut bottom)
-            || bottom - top + 1 < minSize
+            || bottom - top + 1 < min_size
+            || right - left + 1 < min_size
         {
             return (false, left, top, width, height);
         }
@@ -87,7 +94,7 @@ impl BitMatrix {
         height = bottom - top + 1;
 
         (
-            width >= minSize && height >= minSize,
+            width >= min_size && height >= min_size,
             left,
             top,
             width,

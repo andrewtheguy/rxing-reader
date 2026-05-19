@@ -141,7 +141,7 @@ fn decode_bitmatrix_parser_with_hints(
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
     let version = parser.readVersion()?;
-    let ecLevel = parser.readFormatInformation()?.getErrorCorrectionLevel();
+    let ecLevel = parser.readFormatInformation()?.get_error_correction_level();
 
     // Read codewords
     let codewords = parser.readCodewords()?;

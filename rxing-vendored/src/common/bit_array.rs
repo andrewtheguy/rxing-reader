@@ -509,17 +509,20 @@ impl std::io::Read for BitArray {
         let desired = buf.len();
         let current_offset = self.read_offset;
 
-        let available = size - current_offset;
+        if current_offset >= size {
+            return Ok(0);
+        }
 
-        let to_read = if desired <= available {
-            desired
-        } else {
-            available
-        };
+        let available_bytes = (size - current_offset) / 8;
+        if available_bytes == 0 {
+            return Ok(0);
+        }
+
+        let to_read = desired.min(available_bytes);
 
         self.toBytes(current_offset, buf, 0, to_read);
 
-        self.read_offset = current_offset + to_read;
+        self.read_offset = current_offset + to_read * 8;
 
         Ok(to_read)
     }

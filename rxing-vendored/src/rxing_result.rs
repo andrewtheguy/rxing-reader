@@ -28,7 +28,7 @@ pub type RXingResultMetaDataDictionary = HashMap<RXingResultMetadataType, RXingR
  *
  * @author Sean Owen
  */
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RXingResult {
     text: String,
     rawBytes: Vec<u8>,

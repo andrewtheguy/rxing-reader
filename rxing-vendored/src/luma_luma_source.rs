@@ -47,7 +47,11 @@ impl LuminanceSource for Luma8LuminanceSource {
     }
 
     fn get_matrix(&self) -> Cow<'_, [u8]> {
-        Cow::Borrowed(&self.data)
+        if self.inverted {
+            Cow::Owned(self.data.iter().map(|byte| 255 - *byte).collect())
+        } else {
+            Cow::Borrowed(&self.data)
+        }
     }
 
     fn get_width(&self) -> usize {
@@ -72,7 +76,7 @@ impl LuminanceSource for Luma8LuminanceSource {
                 .flat_map(|f| f.iter().skip(left).take(width))
                 .map(|byte| Self::invert_if_should(*byte, self.inverted))
                 .collect(),
-            inverted: self.inverted,
+            inverted: false,
         })
     }
 

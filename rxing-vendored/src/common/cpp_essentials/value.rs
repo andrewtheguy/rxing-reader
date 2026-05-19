@@ -29,7 +29,7 @@ impl From<Value> for bool {
     fn from(value: Value) -> Self {
         match value {
             Value::Invalid => false,
-            Value::White => true,
+            Value::White => false,
             Value::Black => true,
         }
     }

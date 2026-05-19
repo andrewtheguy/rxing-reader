@@ -259,6 +259,11 @@ impl TryFrom<u32> for Mode {
     type Error = Exceptions;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value > u32::from(u8::MAX) {
+            return Err(Exceptions::illegal_argument_with(format!(
+                "{value} is not valid"
+            )));
+        }
         Self::forBits(value as u8)
     }
 }

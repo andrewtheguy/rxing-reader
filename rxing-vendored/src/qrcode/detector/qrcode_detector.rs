@@ -76,7 +76,7 @@ impl<'a> Detector<'a> {
      * @throws FormatException if a QR Code cannot be decoded
      */
     pub fn detect_with_hints(&mut self, hints: &DecodeHints) -> Result<QRCodeDetectorResult> {
-        self.resultPointCallback = hints.NeedResultPointCallback.clone();
+        self.resultPointCallback = hints.need_result_point_callback.clone();
 
         let mut finder =
             FinderPatternFinder::with_callback(self.image, self.resultPointCallback.clone());

@@ -14,19 +14,19 @@ use crate::common::Result;
 * <p>Note that the diagram in section 6.8.1 is misleading since it indicates that i is column position
 * and j is row position. In fact, as the text says, i is row position and j is column position.</p>
 */
-pub fn GetDataMaskBit(maskIndex: u32, x: u32, y: u32, isMicro: Option<bool>) -> Result<bool> {
-    let isMicro = isMicro.unwrap_or(false);
-    let mut maskIndex = maskIndex;
-    if isMicro {
-        if !(0..4).contains(&maskIndex) {
+pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>) -> Result<bool> {
+    let is_micro = is_micro.unwrap_or(false);
+    let mut mask_index = mask_index;
+    if is_micro {
+        if !(0..4).contains(&mask_index) {
             return Err(Exceptions::illegal_argument_with(
                 "QRCode maskIndex out of range",
             ));
         }
-        maskIndex = [1, 4, 6, 7][maskIndex as usize]; // map from MQR to QR indices
+        mask_index = [1, 4, 6, 7][mask_index as usize]; // map from MQR to QR indices
     }
 
-    match maskIndex {
+    match mask_index {
         0 => return Ok((y + x).is_multiple_of(2)),
         1 => return Ok(y.is_multiple_of(2)),
         2 => return Ok(x.is_multiple_of(3)),
@@ -44,12 +44,12 @@ pub fn GetDataMaskBit(maskIndex: u32, x: u32, y: u32, isMicro: Option<bool>) -> 
 }
 
 #[allow(dead_code)]
-pub fn GetMaskedBit(
-    bits: &BitMatrix,
+pub fn get_masked_bit(
+    bit_matrix: &BitMatrix,
     x: u32,
     y: u32,
-    maskIndex: u32,
-    isMicro: Option<bool>,
+    mask_index: u32,
+    is_micro: Option<bool>,
 ) -> Result<bool> {
-    Ok(GetDataMaskBit(maskIndex, x, y, isMicro)? != bits.get(x, y))
+    Ok(get_data_mask_bit(mask_index, x, y, is_micro)? != bit_matrix.get(x, y))
 }

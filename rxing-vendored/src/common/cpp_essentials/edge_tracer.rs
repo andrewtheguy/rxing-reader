@@ -271,7 +271,7 @@ impl<'a> EdgeTracer<'_> {
         dEdge: Point,
         line: &mut T,
     ) -> Result<bool> {
-        line.setDirectionInward(dEdge);
+        line.set_direction_inward(dEdge);
         loop {
             line.add(self.p)?;
             if line.points().len() % 50 == 10 {
@@ -289,7 +289,7 @@ impl<'a> EdgeTracer<'_> {
                     return Ok(false);
                 }
             }
-            let stepResult = self.traceStep(dEdge, 1, line.isValid())?;
+            let stepResult = self.traceStep(dEdge, 1, line.is_valid())?;
             if stepResult != StepResult::Found {
                 return Ok(stepResult == StepResult::OpenEnd && line.points().len() > 1);
             }
@@ -306,7 +306,7 @@ impl<'a> EdgeTracer<'_> {
         let mut maxStepSize = maxStepSize;
         let maxStepsPerGap = maxStepSize;
         let mut steps = 0;
-        line.setDirectionInward(dEdge);
+        line.set_direction_inward(dEdge);
         let mut gaps = 0;
         let mut lastP = Point { x: 0.0, y: 0.0 };
         loop {
@@ -331,15 +331,15 @@ impl<'a> EdgeTracer<'_> {
             }
 
             // if we drifted too far outside of the code, break
-            if line.isValid()
-                && line.signedDistance(self.p) < -5.0
-                && (!line.evaluate_max_distance(None, None) || line.signedDistance(self.p) < -5.0)
+            if line.is_valid()
+                && line.signed_distance(self.p) < -5.0
+                && (!line.evaluate_max_distance(None, None) || line.signed_distance(self.p) < -5.0)
             {
                 return Ok(false);
             }
 
             // if we are drifting towards the inside of the code, pull the current position back out onto the line
-            if line.isValid() && line.signedDistance(self.p) > 3.0 {
+            if line.is_valid() && line.signed_distance(self.p) > 3.0 {
                 // The current direction d and the line we are tracing are supposed to be roughly parallel.
                 // In case the 'go outward' step in traceStep lead us astray, we might end up with a line
                 // that is almost perpendicular to d. Then the back-projection below can result in an
@@ -411,7 +411,7 @@ impl<'a> EdgeTracer<'_> {
                         // the minimum code size is 10x10 -> every code has at least 4 gaps
                         //TODO: maybe switch to termination condition based on bottom line length to get a better
                         // finishLine for the right line trace
-                        if !finishLine.isValid() && gaps == 4 {
+                        if !finishLine.is_valid() && gaps == 4 {
                             // undo the last insert, it will be inserted again after the restart
                             line.pop_back();
                             return Ok(true);
@@ -422,19 +422,19 @@ impl<'a> EdgeTracer<'_> {
                 } // no point in following a line that has no gaps
             }
 
-            if finishLine.isValid() {
+            if finishLine.is_valid() {
                 maxStepSize =
-                    std::cmp::min(maxStepSize, (finishLine.signedDistance(self.p)) as i32);
+                    std::cmp::min(maxStepSize, (finishLine.signed_distance(self.p)) as i32);
             }
 
-            let stepResult = self.traceStep(dEdge, maxStepSize, line.isValid())?;
+            let stepResult = self.traceStep(dEdge, maxStepSize, line.is_valid())?;
 
             if stepResult != StepResult::Found
             // we are successful iff we found an open end across a valid finishLine
             {
                 return Ok(stepResult == StepResult::OpenEnd
-                    && finishLine.isValid()
-                    && (finishLine.signedDistance(self.p)) as i32 <= maxStepSize + 1);
+                    && finishLine.is_valid()
+                    && (finishLine.signed_distance(self.p)) as i32 <= maxStepSize + 1);
             }
         }
     }

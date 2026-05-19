@@ -181,7 +181,7 @@ impl Version {
 
     pub fn IsValidSize(size: PointI, qr_type: Type) -> bool {
         match qr_type {
-            Type::Model1 => size.x == size.y && size.x >= 21 && size.x <= 145 && (size.x % 4 == 1),
+            Type::Model1 => size.x == size.y && size.x >= 21 && size.x <= 73 && (size.x % 4 == 1),
             Type::Model2 => size.x == size.y && size.x >= 21 && size.x <= 177 && (size.x % 4 == 1),
             Type::Micro => size.x == size.y && size.x >= 11 && size.x <= 17 && (size.x % 2 == 1),
             Type::RectMicro => {

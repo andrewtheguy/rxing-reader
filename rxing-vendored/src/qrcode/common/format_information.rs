@@ -69,28 +69,28 @@ pub const FORMAT_INFO_DECODE_LOOKUP: [[u32; 2]; 32] = [
  */
 #[derive(Hash, Eq, PartialEq, Debug)]
 pub struct FormatInformation {
-    pub hammingDistance: u32,
+    pub hamming_distance: u32,
     pub error_correction_level: ErrorCorrectionLevel,
     pub data_mask: u8,
-    pub microVersion: u32,
-    pub isMirrored: bool,
+    pub micro_version: u32,
+    pub is_mirrored: bool,
 
     pub mask: u32,     // = 0
     pub data: u32,     // = 255
-    pub bitsIndex: u8, // = 255;
+    pub bits_index: u8, // = 255;
 }
 
 impl Default for FormatInformation {
     fn default() -> Self {
         Self {
-            hammingDistance: 255,
+            hamming_distance: 255,
             error_correction_level: ErrorCorrectionLevel::Invalid,
             data_mask: Default::default(),
-            microVersion: 0,
-            isMirrored: false,
+            micro_version: 0,
+            is_mirrored: false,
             mask: 0,
             data: 255,
-            bitsIndex: 255,
+            bits_index: 255,
         }
     }
 }
@@ -98,22 +98,22 @@ impl Default for FormatInformation {
 impl FormatInformation {
     fn new(format_info: u8) -> Result<Self> {
         // Bits 3,4
-        let errorCorrectionLevel = ErrorCorrectionLevel::forBits((format_info >> 3) & 0x03)?;
+        let error_correction_level = ErrorCorrectionLevel::forBits((format_info >> 3) & 0x03)?;
         // Bottom 3 bits
-        let dataMask = format_info & 0x07;
+        let data_mask = format_info & 0x07;
         Ok(Self {
-            hammingDistance: 255,
-            microVersion: 0,
-            error_correction_level: errorCorrectionLevel,
-            data_mask: dataMask,
-            isMirrored: false,
+            hamming_distance: 255,
+            micro_version: 0,
+            error_correction_level,
+            data_mask,
+            is_mirrored: false,
             mask: 0,
-            bitsIndex: 255,
+            bits_index: 255,
             data: 255,
         })
     }
 
-    pub fn numBitsDiffering(a: u32, b: u32) -> u32 {
+    pub fn num_bits_differing(a: u32, b: u32) -> u32 {
         (a ^ b).count_ones()
     }
 
@@ -124,46 +124,46 @@ impl FormatInformation {
      * @return information about the format it specifies, or {@code null}
      *  if doesn't seem to match any known pattern
      */
-    pub fn decodeFormatInformation(
+    pub fn decode_format_information(
         masked_format_info1: u32,
         masked_format_info2: u32,
     ) -> Option<FormatInformation> {
-        let formatInfo = Self::doDecodeFormatInformation(masked_format_info1, masked_format_info2);
-        if formatInfo.is_some() {
-            return formatInfo;
+        let format_info = Self::do_decode_format_information(masked_format_info1, masked_format_info2);
+        if format_info.is_some() {
+            return format_info;
         }
         // Should return null, but, some QR codes apparently
         // do not mask this info. Try again by actually masking the pattern
         // first
-        Self::doDecodeFormatInformation(
+        Self::do_decode_format_information(
             masked_format_info1 ^ FORMAT_INFO_MASK_QR,
             masked_format_info2 ^ FORMAT_INFO_MASK_QR,
         )
     }
 
-    fn doDecodeFormatInformation(
+    fn do_decode_format_information(
         masked_format_info1: u32,
         masked_format_info2: u32,
     ) -> Option<FormatInformation> {
         // Find the int in FORMAT_INFO_DECODE_LOOKUP with fewest bits differing
         let mut best_difference = u32::MAX;
         let mut best_format_info = 0;
-        for decodeInfo in FORMAT_INFO_DECODE_LOOKUP {
-            let targetInfo = decodeInfo[0];
-            if targetInfo == masked_format_info1 || targetInfo == masked_format_info2 {
+        for decode_info in FORMAT_INFO_DECODE_LOOKUP {
+            let target_info = decode_info[0];
+            if target_info == masked_format_info1 || target_info == masked_format_info2 {
                 // Found an exact match
-                return FormatInformation::new(decodeInfo[1] as u8).ok();
+                return FormatInformation::new(decode_info[1] as u8).ok();
             }
-            let mut bits_difference = Self::numBitsDiffering(masked_format_info1, targetInfo);
+            let mut bits_difference = Self::num_bits_differing(masked_format_info1, target_info);
             if bits_difference < best_difference {
-                best_format_info = decodeInfo[1] as u8;
+                best_format_info = decode_info[1] as u8;
                 best_difference = bits_difference;
             }
             if masked_format_info1 != masked_format_info2 {
                 // also try the other option
-                bits_difference = Self::numBitsDiffering(masked_format_info2, targetInfo);
+                bits_difference = Self::num_bits_differing(masked_format_info2, target_info);
                 if bits_difference < best_difference {
-                    best_format_info = decodeInfo[1] as u8;
+                    best_format_info = decode_info[1] as u8;
                     best_difference = bits_difference;
                 }
             }
@@ -176,11 +176,11 @@ impl FormatInformation {
         None
     }
 
-    pub fn getErrorCorrectionLevel(&self) -> ErrorCorrectionLevel {
+    pub fn get_error_correction_level(&self) -> ErrorCorrectionLevel {
         self.error_correction_level
     }
 
-    pub fn getDataMask(&self) -> u8 {
+    pub fn get_data_mask(&self) -> u8 {
         self.data_mask
     }
 }

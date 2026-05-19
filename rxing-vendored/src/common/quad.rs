@@ -117,7 +117,7 @@ impl Quadrilateral {
         let mut sign = false;
 
         let mut m = f32::INFINITY;
-        let mut M = 0.0_f32;
+        let mut max_cross = 0.0_f32;
 
         for i in 0..N {
             let d1 = self.0[(i + 2) % N] - self.0[(i + 1) % N];
@@ -125,7 +125,7 @@ impl Quadrilateral {
             let cp = d1.cross(d2);
 
             m = f32::min(m, cp.abs());
-            M = f32::max(M, cp.abs());
+            max_cross = f32::max(max_cross, cp.abs());
 
             if i == 0 {
                 sign = cp > 0.0;
@@ -141,7 +141,11 @@ impl Quadrilateral {
         // for the complete existing sample set. For very "skewed" QRCodes a value of
         // around 3 is realistic. A value of 14 has been observed to trigger the
         // instability.
-        M / m < 4.0
+        if !m.is_finite() || m <= f32::EPSILON {
+            return false;
+        }
+
+        max_cross / m < 4.0
     }
 
     #[allow(dead_code)]

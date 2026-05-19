@@ -37,12 +37,12 @@ impl RegressionLineTrait for DMRegressionLine {
         }
     }
 
-    fn isValid(&self) -> bool {
+    fn is_valid(&self) -> bool {
         !self.a.is_nan()
     }
 
     fn normal(&self) -> Point {
-        if self.isValid() {
+        if self.is_valid() {
             Point {
                 x: self.a,
                 y: self.b,
@@ -52,12 +52,12 @@ impl RegressionLineTrait for DMRegressionLine {
         }
     }
 
-    fn signedDistance(&self, p: Point) -> f32 {
+    fn signed_distance(&self, p: Point) -> f32 {
         Point::dot(self.normal(), p) - self.c
     }
 
     fn distance_single(&self, p: Point) -> f32 {
-        (self.signedDistance(p)).abs()
+        (self.signed_distance(p)).abs()
     }
 
     fn reset(&mut self) {
@@ -83,27 +83,27 @@ impl RegressionLineTrait for DMRegressionLine {
         self.points.pop();
     }
 
-    fn setDirectionInward(&mut self, d: Point) {
+    fn set_direction_inward(&mut self, d: Point) {
         self.direction_inward = Point::normalized(d);
     }
 
     fn evaluate_max_distance(
         &mut self,
-        maxSignedDist: Option<f64>,
-        updatePoints: Option<bool>,
+        max_signed_dist: Option<f64>,
+        update_points: Option<bool>,
     ) -> bool {
-        let maxSignedDist = maxSignedDist.unwrap_or(-1.0);
-        let updatePoints = updatePoints.unwrap_or_default();
+        let max_signed_dist = max_signed_dist.unwrap_or(-1.0);
+        let update_points = update_points.unwrap_or_default();
 
-        let mut ret = self.evaluateSelf();
-        if maxSignedDist > 0.0 {
+        let mut ret = self.evaluate_self();
+        if max_signed_dist > 0.0 {
             let mut points = self.points.clone();
             loop {
                 let old_points_size = points.len();
                 // remove points that are further 'inside' than maxSignedDist or further 'outside' than 2 x maxSignedDist
                 points.retain(|&p| {
-                    let sd = self.signedDistance(p) as f64;
-                    !(sd > maxSignedDist || sd < -2.0 * maxSignedDist)
+                    let sd = self.signed_distance(p) as f64;
+                    !(sd > max_signed_dist || sd < -2.0 * max_signed_dist)
                 });
                 if old_points_size == points.len() {
                     break;
@@ -111,14 +111,14 @@ impl RegressionLineTrait for DMRegressionLine {
                 ret = self.evaluate(&points);
             }
 
-            if updatePoints {
+            if update_points {
                 self.points = points;
             }
         }
         ret
     }
 
-    fn isHighRes(&self) -> bool {
+    fn is_high_res(&self) -> bool {
         let Some(mut min) = self.points.first().copied() else {
             return false;
         };
@@ -171,7 +171,7 @@ impl RegressionLineTrait for DMRegressionLine {
         Point::dot(self.direction_inward, self.normal()) > 0.5
     }
 
-    fn evaluateSelf(&mut self) -> bool {
+    fn evaluate_self(&mut self) -> bool {
         let points = std::mem::take(&mut self.points);
         let result = self.evaluate(&points);
         self.points = points;

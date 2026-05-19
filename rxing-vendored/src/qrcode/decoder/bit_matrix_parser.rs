@@ -91,7 +91,7 @@ impl BitMatrixParser {
         }
 
         self.parsedFormatInfo =
-            FormatInformation::decodeFormatInformation(formatInfoBits1, formatInfoBits2);
+            FormatInformation::decode_format_information(formatInfoBits1, formatInfoBits2);
 
         self.parsedFormatInfo.as_ref().ok_or(Exceptions::FORMAT)
     }
@@ -175,7 +175,7 @@ impl BitMatrixParser {
 
         // Get the data mask for the format used in this QR Code. This will exclude
         // some bits from reading as we wind through the bit matrix.
-        let dataMask: DataMask = self.readFormatInformation()?.getDataMask().try_into()?;
+        let dataMask: DataMask = self.readFormatInformation()?.get_data_mask().try_into()?;
         let dimension = self.bitMatrix.getHeight();
         dataMask.unmaskBitMatrix(&mut self.bitMatrix, dimension);
 
@@ -236,7 +236,7 @@ impl BitMatrixParser {
      */
     pub fn remask(&mut self) -> Result<()> {
         if let Some(pfi) = &self.parsedFormatInfo {
-            let dataMask: DataMask = pfi.getDataMask().try_into()?;
+            let dataMask: DataMask = pfi.get_data_mask().try_into()?;
             let dimension = self.bitMatrix.getHeight();
             dataMask.unmaskBitMatrix(&mut self.bitMatrix, dimension);
         } else {

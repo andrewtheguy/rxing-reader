@@ -37,7 +37,7 @@ impl FormatInformation {
         fi.error_correction_level =
             ErrorCorrectionLevel::ECLevelFromBits((fi.data >> 3) as u8 & 0x03, false);
         fi.data_mask = fi.data as u8 & 0x07;
-        fi.isMirrored = fi.bitsIndex > 1;
+        fi.is_mirrored = fi.bits_index > 1;
 
         fi
     }
@@ -55,8 +55,8 @@ impl FormatInformation {
         fi.error_correction_level =
             ErrorCorrectionLevel::ECLevelFromBits((fi.data >> 2) as u8 & 0x07, true);
         fi.data_mask = fi.data as u8 & 0x03;
-        fi.microVersion = BITS_TO_VERSION[((fi.data >> 2) as u8 & 0x07) as usize] as u32;
-        fi.isMirrored = fi.bitsIndex == 1;
+        fi.micro_version = BITS_TO_VERSION[((fi.data >> 2) as u8 & 0x07) as usize] as u32;
+        fi.is_mirrored = fi.bits_index == 1;
 
         fi
     }
@@ -77,8 +77,8 @@ impl FormatInformation {
         fi.error_correction_level =
             ErrorCorrectionLevel::ECLevelFromBits(((fi.data >> 5) as u8 & 1) << 1, false); // Shift to match QRCode M/H
         fi.data_mask = 4; // ((y / 2) + (x / 3)) % 2 == 0
-        fi.microVersion = (fi.data & 0x1F) + 1;
-        fi.isMirrored = false; // TODO: implement mirrored format bit reading
+        fi.micro_version = (fi.data & 0x1F) + 1;
+        fi.is_mirrored = false; // TODO: implement mirrored format bit reading
 
         fi
     }
@@ -99,17 +99,17 @@ impl FormatInformation {
         ];
 
         for mask in masks {
-            for (bitsIndex, bitsItem) in bits.iter().enumerate() {
+            for (bits_index, bits_item) in bits.iter().enumerate() {
                 for ref_pattern in MODEL2_MASKED_PATTERNS {
                     // 'unmask' the pattern first to get the original 5-data bits + 10-ec bits back
                     let pattern = ref_pattern ^ FORMAT_INFO_MASK_MODEL2;
                     // Find the pattern with fewest bits differing
-                    let hammingDist = ((bitsItem ^ mask) ^ pattern).count_ones();
-                    if hammingDist < fi.hammingDistance {
+                    let hamming_dist = ((bits_item ^ mask) ^ pattern).count_ones();
+                    if hamming_dist < fi.hamming_distance {
                         fi.mask = *mask; // store the used mask to discriminate between types/models
                         fi.data = pattern >> 10; // drop the 10 BCH error correction bits
-                        fi.hammingDistance = hammingDist;
-                        fi.bitsIndex = bitsIndex as u8;
+                        fi.hamming_distance = hamming_dist;
+                        fi.bits_index = bits_index as u8;
                     }
                 }
             }
@@ -146,17 +146,17 @@ impl FormatInformation {
         let mut fi = FormatInformation::default();
 
         let mut best = |bits: &[u32], &patterns: &[u32; 64], mask: u32| {
-            for (bitsIndex, bitsItem) in bits.iter().enumerate() {
+            for (bits_index, bits_item) in bits.iter().enumerate() {
                 for l_pattern in patterns {
                     // 'unmask' the pattern first to get the original 6-data bits + 12-ec bits back
                     let pattern = l_pattern ^ mask;
                     // Find the pattern with fewest bits differing
-                    let hammingDist = ((bitsItem ^ mask) ^ pattern).count_ones();
-                    if hammingDist < fi.hammingDistance {
+                    let hamming_dist = ((bits_item ^ mask) ^ pattern).count_ones();
+                    if hamming_dist < fi.hamming_distance {
                         fi.mask = mask; // store the used mask to discriminate between types/models
                         fi.data = pattern >> 12; // drop the 12 BCH error correction bits
-                        fi.hammingDistance = hammingDist;
-                        fi.bitsIndex = bitsIndex as u8;
+                        fi.hamming_distance = hamming_dist;
+                        fi.bits_index = bits_index as u8;
                     }
                 }
             }
@@ -183,7 +183,7 @@ impl FormatInformation {
 
     // Hamming distance of the 32 masked codes is 7 (64 and 8 for rMQR), by construction, so <= 3 bits differing means we found a match
     pub const fn isValid(&self) -> bool {
-        self.hammingDistance <= 3
+        self.hamming_distance <= 3
     }
 
     pub fn cpp_eq(&self, other: &Self) -> bool {

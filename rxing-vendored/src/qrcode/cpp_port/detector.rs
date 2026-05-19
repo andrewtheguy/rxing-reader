@@ -29,7 +29,7 @@ use crate::{
 
 use super::Type;
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct FinderPatternSet {
     pub bl: ConcentricPattern,
     pub tl: ConcentricPattern,
@@ -319,7 +319,7 @@ pub fn TraceLine(
 ) -> Result<impl RegressionLineTrait> {
     let mut cur = EdgeTracer::new(image, p, d - p);
     let mut line = RegressionLine::default();
-    line.setDirectionInward(cur.back());
+    line.set_direction_inward(cur.back());
 
     // collect points inside the black line -> backup on 3rd edge
     cur.stepToEdge(Some(edge), Some(0), Some(edge == 3));
@@ -440,7 +440,10 @@ pub fn ReadVersion(
         for y in (0..=5).rev() {
             for x in ((dimension - 11)..=(dimension - 9)).rev() {
                 let mod_ = if mirror { point_i(y, x) } else { point_i(x, y) };
-                let pix = mod2Pix.transform_point((mod_).centered());
+                let Some(pix) = mod2Pix.transform_point((mod_).centered()) else {
+                    versionBits = -1;
+                    continue;
+                };
                 if !image.is_in(pix) {
                     versionBits = -1;
                 } else {
@@ -498,7 +501,7 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
     let tr2 = TraceLine(image, fp.tr.p, fp.tl.p, 2)?;
     let tr3 = TraceLine(image, fp.tr.p, fp.tl.p, 3)?;
 
-    if bl2.isValid() && tr2.isValid() && bl3.isValid() && tr3.isValid() {
+    if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
         let brInter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Exceptions::NOT_FOUND)?
             + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Exceptions::NOT_FOUND)?)
@@ -514,7 +517,7 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
         // as the best estimate (see discussion in #199 and test image estimate-tilt.jpg )
         if !image.is_in(br.p)
             && (EstimateTilt(fp) > 1.1
-                || (bl2.isHighRes() && bl3.isHighRes() && tr2.isHighRes() && tr3.isHighRes()))
+                || (bl2.is_high_res() && bl3.is_high_res() && tr2.is_high_res() && tr3.is_high_res()))
         {
             br = brInter.into();
         }
@@ -554,28 +557,31 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
         let N = (apM.len()) - 1;
 
         // project the alignment pattern at module coordinates x/y to pixel coordinate based on current mod2Pix
-        let projectM2P = |x, y, mod2Pix: &PerspectiveTransform| {
-            mod2Pix.transform_point(Point::centered(point_i(apM[x], apM[y])))
+        let projectM2P = |x, y, mod2Pix: &PerspectiveTransform| -> Result<Point> {
+            mod2Pix
+                .transform_point(Point::centered(point_i(apM[x], apM[y])))
+                .ok_or(Exceptions::NOT_FOUND)
         };
 
-        let mut findInnerCornerOfConcentricPattern = |x, y, fp: ConcentricPattern| {
-            let pc = apP.set(x, y, projectM2P(x, y, &mod2Pix));
+        let mut findInnerCornerOfConcentricPattern = |x, y, fp: ConcentricPattern| -> Result<()> {
+            let pc = apP.set(x, y, projectM2P(x, y, &mod2Pix)?)?;
             if let Some(fpQuad) = FindConcentricPatternCorners(image, fp.p, fp.size, 2) {
                 for c in fpQuad.0 {
                     if Point::distance(c, pc) < (fp.size as f32) / 2.0 {
-                        apP.set(x, y, c);
+                        apP.set(x, y, c)?;
                     }
                 }
             }
+            Ok(())
         };
 
-        findInnerCornerOfConcentricPattern(0, 0, fp.tl);
-        findInnerCornerOfConcentricPattern(0, N, fp.bl);
-        findInnerCornerOfConcentricPattern(N, 0, fp.tr);
+        findInnerCornerOfConcentricPattern(0, 0, fp.tl)?;
+        findInnerCornerOfConcentricPattern(0, N, fp.bl)?;
+        findInnerCornerOfConcentricPattern(N, 0, fp.tr)?;
 
-        let bestGuessAPP = |x, y, apP: &Matrix<Point>| {
+        let bestGuessAPP = |x, y, apP: &Matrix<Point>| -> Result<Point> {
             if let Some(p) = apP.get(x, y) {
-                return p;
+                return Ok(p);
             }
             projectM2P(x, y, &mod2Pix)
         };
@@ -587,13 +593,13 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
                 }
 
                 let guessed = if x * y == 0 {
-                    bestGuessAPP(x, y, &apP)
+                    bestGuessAPP(x, y, &apP)?
                 } else {
-                    bestGuessAPP(x - 1, y, &apP) + bestGuessAPP(x, y - 1, &apP)
-                        - bestGuessAPP(x - 1, y - 1, &apP)
+                    bestGuessAPP(x - 1, y, &apP)? + bestGuessAPP(x, y - 1, &apP)?
+                        - bestGuessAPP(x - 1, y - 1, &apP)?
                 };
                 if let Some(found) = LocateAlignmentPattern(image, moduleSize, guessed) {
-                    apP.set(x, y, found);
+                    apP.set(x, y, found)?;
                 }
             }
         }
@@ -640,7 +646,7 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
                     .ok_or(Exceptions::ILLEGAL_STATE)?;
                     let found = LocateAlignmentPattern(image, moduleSize, guessed);
                     // search again near that intersection and if the search fails, use the intersection
-                    apP.set(x, y, if let Some(f) = found { f } else { guessed });
+                    apP.set(x, y, if let Some(f) = found { f } else { guessed })?;
                 }
             }
         }
@@ -661,7 +667,7 @@ pub fn SampleQR(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetect
                     continue;
                 }
 
-                apP.set(x, y, projectM2P(x, y, &mod2Pix));
+                apP.set(x, y, projectM2P(x, y, &mod2Pix)?)?;
             }
         }
 
@@ -757,8 +763,9 @@ pub fn SampleMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetec
         )?;
 
         let check = |i, checkOne: bool| {
-            let p = mod2Pix.transform_point(Point::centered(FORMAT_INFO_COORDS[i]));
-            image.is_in(p) && (!checkOne || image.get_point(p))
+            mod2Pix
+                .transform_point(Point::centered(FORMAT_INFO_COORDS[i]))
+                .is_some_and(|p| image.is_in(p) && (!checkOne || image.get_point(p)))
         };
 
         // check that we see both innermost timing pattern modules
@@ -770,12 +777,14 @@ pub fn SampleMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetec
         for info_coord in FORMAT_INFO_COORDS.iter().take(15 + 1).skip(1) {
             AppendBit(
                 &mut formatInfoBits,
-                cur.blackAt(mod2Pix.transform_point(Point::centered(*info_coord))),
+                mod2Pix
+                    .transform_point(Point::centered(*info_coord))
+                    .is_some_and(|p| cur.blackAt(p)),
             );
         }
 
         let fi = FormatInformation::DecodeMQR(formatInfoBits as u32);
-        if fi.hammingDistance < bestFI.hammingDistance {
+        if fi.hamming_distance < bestFI.hamming_distance {
             bestFI = fi;
             bestPT = mod2Pix;
         }
@@ -785,7 +794,7 @@ pub fn SampleMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetec
         return Err(Exceptions::NOT_FOUND);
     }
 
-    let dim: u32 = Version::SymbolSize(bestFI.microVersion, Type::Micro).x as u32;
+    let dim: u32 = Version::SymbolSize(bestFI.micro_version, Type::Micro).x as u32;
 
     // check that we are in fact not looking at a corner of a non-micro QRCode symbol
     // we accept at most 1/3rd black pixels in the quite zone (in a QRCode symbol we expect about 1/2).
@@ -793,8 +802,12 @@ pub fn SampleMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetec
     for i in 0..dim {
         let px = bestPT.transform_point(Point::centered(point_i(i, dim)));
         let py = bestPT.transform_point(Point::centered(point_i(dim, i)));
-        blackPixels += u32::from(cur.blackAt(px) && cur.blackAt(py))
-            + u32::from(image.is_in(py) && image.get_point(py));
+        if let Some(px) = px {
+            blackPixels += u32::from(cur.blackAt(px));
+        }
+        if let Some(py) = py {
+            blackPixels += u32::from(cur.blackAt(py) || (image.is_in(py) && image.get_point(py)));
+        }
     }
     if blackPixels > 2 * dim / 3 {
         return Err(Exceptions::NOT_FOUND);
@@ -856,8 +869,9 @@ pub fn SampleRMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
         )?;
 
         let check = |i: usize, on: bool| {
-            cur.testAt(mod2Pix.transform_point(Point::centered(FORMAT_INFO_EDGE_COORDS[i])))
-                == Value::from(on)
+            mod2Pix
+                .transform_point(Point::centered(FORMAT_INFO_EDGE_COORDS[i]))
+                .is_some_and(|p| cur.testAt(p) == Value::from(on))
         };
 
         // check that we see top edge timing pattern modules
@@ -869,12 +883,14 @@ pub fn SampleRMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
         for coord in FORMAT_INFO_COORDS {
             AppendBit(
                 &mut formatInfoBits,
-                cur.blackAt(mod2Pix.transform_point(Point::centered(coord))),
+                mod2Pix
+                    .transform_point(Point::centered(coord))
+                    .is_some_and(|p| cur.blackAt(p)),
             );
         }
 
         let fi = FormatInformation::DecodeRMQR(formatInfoBits as u32, 0 /*formatInfoBits2*/);
-        if fi.hammingDistance < bestFI.hammingDistance {
+        if fi.hamming_distance < bestFI.hamming_distance {
             bestFI = fi;
             bestPT = mod2Pix;
         }
@@ -884,7 +900,7 @@ pub fn SampleRMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
         return Err(Exceptions::NOT_FOUND);
     }
 
-    let dim = Version::SymbolSize(bestFI.microVersion, Type::RectMicro);
+    let dim = Version::SymbolSize(bestFI.micro_version, Type::RectMicro);
 
     // TODO: this is a WIP
     let intersectQuads = |a: &Quadrilateral, b: &Quadrilateral| -> Result<Quadrilateral> {
@@ -945,11 +961,11 @@ pub fn SampleRMQR(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
         Ok(Quadrilateral::from([tl, tr, br, bl]))
     };
 
-    if let Some(found) = LocateAlignmentPattern(
-        image,
-        fp.size / 7,
-        bestPT.transform_point(Into::<Point>::into(dim) - point(3.0, 3.0)),
-    ) && let Some(spQuad) = FindConcentricPatternCorners(image, found, fp.size / 2, 1)
+    let alignment_estimate = bestPT
+        .transform_point(Into::<Point>::into(dim) - point(3.0, 3.0))
+        .ok_or(Exceptions::NOT_FOUND)?;
+    if let Some(found) = LocateAlignmentPattern(image, fp.size / 7, alignment_estimate)
+        && let Some(spQuad) = FindConcentricPatternCorners(image, found, fp.size / 2, 1)
     {
         let mut dest = intersectQuads(&fpQuad, &spQuad)?;
         if dim.y <= 9 {
