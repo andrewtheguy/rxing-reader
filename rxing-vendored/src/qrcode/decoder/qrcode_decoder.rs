@@ -180,12 +180,7 @@ fn decode_bitmatrix_parser_with_hints(
  * @throws ChecksumException if error correction fails
  */
 fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
-    let num_codewords = codeword_bytes.len();
-    // First read into an array of ints
-    let mut codewords_ints = vec![0u8; num_codewords];
-    codewords_ints[..num_codewords].copy_from_slice(&codeword_bytes[..num_codewords]);
-
-    let mut sending_code_words: Vec<i32> = codewords_ints.iter().map(|x| *x as i32).collect();
+    let mut sending_code_words: Vec<i32> = codeword_bytes.iter().map(|x| *x as i32).collect();
 
     if let Err(Exceptions::ReedSolomonException(error_str)) = RS_DECODER.decode(
         &mut sending_code_words,
