@@ -397,6 +397,10 @@ impl BitArray {
      * Reverses all bits in the array.
      */
     pub fn reverse(&mut self) {
+        if self.size == 0 {
+            return;
+        }
+
         // check if we've already done the rever operation once
         if self.reversed.is_some() {
             self.bits = self.reversed.replace(self.bits.clone()).unwrap();
