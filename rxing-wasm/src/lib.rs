@@ -65,15 +65,15 @@ fn decode_with_optional_invert<B: Binarizer>(
     if !results.is_empty() {
         return results;
     }
-    if try_invert {
-        if let Ok(matrix) = bitmap.get_black_matrix_mut() {
-            matrix.flip_self();
-            return collect_bytes(QrReader.decode_set_number_with_hints(
-                bitmap,
-                hints,
-                max_number_of_symbols,
-            ));
-        }
+    if try_invert
+        && let Ok(matrix) = bitmap.get_black_matrix_mut()
+    {
+        matrix.flip_self();
+        return collect_bytes(QrReader.decode_set_number_with_hints(
+            bitmap,
+            hints,
+            max_number_of_symbols,
+        ));
     }
     Vec::new()
 }
