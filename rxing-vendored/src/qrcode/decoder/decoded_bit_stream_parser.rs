@@ -64,12 +64,12 @@ pub fn decode(
         // While still another segment to read...
         if bits.available() < 4 {
             // OK, assume we're done. Really, a TERMINATOR mode should have been recorded here
-            mode = Mode::TERMINATOR;
+            mode = Mode::Terminator;
         } else {
             mode = Mode::for_bits(bits.read_bits(4)? as u8)?; // mode is encoded by 4 bits
         }
         match mode {
-            Mode::TERMINATOR => {}
+            Mode::Terminator => {}
             Mode::Fnc1FirstPosition => {
                 has_fnc1first = true; // symbology detection
                 // We do little with FNC1 except alter the parsed result a bit according to the spec
@@ -92,7 +92,7 @@ pub fn decode(
                 symbol_sequence = bits.read_bits(8)? as i32;
                 parity_data = bits.read_bits(8)? as i32;
             }
-            Mode::ECI => {
+            Mode::Eci => {
                 // Count doesn't apply to ECI
                 let value = parse_ecivalue(&mut bits)?;
                 current_character_set_eci = CharacterSet::from(value).into(); //CharacterSet::get_character_set_by_eci(value).ok();
@@ -102,7 +102,7 @@ pub fn decode(
                     )));
                 }
             }
-            Mode::HANZI => {
+            Mode::Hanzi => {
                 // First handle Hanzi mode which does not start with character count
                 // Chinese mode contains a sub set indicator right after mode indicator
                 let subset = bits.read_bits(4)?;
@@ -117,11 +117,11 @@ pub fn decode(
                 // How many characters will follow, encoded in this mode?
                 let count = bits.read_bits(mode.get_character_count_bits(version) as usize)? as usize;
                 match mode {
-                    Mode::NUMERIC => decode_numeric_segment(&mut bits, &mut result, count)?,
-                    Mode::ALPHANUMERIC => {
+                    Mode::Numeric => decode_numeric_segment(&mut bits, &mut result, count)?,
+                    Mode::Alphanumeric => {
                         decode_alphanumeric_segment(&mut bits, &mut result, count, fc1_in_effect)?
                     }
-                    Mode::BYTE => decode_byte_segment(
+                    Mode::Byte => decode_byte_segment(
                         &mut bits,
                         &mut result,
                         count,
@@ -129,13 +129,13 @@ pub fn decode(
                         &mut byte_segments,
                         hints,
                     )?,
-                    Mode::KANJI => decode_kanji_segment(&mut bits, &mut result, count)?,
+                    Mode::Kanji => decode_kanji_segment(&mut bits, &mut result, count)?,
                     _ => return Err(Exceptions::FORMAT),
                 }
             }
         }
 
-        if mode == Mode::TERMINATOR {
+        if mode == Mode::Terminator {
             break;
         }
     }

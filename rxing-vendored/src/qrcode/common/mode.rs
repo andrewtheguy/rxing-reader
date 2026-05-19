@@ -28,17 +28,17 @@ use super::Version;
  */
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Mode {
-    TERMINATOR,
-    NUMERIC,
-    ALPHANUMERIC,
+    Terminator,
+    Numeric,
+    Alphanumeric,
     StructuredAppend,
-    BYTE,
-    ECI,
-    KANJI,
+    Byte,
+    Eci,
+    Kanji,
     Fnc1FirstPosition,
     Fnc1SecondPosition,
     /** See GBT 18284-2000; "Hanzi" is a transliteration of this mode name. */
-    HANZI,
+    Hanzi,
 }
 
 impl Mode {
@@ -49,19 +49,19 @@ impl Mode {
      */
     pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
-            0x0 => Ok(Self::TERMINATOR),
-            0x1 => Ok(Self::NUMERIC),
-            0x2 => Ok(Self::ALPHANUMERIC),
+            0x0 => Ok(Self::Terminator),
+            0x1 => Ok(Self::Numeric),
+            0x2 => Ok(Self::Alphanumeric),
             0x3 => Ok(Self::StructuredAppend),
-            0x4 => Ok(Self::BYTE),
+            0x4 => Ok(Self::Byte),
             0x5 => Ok(Self::Fnc1FirstPosition),
-            0x7 => Ok(Self::ECI),
-            0x8 => Ok(Self::KANJI),
+            0x7 => Ok(Self::Eci),
+            0x8 => Ok(Self::Kanji),
             0x9 => Ok(Self::Fnc1SecondPosition),
             0xD =>
             // 0xD is defined in GBT 18284-2000, may not be supported in foreign country
             {
-                Ok(Self::HANZI)
+                Ok(Self::Hanzi)
             }
             _ => Err(Exceptions::illegal_argument_with(format!(
                 "{bits} is not valid"
@@ -89,31 +89,31 @@ impl Mode {
 
     fn get_character_counts(&self) -> &[u8] {
         match self {
-            Mode::TERMINATOR => &[0, 0, 0],
-            Mode::NUMERIC => &[10, 12, 14],
-            Mode::ALPHANUMERIC => &[9, 11, 13],
+            Mode::Terminator => &[0, 0, 0],
+            Mode::Numeric => &[10, 12, 14],
+            Mode::Alphanumeric => &[9, 11, 13],
             Mode::StructuredAppend => &[0, 0, 0],
-            Mode::BYTE => &[8, 16, 16],
-            Mode::ECI => &[0, 0, 0],
-            Mode::KANJI => &[8, 10, 12],
+            Mode::Byte => &[8, 16, 16],
+            Mode::Eci => &[0, 0, 0],
+            Mode::Kanji => &[8, 10, 12],
             Mode::Fnc1FirstPosition => &[0, 0, 0],
             Mode::Fnc1SecondPosition => &[0, 0, 0],
-            Mode::HANZI => &[8, 10, 12],
+            Mode::Hanzi => &[8, 10, 12],
         }
     }
 
     pub fn get_bits(&self) -> u8 {
         match self {
-            Mode::TERMINATOR => 0x00,
-            Mode::NUMERIC => 0x01,
-            Mode::ALPHANUMERIC => 0x02,
+            Mode::Terminator => 0x00,
+            Mode::Numeric => 0x01,
+            Mode::Alphanumeric => 0x02,
             Mode::StructuredAppend => 0x03,
-            Mode::BYTE => 0x04,
-            Mode::ECI => 0x07,
-            Mode::KANJI => 0x08,
+            Mode::Byte => 0x04,
+            Mode::Eci => 0x07,
+            Mode::Kanji => 0x08,
             Mode::Fnc1FirstPosition => 0x05,
             Mode::Fnc1SecondPosition => 0x09,
-            Mode::HANZI => 0x0D,
+            Mode::Hanzi => 0x0D,
         }
     }
 
@@ -144,20 +144,20 @@ impl Mode {
 
         if qr_type == Type::Micro {
             const BITS2MODE: [Mode; 4] =
-                [Mode::NUMERIC, Mode::ALPHANUMERIC, Mode::BYTE, Mode::KANJI];
+                [Mode::Numeric, Mode::Alphanumeric, Mode::Byte, Mode::Kanji];
             if bits < (BITS2MODE.len()) {
                 return Ok(BITS2MODE[bits]);
             }
         } else if qr_type == Type::RectMicro {
             const BITS2MODE: [Mode; 8] = [
-                Mode::TERMINATOR,
-                Mode::NUMERIC,
-                Mode::ALPHANUMERIC,
-                Mode::BYTE,
-                Mode::KANJI,
+                Mode::Terminator,
+                Mode::Numeric,
+                Mode::Alphanumeric,
+                Mode::Byte,
+                Mode::Kanji,
                 Mode::Fnc1FirstPosition,
                 Mode::Fnc1SecondPosition,
-                Mode::ECI,
+                Mode::Eci,
             ];
             if bits < (BITS2MODE.len()) {
                 return Ok(BITS2MODE[bits]);
@@ -178,16 +178,16 @@ impl Mode {
         let number = version.get_version_number() as usize;
         if version.is_micro() {
             return match self {
-                Mode::NUMERIC => [3, 4, 5, 6]
+                Mode::Numeric => [3, 4, 5, 6]
                     .get(number.wrapping_sub(1))
                     .copied()
                     .unwrap_or(0),
-                Mode::ALPHANUMERIC => [3, 4, 5]
+                Mode::Alphanumeric => [3, 4, 5]
                     .get(number.wrapping_sub(2))
                     .copied()
                     .unwrap_or(0),
-                Mode::BYTE => [4, 5].get(number.wrapping_sub(3)).copied().unwrap_or(0),
-                Mode::KANJI | Mode::HANZI => {
+                Mode::Byte => [4, 5].get(number.wrapping_sub(3)).copied().unwrap_or(0),
+                Mode::Kanji | Mode::Hanzi => {
                     [3, 4].get(number.wrapping_sub(3)).copied().unwrap_or(0)
                 }
                 _ => 0,
@@ -214,10 +214,10 @@ impl Mode {
             ];
             let idx = number.saturating_sub(1);
             match self {
-                Mode::NUMERIC => return NUMERIC.get(idx).copied().unwrap_or(0),
-                Mode::ALPHANUMERIC => return ALPHANUM.get(idx).copied().unwrap_or(0),
-                Mode::BYTE => return BYTE.get(idx).copied().unwrap_or(0),
-                Mode::KANJI => return KANJI.get(idx).copied().unwrap_or(0),
+                Mode::Numeric => return NUMERIC.get(idx).copied().unwrap_or(0),
+                Mode::Alphanumeric => return ALPHANUM.get(idx).copied().unwrap_or(0),
+                Mode::Byte => return BYTE.get(idx).copied().unwrap_or(0),
+                Mode::Kanji => return KANJI.get(idx).copied().unwrap_or(0),
                 _ => return 0,
             }
         }
@@ -231,11 +231,11 @@ impl Mode {
         };
 
         match self {
-	 Mode::NUMERIC=>      [10, 12, 14][i],
-	 Mode::ALPHANUMERIC=> [9, 11, 13][i],
-	 Mode::BYTE=>         [8, 16, 16][i],
-	 Mode::KANJI|    //    [[fallthrough]];
-	 Mode::HANZI=>        [8, 10, 12][i],
+	 Mode::Numeric=>      [10, 12, 14][i],
+	 Mode::Alphanumeric=> [9, 11, 13][i],
+	 Mode::Byte=>         [8, 16, 16][i],
+	 Mode::Kanji|    //    [[fallthrough]];
+	 Mode::Hanzi=>        [8, 10, 12][i],
 	_=>                     0,
 	}
     }

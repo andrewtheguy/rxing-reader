@@ -285,7 +285,7 @@ pub fn decode_bit_stream(
     let res = (|| {
         while !is_end_of_stream(&mut bits, version)? {
             let mode: Mode = if mode_bit_length == 0 {
-                Mode::NUMERIC // MicroQRCode version 1 is always NUMERIC and mode_bit_length is 0
+                Mode::Numeric // MicroQRCode version 1 is always NUMERIC and mode_bit_length is 0
             } else {
                 Mode::codec_mode_for_bits(
                     bits.read_bits(mode_bit_length as usize)?,
@@ -326,11 +326,11 @@ pub fn decode_bit_stream(
                     structured_append.count = bits.read_bits(4)? as i32 + 1;
                     structured_append.id = (bits.read_bits(8)?).to_string();
                 }
-                Mode::ECI => {
+                Mode::Eci => {
                     // Count doesn't apply to ECI
                     result.switch_encoding(parse_ecivalue(&mut bits)?.into(), true);
                 }
-                Mode::HANZI => {
+                Mode::Hanzi => {
                     // First handle Hanzi mode which does not start with character count
                     // chinese mode contains a sub set indicator right after mode indicator
                     let subset = bits.read_bits(4)?;
@@ -346,12 +346,12 @@ pub fn decode_bit_stream(
                     // How many characters will follow, encoded in this mode?
                     let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
                     match mode {
-                        Mode::NUMERIC => decode_numeric_segment(&mut bits, count, &mut result)?,
-                        Mode::ALPHANUMERIC => {
+                        Mode::Numeric => decode_numeric_segment(&mut bits, count, &mut result)?,
+                        Mode::Alphanumeric => {
                             decode_alphanumeric_segment(&mut bits, count, &mut result)?
                         }
-                        Mode::BYTE => decode_byte_segment(&mut bits, count, &mut result)?,
-                        Mode::KANJI => decode_kanji_segment(&mut bits, count, &mut result)?,
+                        Mode::Byte => decode_byte_segment(&mut bits, count, &mut result)?,
+                        Mode::Kanji => decode_kanji_segment(&mut bits, count, &mut result)?,
                         _ => return Err(Exceptions::format_with("Invalid CodecMode")),
                     };
                 }
