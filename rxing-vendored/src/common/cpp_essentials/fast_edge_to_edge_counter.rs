@@ -13,9 +13,17 @@ pub struct FastEdgeToEdgeCounter<'a> {
 impl FastEdgeToEdgeCounter<'_> {
     pub fn new<T: BitMatrixCursorTrait>(cur: &'_ T) -> FastEdgeToEdgeCounter<'_> {
         let stride = cur.d().y as isize * cur.img().width() as isize + cur.d().x as isize;
-        // NOTE: P IS SET WRONG IN REVERSE
-        let p = ((cur.p().y as isize * cur.img().width() as isize).abs() as i32 + cur.p().x as i32)
-            as u32;
+        // Cursor positions use the BitMatrix row-major index. Keep row/column
+        // signed until after the bounds check so negative rows do not mirror to
+        // a different row during reverse traversal.
+        let width = cur.img().width() as isize;
+        let height = cur.img().height() as isize;
+        let p = cur.p().y as isize * width + cur.p().x as isize;
+        assert!(
+            (0..width * height).contains(&p),
+            "FastEdgeToEdgeCounter: cursor position is outside the image"
+        );
+        let p = p as u32;
 
         let maxStepsX: i32 = if cur.d().x != 0.0 {
             if cur.d().x > 0.0 {

@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::Exceptions;
+
 use super::CharacterSet;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -46,9 +48,17 @@ impl Eci {
     }
 }
 
-impl From<u32> for Eci {
-    fn from(value: u32) -> Self {
-        (value as i32).into()
+impl TryFrom<u32> for Eci {
+    type Error = Exceptions;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value <= i32::MAX as u32 {
+            Ok((value as i32).into())
+        } else {
+            Err(Exceptions::illegal_argument_with(format!(
+                "ECI value {value} exceeds i32::MAX"
+            )))
+        }
     }
 }
 
@@ -177,5 +187,16 @@ impl From<Eci> for CharacterSet {
 impl Display for Eci {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", *self as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Eci;
+
+    #[test]
+    fn try_from_u32_rejects_values_that_cannot_fit_i32() {
+        assert_eq!(Eci::try_from(26_u32).unwrap(), Eci::UTF8);
+        assert!(Eci::try_from(i32::MAX as u32 + 1).is_err());
     }
 }

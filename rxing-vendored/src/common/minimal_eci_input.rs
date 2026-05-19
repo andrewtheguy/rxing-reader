@@ -162,7 +162,7 @@ impl ECIInput for MinimalECIInput {
                 "value at {index} is not an ECI but a character"
             )));
         }
-        Ok(Eci::from(self.bytes[index] as u32 - 256))
+        Eci::try_from(self.bytes[index] as u32 - 256)
     }
 
     fn haveNCharacters(&self, index: usize, n: usize) -> Result<bool> {
@@ -263,7 +263,7 @@ impl MinimalECIInput {
         from: usize,
         previous: Option<Arc<InputEdge>>,
         fnc1: Option<&str>,
-    ) {
+    ) -> Result<()> {
         let ch = stringToEncode[from];
 
         let mut start = 0;
@@ -282,13 +282,15 @@ impl MinimalECIInput {
                 && ch.chars().next().unwrap() == fnc1.as_ref().unwrap().chars().next().unwrap())
                 || encoderSet.canEncode(ch, i).unwrap()
             {
+                let edge = InputEdge::new(ch, encoderSet, i, previous.clone(), fnc1)?;
                 Self::addEdge(
                     edges,
                     from + 1,
-                    Arc::new(InputEdge::new(ch, encoderSet, i, previous.clone(), fnc1)),
+                    Arc::new(edge),
                 );
             }
         }
+        Ok(())
     }
 
     /// Minimially encode a string with the given characterset.
@@ -303,13 +305,13 @@ impl MinimalECIInput {
 
         // Array that represents vertices. There is a vertex for every character and encoding.
         let mut edges = vec![vec![None; encoderSet.len()]; inputLength + 1];
-        Self::addEdges(stringToEncode, encoderSet, &mut edges, 0, None, fnc1);
+        Self::addEdges(stringToEncode, encoderSet, &mut edges, 0, None, fnc1)?;
 
         for i in 1..=inputLength {
             for j in 0..encoderSet.len() {
                 if edges[i][j].is_some() && i < inputLength {
                     let edg = edges[i][j].clone();
-                    Self::addEdges(stringToEncode, encoderSet, &mut edges, i, edg, fnc1);
+                    Self::addEdges(stringToEncode, encoderSet, &mut edges, i, edg, fnc1)?;
                 }
             }
             //optimize memory by removing edges that have been passed.
@@ -378,11 +380,23 @@ impl InputEdge {
         encoderIndex: usize,
         previous: Option<Arc<InputEdge>>,
         fnc1: Option<&str>,
-    ) -> Self {
+    ) -> Result<Self> {
+        let c = if fnc1.is_some_and(|fnc1| c == fnc1) {
+            Self::FNC1_UNICODE
+        } else {
+            c
+        };
         let mut size = if c == Self::FNC1_UNICODE {
             1
         } else {
-            encoderSet.encode_char(c, encoderIndex).unwrap().len()
+            encoderSet
+                .encode_char(c, encoderIndex)
+                .ok_or_else(|| {
+                    Exceptions::illegal_argument_with(format!(
+                        "failed to encode \"{c}\" with encoder index {encoderIndex}"
+                    ))
+                })?
+                .len()
         };
 
         if let Some(prev) = previous {
@@ -392,32 +406,24 @@ impl InputEdge {
             }
             size += prev.cachedTotalSize;
 
-            Self {
-                c: if fnc1.is_some() && &c == fnc1.as_ref().unwrap() {
-                    String::from(Self::FNC1_UNICODE)
-                } else {
-                    String::from(c)
-                },
+            Ok(Self {
+                c: String::from(c),
                 encoderIndex,
                 previous: Some(prev),
                 cachedTotalSize: size,
-            }
+            })
         } else {
             let previousEncoderIndex = 0;
             if previousEncoderIndex != encoderIndex {
                 size += COST_PER_ECI;
             }
 
-            Self {
-                c: if fnc1.is_some() && &c == fnc1.as_ref().unwrap() {
-                    String::from(Self::FNC1_UNICODE)
-                } else {
-                    String::from(c)
-                },
+            Ok(Self {
+                c: String::from(c),
                 encoderIndex,
                 previous: None,
                 cachedTotalSize: size,
-            }
+            })
         }
     }
 

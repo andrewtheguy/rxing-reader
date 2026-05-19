@@ -61,23 +61,21 @@ impl QrReader {
                 if let Ok(detectorResult) = detectorResult {
                     let decoderResult = Decode(detectorResult.getBits());
                     let position = detectorResult.getPoints();
-                    if let Ok(decoderResult) = decoderResult {
-                        if decoderResult.isValid() {
-                            usedFPs.push(fpSet.bl);
-                            usedFPs.push(fpSet.tl);
-                            usedFPs.push(fpSet.tr);
-                        }
+                    if let Ok(decoderResult) = decoderResult
+                        && decoderResult.isValid()
+                    {
+                        usedFPs.push(fpSet.bl);
+                        usedFPs.push(fpSet.tl);
+                        usedFPs.push(fpSet.tr);
 
-                        if decoderResult.isValid() {
-                            results.push(RXingResult::with_decoder_result_bytes_only(
-                                decoderResult,
-                                position,
-                                BarcodeFormat::QR_CODE,
-                            ));
+                        results.push(RXingResult::with_decoder_result_bytes_only(
+                            decoderResult,
+                            position,
+                            BarcodeFormat::QR_CODE,
+                        ));
 
-                            if maxSymbols != 0 && (results.len() as u32) == maxSymbols {
-                                break;
-                            }
+                        if maxSymbols != 0 && (results.len() as u32) == maxSymbols {
+                            break;
                         }
                     }
                 }

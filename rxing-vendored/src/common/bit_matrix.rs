@@ -79,6 +79,15 @@ impl BitMatrix {
         })
     }
 
+    const fn empty() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+            row_size: 0,
+            bits: Vec::new(),
+        }
+    }
+
     #[allow(dead_code)]
     const fn with_all_data(
         &self,
@@ -102,9 +111,22 @@ impl BitMatrix {
      * @return {@code BitMatrix} representation of image
      */
     pub fn parse_bools(image: &[Vec<bool>]) -> Self {
-        let height: u32 = image.len().try_into().unwrap();
-        let width: u32 = image[0].len().try_into().unwrap();
-        let mut bits = BitMatrix::new(width, height).unwrap();
+        let Some(first_row) = image.first() else {
+            return Self::empty();
+        };
+        let Ok(height) = image.len().try_into() else {
+            return Self::empty();
+        };
+        let Ok(width) = first_row.len().try_into() else {
+            return Self::empty();
+        };
+        if width == 0 || height == 0 {
+            return Self::empty();
+        }
+
+        let Ok(mut bits) = BitMatrix::new(width, height) else {
+            return Self::empty();
+        };
         for (i, imageI) in image.iter().enumerate().take(height as usize) {
             for (j, imageI_j) in imageI.iter().enumerate().take(width as usize) {
                 if *imageI_j {
@@ -684,5 +706,31 @@ impl From<&BitMatrix> for Vec<bool> {
             }
         }
         arr
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BitMatrix;
+
+    #[test]
+    fn parse_bools_handles_empty_input() {
+        let image: Vec<Vec<bool>> = Vec::new();
+        let matrix = BitMatrix::parse_bools(&image);
+
+        assert_eq!(matrix.width(), 0);
+        assert_eq!(matrix.height(), 0);
+    }
+
+    #[test]
+    fn parse_bools_uses_first_row_width_when_setting_bits() {
+        let matrix = BitMatrix::parse_bools(&[vec![true, false], vec![false, true]]);
+
+        assert_eq!(matrix.width(), 2);
+        assert_eq!(matrix.height(), 2);
+        assert!(matrix.get(0, 0));
+        assert!(!matrix.get(1, 0));
+        assert!(!matrix.get(0, 1));
+        assert!(matrix.get(1, 1));
     }
 }

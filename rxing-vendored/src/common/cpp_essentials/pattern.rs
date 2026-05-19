@@ -469,9 +469,14 @@ pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPAR
     module_size_ref: f32,
 ) -> f32 {
     let mut module_size_ref = module_size_ref;
+    let view_data: &[PatternType] = view.into();
+    let pattern_data = pattern.as_slice();
+    if view_data.len() < LEN {
+        return 0.0;
+    }
 
     if E2E {
-        let widths = BarAndSpaceSum::<LEN, PatternType, f64>(view.into());
+        let widths = BarAndSpaceSum::<LEN, PatternType, f64>(view_data);
         let sums = pattern.sums();
         let modSize: BarAndSpace<f64> = BarAndSpace {
             bar: widths[0] / sums[0] as f64,
@@ -499,7 +504,7 @@ pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPAR
         };
 
         for x in 0..LEN {
-            if (view[x] as f64 - pattern[x] as f64 * modSize[x]).abs() > thr[x] {
+            if (view_data[x] as f64 - pattern_data[x] as f64 * modSize[x]).abs() > thr[x] {
                 return 0.0;
             }
         }
@@ -531,7 +536,9 @@ pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPAR
     // TODO: review once we have upsampling in the binarizer in place.
 
     for x in 0..LEN {
-        if (Into::<f32>::into(view[x]) - Into::<f32>::into(pattern[x]) * module_size_ref).abs()
+        if (Into::<f32>::into(view_data[x])
+            - Into::<f32>::into(pattern_data[x]) * module_size_ref)
+            .abs()
             > threshold
         {
             return 0.0;
@@ -696,11 +703,11 @@ pub fn GetPatternRow<T: Into<PatternType> + Copy + Default + From<T>>(
 ) {
     p_row.0.clear();
 
-    if Color::from(p_row.0.first().copied().unwrap_or_default()) == Color::Black {
+    if Color::from(b_row.first().copied().unwrap_or_default()) == Color::Black {
         p_row.0.push(0);
     }
 
-    let mut current_color = Color::from(p_row.0.first().copied().unwrap_or_default());
+    let mut current_color = Color::from(b_row.first().copied().unwrap_or_default());
     let mut count = 0;
 
     for bit in b_row.iter() {
@@ -729,7 +736,7 @@ pub fn GetPatternRow<T: Into<PatternType> + Copy + Default + From<T>>(
 mod tests {
     use crate::common::cpp_essentials::PatternType;
 
-    use super::{GetPatternRow, PatternRow, PatternView};
+    use super::{FixedPattern, GetPatternRow, IsPattern, PatternRow, PatternView};
     const N: usize = 33;
 
     #[test]
@@ -786,6 +793,18 @@ mod tests {
             assert_eq!(pr.0[1], (N - s) as PatternType);
             assert_eq!(pr.0[2], 0);
         }
+    }
+
+    #[test]
+    fn is_pattern_returns_zero_for_short_view() {
+        let p_row = PatternRow::new(vec![1, 2]);
+        let view = PatternView::new(&p_row);
+        let pattern = FixedPattern::<3, 3, false>::new([1, 1, 1]);
+
+        assert_eq!(
+            IsPattern::<false, 3, 3, false>(&view, &pattern, None, 0.0, 0.0),
+            0.0
+        );
     }
 
     #[test]

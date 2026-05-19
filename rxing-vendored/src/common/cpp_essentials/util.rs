@@ -1,7 +1,7 @@
 use crate::common::Result;
 use crate::{Exceptions, Point};
 
-use super::{Direction, RegressionLineTrait};
+use super::{Direction, LINE_INTERSECTION_EPS, RegressionLineTrait};
 
 #[inline(always)]
 pub fn intersect<T: RegressionLineTrait, T2: RegressionLineTrait>(
@@ -12,7 +12,7 @@ pub fn intersect<T: RegressionLineTrait, T2: RegressionLineTrait>(
         return Err(Exceptions::ILLEGAL_STATE);
     }
     let d = l1.a() * l2.b() - l1.b() * l2.a();
-    if d.abs() < f32::EPSILON {
+    if d.abs() < LINE_INTERSECTION_EPS {
         return Err(Exceptions::ILLEGAL_STATE);
     }
     let x = (l1.c() * l2.b() - l1.b() * l2.c()) / d;

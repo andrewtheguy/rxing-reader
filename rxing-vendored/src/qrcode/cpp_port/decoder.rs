@@ -217,17 +217,17 @@ pub fn ParseECIValue(bits: &mut BitSource) -> Result<Eci> {
     let firstByte = bits.readBits(8)?;
     if (firstByte & 0x80) == 0 {
         // just one byte
-        return Ok(Eci::from(firstByte & 0x7F));
+        return Eci::try_from(firstByte & 0x7F);
     }
     if (firstByte & 0xC0) == 0x80 {
         // two bytes
         let secondByte = bits.readBits(8)?;
-        return Ok(Eci::from(((firstByte & 0x3F) << 8) | secondByte));
+        return Eci::try_from(((firstByte & 0x3F) << 8) | secondByte);
     }
     if (firstByte & 0xE0) == 0xC0 {
         // three bytes
         let secondThirdBytes = bits.readBits(16)?;
-        return Ok(Eci::from(((firstByte & 0x1F) << 16) | secondThirdBytes));
+        return Eci::try_from(((firstByte & 0x1F) << 16) | secondThirdBytes);
     }
     Err(Exceptions::format_with("ParseECIValue: invalid value"))
 }

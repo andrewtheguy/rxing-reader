@@ -207,12 +207,7 @@ impl BitArray {
      */
     pub fn setBulk(&mut self, i: usize, newBits: BaseType) {
         self.reversed = None;
-        let bits = if !i.is_multiple_of(BASE_BITS) {
-            newBits << i
-        } else {
-            newBits
-        };
-        self.bits[i / BASE_BITS] = bits;
+        self.bits[i / BASE_BITS] = newBits;
     }
 
     /**
@@ -489,10 +484,12 @@ impl From<&BitArray> for Vec<bool> {
 
 impl From<Vec<u8>> for BitArray {
     fn from(val: Vec<u8>) -> Self {
-        let mut new_array = BitArray::with_size(val.len());
-        for (pos, byte) in val.into_iter().enumerate() {
-            if byte != 0 {
-                new_array.set(pos)
+        let mut new_array = BitArray::with_size(val.len() * 8);
+        for (byte_idx, byte) in val.into_iter().enumerate() {
+            for bit in 0..8 {
+                if byte & (1 << (7 - bit)) != 0 {
+                    new_array.set(byte_idx * 8 + bit);
+                }
             }
         }
         new_array
@@ -564,5 +561,28 @@ impl std::io::Seek for BitArray {
         }
         self.read_offset = target as usize;
         Ok(target as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BASE_BITS, BitArray};
+
+    #[test]
+    fn vec_u8_round_trips_through_bit_array() {
+        let bytes = vec![0b1000_0001, 0b0101_1010, 0];
+        let bits = BitArray::from(bytes.clone());
+
+        assert_eq!(bits.get_size(), bytes.len() * 8);
+        assert_eq!(Vec::<u8>::from(bits), bytes);
+    }
+
+    #[test]
+    fn set_bulk_stores_new_bits_without_shifting() {
+        let mut bits = BitArray::with_size(BASE_BITS * 2);
+
+        bits.setBulk(5, 0b101);
+
+        assert_eq!(bits.getBitArray()[0], 0b101);
     }
 }
