@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     BarcodeFormat, Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource, RXingResult,
@@ -126,14 +126,14 @@ pub fn decode_inner(
         );
     }
 
-    let mut cur_luma = luma.to_vec();
+    let mut cur_luma: Arc<Vec<u8>> = Arc::new(luma.to_vec());
     let mut cur_w = width;
     let mut cur_h = height;
     loop {
+        let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h);
         for &close in &[false, true] {
-            let source = Luma8LuminanceSource::new(cur_luma.clone(), cur_w, cur_h);
             let results = decode_one_layer(
-                source,
+                source.clone(),
                 &hints,
                 use_hybrid_binarizer,
                 max_number_of_symbols,
@@ -150,8 +150,8 @@ pub fn decode_inner(
             return Vec::new();
         }
         let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(&cur_luma, cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR);
-        cur_luma = next_luma;
+            downscale_luma_buffer(cur_luma.as_slice(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR);
+        cur_luma = Arc::new(next_luma);
         cur_w = next_w;
         cur_h = next_h;
     }
