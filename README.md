@@ -10,11 +10,13 @@ Standalone Rust workspace for the QR reader used by `qrcodesecureshare`.
 ## Commands
 
 ```sh
+cargo clippy --workspace --all-targets
+cargo test --workspace
+
+cd rxing-wasm
 npm install
-npm run build:wasm
-npm run clippy
-npm test
+npm run build
 ```
 
-`npm run build:wasm` invokes the `wasm-pack` version pinned in `package-lock.json`
-and writes package artifacts to `rxing-wasm/pkg/`.
+`npm run build` (inside `rxing-wasm/`) invokes the `wasm-pack` version pinned in
+`rxing-wasm/package-lock.json` and writes package artifacts to `rxing-wasm/pkg/`.
