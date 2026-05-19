@@ -37,13 +37,13 @@ use super::AlignmentPattern;
  */
 pub struct AlignmentPatternFinder<'a> {
     image: &'a BitMatrix,
-    possibleCenters: Vec<AlignmentPattern>,
-    startX: u32,
-    startY: u32,
+    possible_centers: Vec<AlignmentPattern>,
+    start_x: u32,
+    start_y: u32,
     width: u32,
     height: u32,
-    moduleSize: f32,
-    resultPointCallback: Option<PointCallback>,
+    module_size: f32,
+    result_point_callback: Option<PointCallback>,
 }
 
 impl<'a> AlignmentPatternFinder<'a> {
@@ -51,30 +51,30 @@ impl<'a> AlignmentPatternFinder<'a> {
      * <p>Creates a finder that will look in a portion of the whole image.</p>
      *
      * @param image image to search
-     * @param startX left column from which to start searching
-     * @param startY top row from which to start searching
+     * @param start_x left column from which to start searching
+     * @param start_y top row from which to start searching
      * @param width width of region to search
      * @param height height of region to search
-     * @param moduleSize estimated module size so far
+     * @param module_size estimated module size so far
      */
     pub fn new(
         image: &'a BitMatrix,
-        startX: u32,
-        startY: u32,
+        start_x: u32,
+        start_y: u32,
         width: u32,
         height: u32,
-        moduleSize: f32,
-        resultPointCallback: Option<PointCallback>,
+        module_size: f32,
+        result_point_callback: Option<PointCallback>,
     ) -> Self {
         Self {
             image,
-            possibleCenters: Vec::with_capacity(5),
-            startX,
-            startY,
+            possible_centers: Vec::with_capacity(5),
+            start_x,
+            start_y,
             width,
             height,
-            moduleSize,
-            resultPointCallback,
+            module_size,
+            result_point_callback,
         }
     }
 
@@ -86,71 +86,71 @@ impl<'a> AlignmentPatternFinder<'a> {
      * @throws NotFoundException if not found
      */
     pub fn find(&mut self) -> Result<AlignmentPattern> {
-        let startX = self.startX;
+        let start_x = self.start_x;
         let height = self.height;
-        let maxJ = startX + self.width;
-        let middleI = self.startY + (height / 2);
+        let max_j = start_x + self.width;
+        let middle_i = self.start_y + (height / 2);
         // We are looking for black/white/black modules in 1:1:1 ratio;
         // this tracks the number of black/white/black modules seen so far
-        let mut stateCount = [0u32; 3];
-        for iGen in 0..height {
+        let mut state_count = [0u32; 3];
+        for i_gen in 0..height {
             // Search from middle outwards
-            let i = (middleI as i32
-                + (if (iGen & 0x01) == 0 {
-                    (iGen as i32 + 1) / 2
+            let i = (middle_i as i32
+                + (if (i_gen & 0x01) == 0 {
+                    (i_gen as i32 + 1) / 2
                 } else {
-                    -((iGen as i32 + 1) / 2)
+                    -((i_gen as i32 + 1) / 2)
                 })) as u32;
 
-            stateCount.fill(0);
+            state_count.fill(0);
 
-            let mut j = startX;
+            let mut j = start_x;
             // Burn off leading white pixels before anything else; if we start in the middle of
             // a white run, it doesn't make sense to count its length, since we don't know if the
             // white run continued to the left of the start point
-            while j < maxJ && !self.image.get(j, i) {
+            while j < max_j && !self.image.get(j, i) {
                 j += 1;
             }
-            let mut currentState = 0;
-            while j < maxJ {
+            let mut current_state = 0;
+            while j < max_j {
                 if self.image.get(j, i) {
                     // Black pixel
-                    if currentState == 1 {
+                    if current_state == 1 {
                         // Counting black pixels
-                        stateCount[1] += 1;
+                        state_count[1] += 1;
                     } else {
                         // Counting white pixels
-                        if currentState == 2 {
+                        if current_state == 2 {
                             // A winner?
-                            if self.foundPatternCross(&stateCount) {
+                            if self.found_pattern_cross(&state_count) {
                                 // Yes
                                 if let Some(confirmed) =
-                                    self.handlePossibleCenter(&stateCount, i, j)
+                                    self.handle_possible_center(&state_count, i, j)
                                 {
                                     return Ok(confirmed);
                                 }
                             }
-                            stateCount[0] = stateCount[2];
-                            stateCount[1] = 1;
-                            stateCount[2] = 0;
-                            currentState = 1;
+                            state_count[0] = state_count[2];
+                            state_count[1] = 1;
+                            state_count[2] = 0;
+                            current_state = 1;
                         } else {
-                            currentState += 1;
-                            stateCount[currentState] += 1;
+                            current_state += 1;
+                            state_count[current_state] += 1;
                         }
                     }
                 } else {
                     // White pixel
-                    if currentState == 1 {
+                    if current_state == 1 {
                         // Counting black pixels
-                        currentState += 1;
+                        current_state += 1;
                     }
-                    stateCount[currentState] += 1;
+                    state_count[current_state] += 1;
                 }
                 j += 1;
             }
-            if self.foundPatternCross(&stateCount)
-                && let Some(confirmed) = self.handlePossibleCenter(&stateCount, i, maxJ)
+            if self.found_pattern_cross(&state_count)
+                && let Some(confirmed) = self.handle_possible_center(&state_count, i, max_j)
             {
                 return Ok(confirmed);
             }
@@ -158,9 +158,9 @@ impl<'a> AlignmentPatternFinder<'a> {
 
         // Hmm, nothing we saw was observed and confirmed twice. If we had
         // any guess at all, return it.
-        if !self.possibleCenters.is_empty() {
+        if !self.possible_centers.is_empty() {
             Ok(*(self
-                .possibleCenters
+                .possible_centers
                 .first()
                 .ok_or(Exceptions::INDEX_OUT_OF_BOUNDS))?)
         } else {
@@ -173,20 +173,20 @@ impl<'a> AlignmentPatternFinder<'a> {
      * figures the location of the center of this black/white/black run.
      */
     #[inline]
-    fn centerFromEnd(stateCount: &[u32], end: u32) -> f32 {
-        (end as f32 - stateCount[2] as f32) - stateCount[1] as f32 / 2.0
+    fn center_from_end(state_count: &[u32], end: u32) -> f32 {
+        (end as f32 - state_count[2] as f32) - state_count[1] as f32 / 2.0
     }
 
     /**
-     * @param stateCount count of black/white/black pixels just read
+     * @param state_count count of black/white/black pixels just read
      * @return true iff the proportions of the counts is close enough to the 1/1/1 ratios
      *         used by alignment patterns to be considered a match
      */
-    fn foundPatternCross(&self, stateCount: &[u32]) -> bool {
-        let moduleSize = self.moduleSize;
-        let maxVariance = moduleSize / 2.0;
-        for state in stateCount.iter().take(3) {
-            if (moduleSize - *state as f32).abs() >= maxVariance {
+    fn found_pattern_cross(&self, state_count: &[u32]) -> bool {
+        let module_size = self.module_size;
+        let max_variance = module_size / 2.0;
+        for state in state_count.iter().take(3) {
+            if (module_size - *state as f32).abs() >= max_variance {
                 return false;
             }
         }
@@ -198,76 +198,76 @@ impl<'a> AlignmentPatternFinder<'a> {
      * "cross-checks" by scanning down vertically through the center of the possible
      * alignment pattern to see if the same proportion is detected.</p>
      *
-     * @param startI row where an alignment pattern was detected
-     * @param centerJ center of the section that appears to cross an alignment pattern
-     * @param maxCount maximum reasonable number of modules that should be
+     * @param start_i row where an alignment pattern was detected
+     * @param center_j center of the section that appears to cross an alignment pattern
+     * @param max_count maximum reasonable number of modules that should be
      * observed in any reading state, based on the results of the horizontal scan
      * @return vertical center of alignment pattern, or {@link Float#NaN} if not found
      */
-    fn crossCheckVertical(
+    fn cross_check_vertical(
         &self,
-        startI: u32,
-        centerJ: u32,
-        maxCount: u32,
-        originalStateCountTotal: u32,
+        start_i: u32,
+        center_j: u32,
+        max_count: u32,
+        original_state_count_total: u32,
     ) -> f32 {
         let image = &self.image;
 
-        let maxI = image.getHeight();
-        let mut crossCheckStateCount = [0u32; 3];
+        let max_i = image.get_height();
+        let mut cross_check_state_count = [0u32; 3];
 
         // Start counting up from center
-        let mut i = startI as i32;
-        while i >= 0 && image.get(centerJ, i as u32) && crossCheckStateCount[1] <= maxCount {
-            crossCheckStateCount[1] += 1;
+        let mut i = start_i as i32;
+        while i >= 0 && image.get(center_j, i as u32) && cross_check_state_count[1] <= max_count {
+            cross_check_state_count[1] += 1;
             i -= 1;
         }
         // If already too many modules in this state or ran off the edge:
-        if i < 0 || crossCheckStateCount[1] > maxCount {
+        if i < 0 || cross_check_state_count[1] > max_count {
             return f32::NAN;
         }
-        while i >= 0 && !image.get(centerJ, i as u32) && crossCheckStateCount[0] <= maxCount {
-            crossCheckStateCount[0] += 1;
+        while i >= 0 && !image.get(center_j, i as u32) && cross_check_state_count[0] <= max_count {
+            cross_check_state_count[0] += 1;
             i -= 1;
         }
-        if crossCheckStateCount[0] > maxCount {
+        if cross_check_state_count[0] > max_count {
             return f32::NAN;
         }
 
         // Now also count down from center
-        i = startI as i32 + 1;
-        while i < maxI as i32 && image.get(centerJ, i as u32) && crossCheckStateCount[1] <= maxCount
+        i = start_i as i32 + 1;
+        while i < max_i as i32 && image.get(center_j, i as u32) && cross_check_state_count[1] <= max_count
         {
-            crossCheckStateCount[1] += 1;
+            cross_check_state_count[1] += 1;
             i += 1;
         }
-        if i == maxI as i32 || crossCheckStateCount[1] > maxCount {
+        if i == max_i as i32 || cross_check_state_count[1] > max_count {
             return f32::NAN;
         }
-        while i < maxI as i32
-            && !image.get(centerJ, i as u32)
-            && crossCheckStateCount[2] <= maxCount
+        while i < max_i as i32
+            && !image.get(center_j, i as u32)
+            && cross_check_state_count[2] <= max_count
         {
-            crossCheckStateCount[2] += 1;
+            cross_check_state_count[2] += 1;
             i += 1;
         }
-        if crossCheckStateCount[2] > maxCount {
+        if cross_check_state_count[2] > max_count {
             return f32::NAN;
         }
 
-        let stateCountTotal =
-            crossCheckStateCount[0] + crossCheckStateCount[1] + crossCheckStateCount[2];
-        let diff: u64 = if stateCountTotal >= originalStateCountTotal {
-            (stateCountTotal - originalStateCountTotal) as u64
+        let state_count_total =
+            cross_check_state_count[0] + cross_check_state_count[1] + cross_check_state_count[2];
+        let diff: u64 = if state_count_total >= original_state_count_total {
+            (state_count_total - original_state_count_total) as u64
         } else {
-            (originalStateCountTotal - stateCountTotal) as u64
+            (original_state_count_total - state_count_total) as u64
         };
-        if 5 * diff >= 2 * originalStateCountTotal as u64 {
+        if 5 * diff >= 2 * original_state_count_total as u64 {
             return f32::NAN;
         }
 
-        if self.foundPatternCross(&crossCheckStateCount) {
-            Self::centerFromEnd(&crossCheckStateCount, i as u32)
+        if self.found_pattern_cross(&cross_check_state_count) {
+            Self::center_from_end(&cross_check_state_count, i as u32)
         } else {
             f32::NAN
         }
@@ -279,41 +279,41 @@ impl<'a> AlignmentPatternFinder<'a> {
      * found on a previous horizontal scan. If so, we consider it confirmed and conclude we have
      * found the alignment pattern.</p>
      *
-     * @param stateCount reading state module counts from horizontal scan
+     * @param state_count reading state module counts from horizontal scan
      * @param i row where alignment pattern may be found
      * @param j end of possible alignment pattern in row
      * @return {@link AlignmentPattern} if we have found the same pattern twice, or null if not
      */
-    fn handlePossibleCenter(
+    fn handle_possible_center(
         &mut self,
-        stateCount: &[u32],
+        state_count: &[u32],
         i: u32,
         j: u32,
     ) -> Option<AlignmentPattern> {
-        let stateCountTotal = stateCount[0] + stateCount[1] + stateCount[2];
-        let centerJ = Self::centerFromEnd(stateCount, j);
-        let centerI = self.crossCheckVertical(
+        let state_count_total = state_count[0] + state_count[1] + state_count[2];
+        let center_j = Self::center_from_end(state_count, j);
+        let center_i = self.cross_check_vertical(
             i,
-            centerJ.floor() as u32,
-            2 * stateCount[1],
-            stateCountTotal,
+            center_j.floor() as u32,
+            2 * state_count[1],
+            state_count_total,
         );
 
-        if !centerI.is_nan() {
-            let estimatedModuleSize = (stateCount[0] + stateCount[1] + stateCount[2]) as f32 / 3.0;
-            for center in &self.possibleCenters {
+        if !center_i.is_nan() {
+            let estimated_module_size = (state_count[0] + state_count[1] + state_count[2]) as f32 / 3.0;
+            for center in &self.possible_centers {
                 // Look for about the same center and module size:
-                if center.aboutEquals(estimatedModuleSize, centerI, centerJ) {
-                    return Some(center.combineEstimate(centerI, centerJ, estimatedModuleSize));
+                if center.about_equals(estimated_module_size, center_i, center_j) {
+                    return Some(center.combine_estimate(center_i, center_j, estimated_module_size));
                 }
             }
             // Hadn't found this before; save it
-            let point = AlignmentPattern::new(centerJ, centerI, estimatedModuleSize);
-            if let Some(rpc) = self.resultPointCallback.clone() {
+            let point = AlignmentPattern::new(center_j, center_i, estimated_module_size);
+            if let Some(rpc) = self.result_point_callback.clone() {
                 rpc((&point).into());
             }
 
-            self.possibleCenters.push(point);
+            self.possible_centers.push(point);
         }
 
         None

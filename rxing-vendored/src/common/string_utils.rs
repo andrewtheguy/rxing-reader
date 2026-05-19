@@ -27,7 +27,7 @@ use super::CharacterSet;
 
 const ASSUME_SHIFT_JIS: bool = false;
 
-pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::Shift_JIS;
+pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::ShiftJis;
 
 /**
  * @param bytes bytes encoding a string, whose encoding should be guessed
@@ -36,9 +36,9 @@ pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::Shift_JIS;
  *  "SJIS", "UTF8", "ISO8859_1", or the platform default encoding if none
  *  of these can possibly be correct
  */
-pub fn guessEncoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> {
-    let c = guessCharset(bytes, hints)?;
-    if c == CharacterSet::Shift_JIS {
+pub fn guess_encoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> {
+    let c = guess_charset(bytes, hints)?;
+    if c == CharacterSet::ShiftJis {
         Some("SJIS")
     } else if c == CharacterSet::UTF8 {
         Some("UTF8")
@@ -58,7 +58,7 @@ pub fn guessEncoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> 
  *  or the platform default encoding if
  *  none of these can possibly be correct
  */
-pub fn guessCharset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
+pub fn guess_charset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
     if let Some(cs_name) = &hints.character_set {
         return CharacterSet::get_character_set_by_name(cs_name);
     }
@@ -73,7 +73,7 @@ pub fn guessCharset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
         }
     }
 
-    // For now, merely tries to distinguish ISO-8859-1, UTF-8 and Shift_JIS,
+    // For now, merely tries to distinguish ISO-8859-1, UTF-8 and ShiftJis,
     // which should be by far the most common encodings.
     let length = bytes.len();
     let mut can_be_iso88591 = true;
@@ -139,7 +139,7 @@ pub fn guessCharset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
             }
         }
 
-        // Shift_JIS stuff
+        // ShiftJis stuff
         if can_be_shift_jis {
             if sjis_bytes_left > 0 {
                 if byte < 0x40 || byte == 0x7F || byte > 0xFC {
@@ -181,24 +181,24 @@ pub fn guessCharset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
     if can_be_utf8 && (utf8bom || utf2_bytes_chars + utf3_bytes_chars + utf4_bytes_chars > 0) {
         return Some(CharacterSet::UTF8);
     }
-    // Easy -- if assuming Shift_JIS or >= 3 valid consecutive not-ascii characters (and no evidence it can't be), done
+    // Easy -- if assuming ShiftJis or >= 3 valid consecutive not-ascii characters (and no evidence it can't be), done
     if can_be_shift_jis
         && (ASSUME_SHIFT_JIS
             || sjis_max_katakana_word_length >= 3
             || sjis_max_double_bytes_word_length >= 3)
     {
-        return Some(CharacterSet::Shift_JIS); //encoding::label::encoding_from_whatwg_label("SJIS");
+        return Some(CharacterSet::ShiftJis); //encoding::label::encoding_from_whatwg_label("SJIS");
     }
-    // Distinguishing Shift_JIS and ISO-8859-1 can be a little tough for short words. The crude heuristic is:
+    // Distinguishing ShiftJis and ISO-8859-1 can be a little tough for short words. The crude heuristic is:
     // - If we saw
     //   - only two consecutive katakana chars in the whole text, or
     //   - at least 10% of bytes that could be "upper" not-alphanumeric Latin1,
-    // - then we conclude Shift_JIS, else ISO-8859-1
+    // - then we conclude ShiftJis, else ISO-8859-1
     if can_be_iso88591 && can_be_shift_jis {
         return if (sjis_max_katakana_word_length == 2 && sjis_katakana_chars == 2)
             || iso_high_other * 10 >= length
         {
-            Some(CharacterSet::Shift_JIS)
+            Some(CharacterSet::ShiftJis)
         } else {
             Some(CharacterSet::ISO8859_1)
         };
@@ -209,7 +209,7 @@ pub fn guessCharset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
         return Some(CharacterSet::ISO8859_1);
     }
     if can_be_shift_jis {
-        return Some(CharacterSet::Shift_JIS);
+        return Some(CharacterSet::ShiftJis);
     }
     if can_be_utf8 {
         return Some(CharacterSet::UTF8);

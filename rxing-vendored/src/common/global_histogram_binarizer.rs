@@ -68,29 +68,29 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
             let width = source.get_width();
             let mut row = BitArray::with_size(width);
 
-            let localLuminances = source
+            let local_luminances = source
                 .get_row(y)
                 .ok_or(Exceptions::index_out_of_bounds_with("row out of bounds"))?;
-            let mut localBuckets = [0; LUMINANCE_BUCKETS];
+            let mut local_buckets = [0; LUMINANCE_BUCKETS];
             for x in 0..width {
-                localBuckets[((localLuminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
+                local_buckets[((local_luminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
             }
-            let blackPoint = Self::estimateBlackPoint(&localBuckets)?;
+            let black_point = Self::estimate_black_point(&local_buckets)?;
 
             if width < 3 {
                 // Special case for very small images
-                for (x, &lum) in localLuminances.iter().enumerate().take(width) {
-                    if (lum as u32) < blackPoint {
+                for (x, &lum) in local_luminances.iter().enumerate().take(width) {
+                    if (lum as u32) < black_point {
                         row.set(x);
                     }
                 }
             } else {
-                let mut left = localLuminances[0];
-                let mut center = localLuminances[1];
+                let mut left = local_luminances[0];
+                let mut center = local_luminances[1];
                 for x in 1..width - 1 {
-                    let right = localLuminances[x + 1];
+                    let right = local_luminances[x + 1];
                     // A simple -1 4 -1 box filter with a weight of 2.
-                    if ((center as i64 * 4) - left as i64 - right as i64) / 2 < blackPoint as i64 {
+                    if ((center as i64 * 4) - left as i64 - right as i64) / 2 < black_point as i64 {
                         row.set(x);
                     }
                     left = center;
@@ -113,28 +113,28 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
                 let height = source.get_height();
                 let mut col = BitArray::with_size(height);
 
-                let localLuminances = source.get_column(l);
-                let mut localBuckets = [0; LUMINANCE_BUCKETS];
+                let local_luminances = source.get_column(l);
+                let mut local_buckets = [0; LUMINANCE_BUCKETS];
                 for x in 0..height {
-                    localBuckets[((localLuminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
+                    local_buckets[((local_luminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
                 }
-                let blackPoint = Self::estimateBlackPoint(&localBuckets)?;
+                let black_point = Self::estimate_black_point(&local_buckets)?;
 
                 if height < 3 {
                     // Special case for very small images
-                    for (x, lum) in localLuminances.iter().enumerate().take(height) {
-                        if (*lum as u32) < blackPoint {
+                    for (x, lum) in local_luminances.iter().enumerate().take(height) {
+                        if (*lum as u32) < black_point {
                             col.set(x);
                         }
                     }
                 } else {
-                    let mut left = localLuminances[0];
-                    let mut center = localLuminances[1];
+                    let mut left = local_luminances[0];
+                    let mut center = local_luminances[1];
                     for x in 1..height - 1 {
-                        let right = localLuminances[x + 1];
+                        let right = local_luminances[x + 1];
                         // A simple -1 4 -1 box filter with a weight of 2.
                         if ((center as i64 * 4) - left as i64 - right as i64) / 2
-                            < blackPoint as i64
+                            < black_point as i64
                         {
                             col.set(x);
                         }
@@ -172,7 +172,7 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
 
     fn get_black_row_from_matrix(&'_ self, y: usize) -> Result<Cow<'_, BitArray>> {
         if let Some(matrix) = self.black_matrix.get() {
-            Ok(Cow::Owned(matrix.getRow(y as u32)))
+            Ok(Cow::Owned(matrix.get_row(y as u32)))
         } else {
             self.get_black_row(y)
         }
@@ -198,28 +198,28 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
 
         // Quickly calculates the histogram by sampling four rows from the image. This proved to be
         // more robust on the blackbox tests than sampling a diagonal as we used to do.
-        let mut localBuckets = [0; LUMINANCE_BUCKETS];
+        let mut local_buckets = [0; LUMINANCE_BUCKETS];
         for y in 1..5 {
             let row = height * y / 5;
-            let localLuminances = source
+            let local_luminances = source
                 .get_row(row)
                 .ok_or(Exceptions::index_out_of_bounds_with("row out of bounds"))?;
             let right = (width * 4) / 5;
-            for pixel in &localLuminances[(width / 5)..right] {
-                localBuckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;
+            for pixel in &local_luminances[(width / 5)..right] {
+                local_buckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;
             }
         }
-        let blackPoint = Self::estimateBlackPoint(&localBuckets)?;
+        let black_point = Self::estimate_black_point(&local_buckets)?;
 
         // We delay reading the entire image luminance until the black point estimation succeeds.
         // Although we end up reading four rows twice, it is consistent with our motto of
         // "fail quickly" which is necessary for continuous scanning.
-        let localLuminances = source.get_matrix();
+        let local_luminances = source.get_matrix();
         for y in 0..height {
             let offset = y * width;
             for x in 0..width {
-                let pixel = localLuminances[offset + x];
-                if (pixel as u32) < blackPoint {
+                let pixel = local_luminances[offset + x];
+                if (pixel as u32) < black_point {
                     matrix.set(x as u32, y as u32);
                 }
             }
@@ -228,65 +228,65 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         Ok(matrix)
     }
 
-    fn estimateBlackPoint<const BUCKET_COUNT: usize>(buckets: &[u32; BUCKET_COUNT]) -> Result<u32> {
+    fn estimate_black_point<const BUCKET_COUNT: usize>(buckets: &[u32; BUCKET_COUNT]) -> Result<u32> {
         // Find the tallest peak in the histogram.
-        let mut maxBucketCount = 0;
-        let mut firstPeak = 0;
-        let mut firstPeakSize = 0;
+        let mut max_bucket_count = 0;
+        let mut first_peak = 0;
+        let mut first_peak_size = 0;
         for (x, &bucket) in buckets.iter().enumerate() {
-            if bucket > firstPeakSize {
-                firstPeak = x;
-                firstPeakSize = bucket;
+            if bucket > first_peak_size {
+                first_peak = x;
+                first_peak_size = bucket;
             }
-            if bucket > maxBucketCount {
-                maxBucketCount = bucket;
+            if bucket > max_bucket_count {
+                max_bucket_count = bucket;
             }
         }
 
         // Find the second-tallest peak which is somewhat far from the tallest peak.
-        let mut secondPeak = 0;
-        let mut secondPeakScore = 0;
+        let mut second_peak = 0;
+        let mut second_peak_score = 0;
         for (x, bucket) in buckets.iter().enumerate() {
-            let distanceToBiggest = (x as i32 - firstPeak as i32).unsigned_abs();
+            let distance_to_biggest = (x as i32 - first_peak as i32).unsigned_abs();
             // Encourage more distant second peaks by multiplying by square of distance.
-            let score = *bucket * distanceToBiggest * distanceToBiggest;
-            if score > secondPeakScore {
-                secondPeak = x;
-                secondPeakScore = score;
+            let score = *bucket * distance_to_biggest * distance_to_biggest;
+            if score > second_peak_score {
+                second_peak = x;
+                second_peak_score = score;
             }
         }
 
-        // Make sure firstPeak corresponds to the black peak.
-        if firstPeak > secondPeak {
-            std::mem::swap(&mut firstPeak, &mut secondPeak);
+        // Make sure first_peak corresponds to the black peak.
+        if first_peak > second_peak {
+            std::mem::swap(&mut first_peak, &mut second_peak);
         }
 
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
-        if secondPeak - firstPeak <= BUCKET_COUNT / 16 {
+        if second_peak - first_peak <= BUCKET_COUNT / 16 {
             return Err(Exceptions::not_found_with(
-                "secondPeak - firstPeak <= numBuckets / 16 ",
+                "second_peak - first_peak <= numBuckets / 16 ",
             ));
         }
 
         // Find a valley between them that is low and closer to the white peak.
-        let mut bestValley = secondPeak as isize - 1;
-        let mut bestValleyScore = -1;
+        let mut best_valley = second_peak as isize - 1;
+        let mut best_valley_score = -1;
 
-        let mut x = secondPeak as isize;
-        while x > firstPeak as isize {
-            let fromFirst = x - firstPeak as isize;
-            let score = fromFirst
-                * fromFirst
-                * (secondPeak as isize - x)
-                * (maxBucketCount - buckets[x as usize]) as isize;
-            if score as i32 > bestValleyScore {
-                bestValley = x;
-                bestValleyScore = score as i32;
+        let mut x = second_peak as isize;
+        while x > first_peak as isize {
+            let from_first = x - first_peak as isize;
+            let score = from_first
+                * from_first
+                * (second_peak as isize - x)
+                * (max_bucket_count - buckets[x as usize]) as isize;
+            if score as i32 > best_valley_score {
+                best_valley = x;
+                best_valley_score = score as i32;
             }
             x -= 1;
         }
 
-        Ok((bestValley as u32) << LUMINANCE_SHIFT)
+        Ok((best_valley as u32) << LUMINANCE_SHIFT)
     }
 }

@@ -280,7 +280,7 @@ where
     }
 
     /// L1 norm
-    pub fn sumAbsComponent(self) -> T {
+    pub fn sum_abs_component(self) -> T {
         self.x.abs() + self.y.abs()
     }
 
@@ -290,11 +290,11 @@ where
     }
 
     /// L-inf norm
-    pub fn maxAbsComponent(self) -> T {
+    pub fn max_abs_component(self) -> T {
         self.x.abs().max(self.y.abs())
     }
 
-    pub fn squaredDistance(self, p: Self) -> T {
+    pub fn squared_distance(self, p: Self) -> T {
         let diff = self - p;
         diff.x * diff.x + diff.y * diff.y
     }
@@ -322,12 +322,12 @@ where
         self / Self::length(self)
     }
 
-    pub fn bresenhamDirection(self) -> Self {
-        let m = Self::maxAbsComponent(self);
+    pub fn bresenham_direction(self) -> Self {
+        let m = Self::max_abs_component(self);
         if m == T::zero() { self } else { self / m }
     }
 
-    pub fn mainDirection(self) -> Self
+    pub fn main_direction(self) -> Self
     where
         T: From<u8>,
     {
@@ -421,7 +421,7 @@ mod tests {
     use super::Point;
 
     #[test]
-    fn testDistance() {
+    fn test_distance() {
         assert_eq!(
             (8.0f32).sqrt(),
             Point::new(1.0, 2.0).distance(Point::new(3.0, 4.0))
@@ -615,15 +615,15 @@ mod point_tests {
         let v2 = PointF::new(3.0, -1.0);
         assert_eq!(v1.dot(v2), 1.0);
         assert_eq!(v1.cross(v2), -7.0);
-        assert_eq!(v1.sumAbsComponent(), 3.0);
-        assert_eq!(v1.maxAbsComponent(), 2.0);
+        assert_eq!(v1.sum_abs_component(), 3.0);
+        assert_eq!(v1.max_abs_component(), 2.0);
         assert!((v1.length() - (5.0f32).hypot(0.0)).abs() > -1.0); // length >= 0
-        // squaredDistance / distance
-        assert_eq!(v1.squaredDistance(v2), {
+        // squared_distance / distance
+        assert_eq!(v1.squared_distance(v2), {
             let d = v1 - v2;
             d.x * d.x + d.y * d.y
         });
-        assert!((v1.distance(v2) - (v1.squaredDistance(v2).sqrt())).abs() < 1e-6);
+        assert!((v1.distance(v2) - (v1.squared_distance(v2).sqrt())).abs() < 1e-6);
     }
 
     #[test]
@@ -637,18 +637,18 @@ mod point_tests {
     }
 
     #[test]
-    fn test_normalized_bresenham_mainDirection() {
+    fn test_normalized_bresenham_main_direction() {
         let v = PointF::new(3.0, 4.0);
         let norm = v.normalized();
         let len = (norm.x * norm.x + norm.y * norm.y).sqrt();
         assert!((len - 1.0).abs() < 1e-6);
 
-        let b = PointF::new(3.0, 1.0).bresenhamDirection();
+        let b = PointF::new(3.0, 1.0).bresenham_direction();
         assert!((b.x - 1.0).abs() < 1e-6 && (b.y - 1.0 / 3.0).abs() < 1e-6);
 
-        // mainDirection picks the larger component
-        assert_eq!(PointF::new(5.0, 2.0).mainDirection(), PointF::new(5.0, 0.0));
-        assert_eq!(PointF::new(1.0, 4.0).mainDirection(), PointF::new(0.0, 4.0));
+        // main_direction picks the larger component
+        assert_eq!(PointF::new(5.0, 2.0).main_direction(), PointF::new(5.0, 0.0));
+        assert_eq!(PointF::new(1.0, 4.0).main_direction(), PointF::new(0.0, 4.0));
     }
 
     #[test]

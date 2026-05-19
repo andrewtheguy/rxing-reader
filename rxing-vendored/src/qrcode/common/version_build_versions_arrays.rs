@@ -1,7 +1,7 @@
 use super::{ECB, ECBlocks, Version};
 
 macro_rules! qr_version {
-    // Micro & Model 1
+    // micro & Model 1
     (
         {
             $(
@@ -26,7 +26,7 @@ macro_rules! qr_version {
             ),*
             ])
         };
-    // Model 2 & rMQR
+    // Model 2 & r_mqr
     (
         {
             $(
@@ -71,7 +71,7 @@ impl Version {
     /**
      * See ISO 18004:2006 6.5.1 Table 9
      */
-    pub fn buildVersions() -> Box<[Version]> {
+    pub fn build_versions() -> Box<[Version]> {
         qr_version!({
             {1, {}, {
                 7,  1, 19, 0, 0,
@@ -412,10 +412,10 @@ impl Version {
             {
                 // Version number, alignment pattern centres, `ECBlocks`
                 { 1, {21}, { // R7x43
-                    // 4 `ECBlocks`, one for each `ecLevel` - rMQR only uses M & H but using 2 dummies to keep `ecLevel` index same as QR Code
+                    // 4 `ECBlocks`, one for each `ec_level` - r_mqr only uses M & H but using 2 dummies to keep `ec_level` index same as QR Code
                     // Each begins with no. of error correction codewords divided by no. of error correction blocks, followed by 2 `ECBlock`s
                     // Each `ECBlock` begins with no. of error correction blocks followed by no. of data codewords per block
-                     0, 0,  0, 0,  0, // L (dummy) - also used to differentiate rMQR from Model2 in `Version::Version()`
+                     0, 0,  0, 0,  0, // L (dummy) - also used to differentiate r_mqr from model2 in `Version::Version()`
                      7, 1,  6, 0,  0, // M
                      0, 0,  0, 0,  0, // Q (dummy)
                     10, 1,  3, 0,  0 // H

@@ -30,22 +30,22 @@ pub enum BarcodeFormat {
     CODABAR,
 
     /** Code 39 1D format. */
-    CODE_39,
+    Code39,
 
     /** Code 93 1D format. */
-    CODE_93,
+    Code93,
 
     /** Code 128 1D format. */
-    CODE_128,
+    Code128,
 
     /** Data Matrix 2D barcode format. */
-    DATA_MATRIX,
+    DataMatrix,
 
     /** EAN-8 1D format. */
-    EAN_8,
+    Ean8,
 
     /** EAN-13 1D format. */
-    EAN_13,
+    Ean13,
 
     /** ITF (Interleaved Two of Five) 1D format. */
     ITF,
@@ -54,37 +54,37 @@ pub enum BarcodeFormat {
     MAXICODE,
 
     /** PDF417 format. */
-    PDF_417,
+    Pdf417,
 
     /** QR Code 2D barcode format. */
-    QR_CODE,
+    QrCode,
 
-    MICRO_QR_CODE,
+    MicroQrCode,
 
-    RECTANGULAR_MICRO_QR_CODE,
+    RectangularMicroQrCode,
 
     /** RSS 14 */
-    RSS_14,
+    Rss14,
 
     /** RSS EXPANDED */
-    RSS_EXPANDED,
+    RssExpanded,
 
     /** TELEPEN */
     TELEPEN,
 
     /** UPC-A 1D format. */
-    UPC_A,
+    UpcA,
 
     /** UPC-E 1D format. */
-    UPC_E,
+    UpcE,
 
     /** UPC/EAN extension format. Not a stand-alone format. */
-    UPC_EAN_EXTENSION,
+    UpcEanExtension,
 
     DXFilmEdge,
 
     /// format not supported
-    UNSUPPORTED_FORMAT,
+    UnsupportedFormat,
 }
 
 impl Display for BarcodeFormat {
@@ -95,24 +95,24 @@ impl Display for BarcodeFormat {
             match self {
                 BarcodeFormat::AZTEC => "aztec",
                 BarcodeFormat::CODABAR => "codabar",
-                BarcodeFormat::CODE_39 => "code 39",
-                BarcodeFormat::CODE_93 => "code 93",
-                BarcodeFormat::CODE_128 => "code 128",
-                BarcodeFormat::DATA_MATRIX => "datamatrix",
-                BarcodeFormat::EAN_8 => "ean 8",
-                BarcodeFormat::EAN_13 => "ean 13",
+                BarcodeFormat::Code39 => "code 39",
+                BarcodeFormat::Code93 => "code 93",
+                BarcodeFormat::Code128 => "code 128",
+                BarcodeFormat::DataMatrix => "datamatrix",
+                BarcodeFormat::Ean8 => "ean 8",
+                BarcodeFormat::Ean13 => "ean 13",
                 BarcodeFormat::ITF => "itf",
                 BarcodeFormat::MAXICODE => "maxicode",
-                BarcodeFormat::PDF_417 => "pdf 417",
-                BarcodeFormat::QR_CODE => "qrcode",
-                BarcodeFormat::MICRO_QR_CODE => "mqr",
-                BarcodeFormat::RECTANGULAR_MICRO_QR_CODE => "rmqr",
-                BarcodeFormat::RSS_14 => "rss 14",
-                BarcodeFormat::RSS_EXPANDED => "rss expanded",
+                BarcodeFormat::Pdf417 => "pdf 417",
+                BarcodeFormat::QrCode => "qrcode",
+                BarcodeFormat::MicroQrCode => "mqr",
+                BarcodeFormat::RectangularMicroQrCode => "rmqr",
+                BarcodeFormat::Rss14 => "rss 14",
+                BarcodeFormat::RssExpanded => "rss expanded",
                 BarcodeFormat::TELEPEN => "telepen",
-                BarcodeFormat::UPC_A => "upc a",
-                BarcodeFormat::UPC_E => "upc e",
-                BarcodeFormat::UPC_EAN_EXTENSION => "upc/ean extension",
+                BarcodeFormat::UpcA => "upc a",
+                BarcodeFormat::UpcE => "upc e",
+                BarcodeFormat::UpcEanExtension => "upc/ean extension",
                 BarcodeFormat::DXFilmEdge => "DXFilmEdge",
                 _ => "Unsupported",
             }
@@ -132,37 +132,37 @@ impl From<&str> for BarcodeFormat {
             "aztec" | "aztec code" | "aztec_code" => BarcodeFormat::AZTEC,
             "codabar" | "coda" | "coda_bar" | "cod_a_bar" | "cod_a" => BarcodeFormat::CODABAR,
             "code 39" | "code_39" | "code39" | "alpha39" | "code_3_of_9" | "uss_39" | "usd-3" => {
-                BarcodeFormat::CODE_39
+                BarcodeFormat::Code39
             }
-            "code 93" | "code_93" | "code93" => BarcodeFormat::CODE_93,
+            "code 93" | "code_93" | "code93" => BarcodeFormat::Code93,
             "code 128" | "code_128" | "code128" | "iso/iec 15417:2007" | "iso/_15417:2007" => {
-                BarcodeFormat::CODE_128
+                BarcodeFormat::Code128
             }
-            "datamatrix" | "data matrix" | "data_matrix" => BarcodeFormat::DATA_MATRIX,
-            "ean 8" | "ean_8" | "ean8" => BarcodeFormat::EAN_8,
-            "ean 13" | "ean_13" | "ean13" => BarcodeFormat::EAN_13,
+            "datamatrix" | "data matrix" | "data_matrix" => BarcodeFormat::DataMatrix,
+            "ean 8" | "ean_8" | "ean8" => BarcodeFormat::Ean8,
+            "ean 13" | "ean_13" | "ean13" => BarcodeFormat::Ean13,
             "itf" | "itf_code" | "itf14" | "itf 14" | "itf_14" | "interleaved 2 of 5" => {
                 BarcodeFormat::ITF
             }
             "maxicode" | "maxi_code" => BarcodeFormat::MAXICODE,
-            "pdf 417" | "pdf_417" | "pdf417" | "iso 15438" | "iso_15438" => BarcodeFormat::PDF_417,
-            "qrcode" | "qr_code" | "qr code" => BarcodeFormat::QR_CODE,
+            "pdf 417" | "pdf_417" | "pdf417" | "iso 15438" | "iso_15438" => BarcodeFormat::Pdf417,
+            "qrcode" | "qr_code" | "qr code" => BarcodeFormat::QrCode,
             "mqr" | "microqr" | "micro_qr" | "micro_qrcode" | "micro_qr_code" | "mqr_code" => {
-                BarcodeFormat::MICRO_QR_CODE
+                BarcodeFormat::MicroQrCode
             }
             "rmqr" | "rectangular_mqr" | "rectangular_micro_qr" | "rmqr_code" => {
-                BarcodeFormat::RECTANGULAR_MICRO_QR_CODE
+                BarcodeFormat::RectangularMicroQrCode
             }
             "rss 14" | "rss_14" | "rss14" | "gs1 databar" | "gs1 databar coupon"
-            | "gs1_databar_coupon" => BarcodeFormat::RSS_14,
-            "rss expanded" | "expanded rss" | "rss_expanded" => BarcodeFormat::RSS_EXPANDED,
+            | "gs1_databar_coupon" => BarcodeFormat::Rss14,
+            "rss expanded" | "expanded rss" | "rss_expanded" => BarcodeFormat::RssExpanded,
             "telepen" => BarcodeFormat::TELEPEN,
-            "upc a" | "upc_a" | "upca" => BarcodeFormat::UPC_A,
-            "upc e" | "upc_e" | "upce" => BarcodeFormat::UPC_E,
+            "upc a" | "upc_a" | "upca" => BarcodeFormat::UpcA,
+            "upc e" | "upc_e" | "upce" => BarcodeFormat::UpcE,
             "upc ean extension" | "upc extension" | "ean extension" | "upc/ean extension"
-            | "upc_ean_extension" => BarcodeFormat::UPC_EAN_EXTENSION,
+            | "upc_ean_extension" => BarcodeFormat::UpcEanExtension,
             "DXFilmEdge" | "dxfilmedge" | "dx film edge" => BarcodeFormat::DXFilmEdge,
-            _ => BarcodeFormat::UNSUPPORTED_FORMAT,
+            _ => BarcodeFormat::UnsupportedFormat,
         }
     }
 }
@@ -172,7 +172,7 @@ impl FromStr for BarcodeFormat {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let format = BarcodeFormat::from(s);
-        if format == BarcodeFormat::UNSUPPORTED_FORMAT {
+        if format == BarcodeFormat::UnsupportedFormat {
             Err(crate::exceptions::Exceptions::FormatException(format!(
                 "Unsupported barcode format: {s}"
             )))

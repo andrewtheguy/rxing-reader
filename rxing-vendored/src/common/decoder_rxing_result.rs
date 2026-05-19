@@ -24,33 +24,33 @@ use std::{any::Any, sync::Arc};
  * @author Sean Owen
  */
 pub struct DecoderRXingResult {
-    rawBytes: Vec<u8>,
-    numBits: usize,
+    raw_bytes: Vec<u8>,
+    num_bits: usize,
     text: String,
-    byteSegments: Vec<Vec<u8>>,
-    ecLevel: String,
-    errorsCorrected: usize,
+    byte_segments: Vec<Vec<u8>>,
+    ec_level: String,
+    errors_corrected: usize,
     erasures: usize,
     other: Option<Arc<dyn Any + Send + Sync>>,
-    structuredAppendParity: i32,
-    structuredAppendSequenceNumber: i32,
-    symbologyModifier: u32,
-    contentType: String,
-    isMirrored: bool,
+    structured_append_parity: i32,
+    structured_append_sequence_number: i32,
+    symbology_modifier: u32,
+    content_type: String,
+    is_mirrored: bool,
 }
 
 impl DecoderRXingResult {
     pub fn new(
-        rawBytes: Vec<u8>,
+        raw_bytes: Vec<u8>,
         text: String,
-        byteSegments: Vec<Vec<u8>>,
-        ecLevel: String,
+        byte_segments: Vec<Vec<u8>>,
+        ec_level: String,
     ) -> Self {
         Self::with_all(
-            rawBytes,
+            raw_bytes,
             text,
-            byteSegments,
-            ecLevel,
+            byte_segments,
+            ec_level,
             -1,
             -1,
             0,
@@ -60,40 +60,40 @@ impl DecoderRXingResult {
     }
 
     pub fn with_symbology(
-        rawBytes: Vec<u8>,
+        raw_bytes: Vec<u8>,
         text: String,
-        byteSegments: Vec<Vec<u8>>,
-        ecLevel: String,
-        symbologyModifier: u32,
+        byte_segments: Vec<Vec<u8>>,
+        ec_level: String,
+        symbology_modifier: u32,
     ) -> Self {
         Self::with_all(
-            rawBytes,
+            raw_bytes,
             text,
-            byteSegments,
-            ecLevel,
+            byte_segments,
+            ec_level,
             -1,
             -1,
-            symbologyModifier,
+            symbology_modifier,
             String::new(),
             false,
         )
     }
 
     pub fn with_sa(
-        rawBytes: Vec<u8>,
+        raw_bytes: Vec<u8>,
         text: String,
-        byteSegments: Vec<Vec<u8>>,
-        ecLevel: String,
-        saSequence: i32,
-        saParity: i32,
+        byte_segments: Vec<Vec<u8>>,
+        ec_level: String,
+        sa_sequence: i32,
+        sa_parity: i32,
     ) -> Self {
         Self::with_all(
-            rawBytes,
+            raw_bytes,
             text,
-            byteSegments,
-            ecLevel,
-            saSequence,
-            saParity,
+            byte_segments,
+            ec_level,
+            sa_sequence,
+            sa_parity,
             0,
             String::new(),
             false,
@@ -102,140 +102,140 @@ impl DecoderRXingResult {
 
     #[allow(clippy::too_many_arguments)]
     pub fn with_all(
-        rawBytes: Vec<u8>,
+        raw_bytes: Vec<u8>,
         text: String,
-        byteSegments: Vec<Vec<u8>>,
-        ecLevel: String,
-        saSequence: i32,
-        saParity: i32,
-        symbologyModifier: u32,
-        contentType: String,
-        isMirrored: bool,
+        byte_segments: Vec<Vec<u8>>,
+        ec_level: String,
+        sa_sequence: i32,
+        sa_parity: i32,
+        symbology_modifier: u32,
+        content_type: String,
+        is_mirrored: bool,
     ) -> Self {
-        let nb = rawBytes.len();
+        let nb = raw_bytes.len();
         Self {
-            rawBytes,
-            numBits: nb * 8,
+            raw_bytes,
+            num_bits: nb * 8,
             text,
-            byteSegments,
-            ecLevel,
-            errorsCorrected: 0,
+            byte_segments,
+            ec_level,
+            errors_corrected: 0,
             erasures: 0,
             other: None,
-            structuredAppendParity: saParity,
-            structuredAppendSequenceNumber: saSequence,
-            symbologyModifier,
-            contentType,
-            isMirrored,
+            structured_append_parity: sa_parity,
+            structured_append_sequence_number: sa_sequence,
+            symbology_modifier,
+            content_type,
+            is_mirrored,
         }
     }
 
     /**
      * @return raw bytes representing the result, or {@code null} if not applicable
      */
-    pub const fn getRawBytes(&self) -> &Vec<u8> {
-        &self.rawBytes
+    pub const fn get_raw_bytes(&self) -> &Vec<u8> {
+        &self.raw_bytes
     }
 
     /**
-     * @return how many bits of {@link #getRawBytes()} are valid; typically 8 times its length
+     * @return how many bits of {@link #get_raw_bytes()} are valid; typically 8 times its length
      * @since 3.3.0
      */
-    pub const fn getNumBits(&self) -> usize {
-        self.numBits
+    pub const fn get_num_bits(&self) -> usize {
+        self.num_bits
     }
 
     /**
-     * @param numBits overrides the number of bits that are valid in {@link #getRawBytes()}
+     * @param num_bits overrides the number of bits that are valid in {@link #get_raw_bytes()}
      * @since 3.3.0
      */
-    pub const fn setNumBits(&mut self, numBits: usize) {
-        self.numBits = numBits;
+    pub const fn set_num_bits(&mut self, num_bits: usize) {
+        self.num_bits = num_bits;
     }
 
     /**
      * @return text representation of the result
      */
-    pub fn getText(&self) -> &str {
+    pub fn get_text(&self) -> &str {
         &self.text
     }
 
     /**
      * @return list of byte segments in the result, or {@code null} if not applicable
      */
-    pub const fn getByteSegments(&self) -> &Vec<Vec<u8>> {
-        &self.byteSegments
+    pub const fn get_byte_segments(&self) -> &Vec<Vec<u8>> {
+        &self.byte_segments
     }
 
     /**
      * @return name of error correction level used, or {@code null} if not applicable
      */
-    pub fn getECLevel(&self) -> &str {
-        &self.ecLevel
+    pub fn get_eclevel(&self) -> &str {
+        &self.ec_level
     }
 
     /**
      * @return number of errors corrected, or {@code null} if not applicable
      */
-    pub const fn getErrorsCorrected(&self) -> usize {
-        self.errorsCorrected
+    pub const fn get_errors_corrected(&self) -> usize {
+        self.errors_corrected
     }
 
-    pub const fn setErrorsCorrected(&mut self, errorsCorrected: usize) {
-        self.errorsCorrected = errorsCorrected;
+    pub const fn set_errors_corrected(&mut self, errors_corrected: usize) {
+        self.errors_corrected = errors_corrected;
     }
 
     /**
      * @return number of erasures corrected, or {@code null} if not applicable
      */
-    pub const fn getErasures(&self) -> usize {
+    pub const fn get_erasures(&self) -> usize {
         self.erasures
     }
 
-    pub const fn setErasures(&mut self, erasures: usize) {
+    pub const fn set_erasures(&mut self, erasures: usize) {
         self.erasures = erasures
     }
 
     /**
      * @return arbitrary additional metadata
      */
-    pub fn getOther(&self) -> Option<Arc<dyn Any + Send + Sync>> {
+    pub fn get_other(&self) -> Option<Arc<dyn Any + Send + Sync>> {
         self.other.clone()
     }
 
-    pub fn setOther(&mut self, other: Option<Arc<dyn Any + Send + Sync>>) {
+    pub fn set_other(&mut self, other: Option<Arc<dyn Any + Send + Sync>>) {
         self.other = other
     }
 
-    pub const fn hasStructuredAppend(&self) -> bool {
-        self.structuredAppendParity >= 0 && self.structuredAppendSequenceNumber >= 0
+    pub const fn has_structured_append(&self) -> bool {
+        self.structured_append_parity >= 0 && self.structured_append_sequence_number >= 0
     }
 
-    pub const fn getStructuredAppendParity(&self) -> i32 {
-        self.structuredAppendParity
+    pub const fn get_structured_append_parity(&self) -> i32 {
+        self.structured_append_parity
     }
 
-    pub const fn getStructuredAppendSequenceNumber(&self) -> i32 {
-        self.structuredAppendSequenceNumber
+    pub const fn get_structured_append_sequence_number(&self) -> i32 {
+        self.structured_append_sequence_number
     }
 
-    pub const fn getSymbologyModifier(&self) -> u32 {
-        self.symbologyModifier
+    pub const fn get_symbology_modifier(&self) -> u32 {
+        self.symbology_modifier
     }
 
-    pub fn getContentType(&self) -> &str {
-        &self.contentType
+    pub fn get_content_type(&self) -> &str {
+        &self.content_type
     }
 
-    pub fn setContentType(&mut self, content_type: String) {
-        self.contentType = content_type
+    pub fn set_content_type(&mut self, content_type: String) {
+        self.content_type = content_type
     }
 
-    pub const fn getIsMirrored(&self) -> bool {
-        self.isMirrored
+    pub const fn get_is_mirrored(&self) -> bool {
+        self.is_mirrored
     }
 
-    pub const fn setIsMirrored(&mut self, is_mirrored: bool) {
-        self.isMirrored = is_mirrored
+    pub const fn set_is_mirrored(&mut self, is_mirrored: bool) {
+        self.is_mirrored = is_mirrored
     }
 }

@@ -116,8 +116,8 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * Returns a new object with cropped image data. Implementations may keep a reference to the
      * original data rather than a copy. Only callable if isCropSupported() is true.
      *
-     * @param left The left coordinate, which must be in [0,getWidth())
-     * @param top The top coordinate, which must be in [0,getHeight())
+     * @param left The left coordinate, which must be in [0,get_width())
+     * @param top The top coordinate, which must be in [0,get_height())
      * @param width The width of the rectangle to crop.
      * @param height The height of the rectangle to crop.
      * @return A cropped version of this object, or an error if the luminance source cannot be cropped.
@@ -129,11 +129,11 @@ impl<B: Binarizer> BinaryBitmap<B> {
         width: usize,
         height: usize,
     ) -> Result<Self> {
-        let newSource = self
+        let new_source = self
             .binarizer
             .get_luminance_source()
             .crop(left, top, width, height)?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(newSource)))
+        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
     }
 
     /**
@@ -150,11 +150,11 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * @return A rotated version of this object, or an error if the luminance source cannot be rotated.
      */
     pub fn rotate_counter_clockwise(&mut self) -> Result<Self> {
-        let newSource = self
+        let new_source = self
             .binarizer
             .get_luminance_source()
             .rotate_counter_clockwise()?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(newSource)))
+        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
     }
 
     /**
@@ -164,11 +164,11 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * @return A rotated version of this object, or an error if the luminance source cannot be rotated.
      */
     pub fn rotate_counter_clockwise_45(&self) -> Result<Self> {
-        let newSource = self
+        let new_source = self
             .binarizer
             .get_luminance_source()
             .rotate_counter_clockwise_45()?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(newSource)))
+        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
     }
 
     pub fn get_source(&self) -> &B::Source {

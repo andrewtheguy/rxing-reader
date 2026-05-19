@@ -96,13 +96,13 @@ pub fn decode_bitmatrix_with_hints(
         parser.remask()?;
 
         // Will be attempting a mirrored reading of the version and format info.
-        parser.setMirror(true);
+        parser.set_mirror(true);
 
         // Preemptively read the version.
-        parser.readVersion()?;
+        parser.read_version()?;
 
         // Preemptively read the format information.
-        parser.readFormatInformation()?;
+        parser.read_format_information()?;
 
         /*
          * Since we're here, this means we have successfully detected some kind
@@ -116,7 +116,7 @@ pub fn decode_bitmatrix_with_hints(
         let mut result = decode_bitmatrix_parser_with_hints(&mut parser, hints)?;
 
         // Success! Notify the caller that the code was mirrored.
-        result.setOther(Some(Arc::new(QRCodeDecoderMetaData::new(true))));
+        result.set_other(Some(Arc::new(QRCodeDecoderMetaData::new(true))));
 
         Ok(result)
     };
@@ -140,66 +140,66 @@ fn decode_bitmatrix_parser_with_hints(
     parser: &mut BitMatrixParser,
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
-    let version = parser.readVersion()?;
-    let ecLevel = parser.readFormatInformation()?.get_error_correction_level();
+    let version = parser.read_version()?;
+    let ec_level = parser.read_format_information()?.get_error_correction_level();
 
     // Read codewords
-    let codewords = parser.readCodewords()?;
+    let codewords = parser.read_codewords()?;
     // Separate into data blocks
-    let dataBlocks = DataBlock::getDataBlocks(&codewords, version, ecLevel)?;
+    let data_blocks = DataBlock::get_data_blocks(&codewords, version, ec_level)?;
 
     // Count total number of data bytes
-    let totalBytes = dataBlocks.iter().fold(0, |acc, dataBlock| {
-        acc + dataBlock.getNumDataCodewords() as usize
+    let total_bytes = data_blocks.iter().fold(0, |acc, data_block| {
+        acc + data_block.get_num_data_codewords() as usize
     });
 
-    let mut resultBytes = vec![0u8; totalBytes];
-    let mut resultOffset = 0;
+    let mut result_bytes = vec![0u8; total_bytes];
+    let mut result_offset = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
-    for dataBlock in &dataBlocks {
-        let mut codewordBytes = dataBlock.getCodewords().to_vec();
-        let numDataCodewords = dataBlock.getNumDataCodewords() as usize;
-        correctErrors(&mut codewordBytes, numDataCodewords)?;
-        for codeword_byte in codewordBytes.iter().take(numDataCodewords) {
-            resultBytes[resultOffset] = *codeword_byte;
-            resultOffset += 1;
+    for data_block in &data_blocks {
+        let mut codeword_bytes = data_block.get_codewords().to_vec();
+        let num_data_codewords = data_block.get_num_data_codewords() as usize;
+        correct_errors(&mut codeword_bytes, num_data_codewords)?;
+        for codeword_byte in codeword_bytes.iter().take(num_data_codewords) {
+            result_bytes[result_offset] = *codeword_byte;
+            result_offset += 1;
         }
     }
 
-    // Decode the contents of that stream of bytes
-    decoded_bit_stream_parser::decode(&resultBytes, version, ecLevel, hints)
+    // decode the contents of that stream of bytes
+    decoded_bit_stream_parser::decode(&result_bytes, version, ec_level, hints)
 }
 
 /**
  * <p>Given data and error-correction codewords received, possibly corrupted by errors, attempts to
  * correct the errors in-place using Reed-Solomon error correction.</p>
  *
- * @param codewordBytes data and error correction codewords
- * @param numDataCodewords number of codewords that are data bytes
+ * @param codeword_bytes data and error correction codewords
+ * @param num_data_codewords number of codewords that are data bytes
  * @throws ChecksumException if error correction fails
  */
-fn correctErrors(codewordBytes: &mut [u8], numDataCodewords: usize) -> Result<()> {
-    let numCodewords = codewordBytes.len();
+fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
+    let num_codewords = codeword_bytes.len();
     // First read into an array of ints
-    let mut codewordsInts = vec![0u8; numCodewords];
-    codewordsInts[..numCodewords].copy_from_slice(&codewordBytes[..numCodewords]);
+    let mut codewords_ints = vec![0u8; num_codewords];
+    codewords_ints[..num_codewords].copy_from_slice(&codeword_bytes[..num_codewords]);
 
-    let mut sending_code_words: Vec<i32> = codewordsInts.iter().map(|x| *x as i32).collect();
+    let mut sending_code_words: Vec<i32> = codewords_ints.iter().map(|x| *x as i32).collect();
 
     if let Err(Exceptions::ReedSolomonException(error_str)) = RS_DECODER.decode(
         &mut sending_code_words,
-        (codewordBytes.len() - numDataCodewords) as i32,
+        (codeword_bytes.len() - num_data_codewords) as i32,
     ) {
         return Err(Exceptions::ChecksumException(error_str));
     }
 
     // Copy back into array of bytes -- only need to worry about the bytes that were data
     // We don't care about errors in the error-correction codewords
-    for (code_word, sent_code_word) in codewordBytes
+    for (code_word, sent_code_word) in codeword_bytes
         .iter_mut()
         .zip(sending_code_words.iter())
-        .take(numDataCodewords)
+        .take(num_data_codewords)
     {
         *code_word = *sent_code_word as u8;
     }

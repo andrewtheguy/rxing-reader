@@ -84,9 +84,9 @@ fn build_initial_pattern<const PATTERN_SIZE: usize>(
 
     for pattern_position in buffer.iter_mut() {
         let next = if current {
-            source.getNextUnset(position)
+            source.get_next_unset(position)
         } else {
-            source.getNextSet(position)
+            source.get_next_set(position)
         };
         *pattern_position = next - position;
         current = !current;
@@ -111,9 +111,9 @@ impl<const PATTERN_SIZE: usize> PatternReader<'_, PATTERN_SIZE> {
         self.stored_pattern.rotate_left(1);
         self.position = true;
         let next = if self.cache_last_set_state {
-            self.source.getNextUnset(self.cache_internal_position)
+            self.source.get_next_unset(self.cache_internal_position)
         } else {
-            self.source.getNextSet(self.cache_internal_position)
+            self.source.get_next_set(self.cache_internal_position)
         };
         let val = next - self.cache_internal_position;
         self.stored_pattern[PATTERN_SIZE - 1] = val;
@@ -154,7 +154,7 @@ mod test {
         let data = 0b11110000111000110010;
         let mut bit_array = BitArray::with_capacity(20);
         bit_array
-            .appendBits(data, 20)
+            .append_bits(data, 20)
             .expect("must build bit_array");
         let mut pattern_reader = PatternReader::new(&bit_array);
         assert_eq!(pattern_reader.stored_pattern, [4, 4, 3, 3]);
@@ -174,7 +174,7 @@ mod test {
         let data = 0b11110000111000110010;
         let mut bit_array = BitArray::with_capacity(20);
         bit_array
-            .appendBits(data, 20)
+            .append_bits(data, 20)
             .expect("must build bit_array");
         let mut pattern_reader = PatternReader::new(&bit_array);
         assert_eq!(pattern_reader.next().unwrap().0, [4, 4, 3, 3]);
@@ -232,7 +232,7 @@ mod more_tests {
     #[test]
     fn pattern_reader_all_unset() {
         let mut bits = BitArray::with_capacity(8);
-        bits.appendBits(0, 8).expect("build all-zero array");
+        bits.append_bits(0, 8).expect("build all-zero array");
         let mut reader = PatternReader::<4>::new(&bits);
 
         // first (and only) pattern: one run of 8 zeros, then the rest 0
@@ -246,7 +246,7 @@ mod more_tests {
         // 0b1010_1010 → [1,0,1,0,1,0,1,0]
         let data = 0b1010_1010u8;
         let mut bits = BitArray::with_capacity(8);
-        bits.appendBits(data as usize, 8).unwrap();
+        bits.append_bits(data as usize, 8).unwrap();
 
         let patterns: Vec<_> = PatternReader::<3>::new(&bits).map(|p| p.0).collect();
 
@@ -296,10 +296,10 @@ mod noisy_data_tests {
     #[test]
     fn reader_initial_pattern_noise_allowed() {
         let mut bits = BitArray::with_capacity(12);
-        bits.appendBits(0b111, 3).unwrap(); // 3 ones
-        bits.appendBits(0b0, 1).unwrap(); // stray zero
-        bits.appendBits(0b1111, 4).unwrap(); // 4 ones
-        bits.appendBits(0, 4).unwrap(); // 4 zeros
+        bits.append_bits(0b111, 3).unwrap(); // 3 ones
+        bits.append_bits(0b0, 1).unwrap(); // stray zero
+        bits.append_bits(0b1111, 4).unwrap(); // 4 ones
+        bits.append_bits(0, 4).unwrap(); // 4 zeros
 
         let reader = PatternReader::<4>::new(&bits);
         let observed = Pattern(reader.stored_pattern);
@@ -316,10 +316,10 @@ mod noisy_data_tests {
     #[test]
     fn reader_initial_pattern_noise_rejected_if_threshold_strict() {
         let mut bits = BitArray::with_capacity(12);
-        bits.appendBits(0b111, 3).unwrap();
-        bits.appendBits(0b0, 1).unwrap();
-        bits.appendBits(0b1111, 4).unwrap();
-        bits.appendBits(0, 4).unwrap();
+        bits.append_bits(0b111, 3).unwrap();
+        bits.append_bits(0b0, 1).unwrap();
+        bits.append_bits(0b1111, 4).unwrap();
+        bits.append_bits(0, 4).unwrap();
 
         let reader = PatternReader::<4>::new(&bits);
         let observed = Pattern(reader.stored_pattern);

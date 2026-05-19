@@ -28,13 +28,13 @@ impl Quadrilateral {
 
     #[allow(dead_code)]
     pub fn orientation(&self) -> f64 {
-        let centerLine =
+        let center_line =
             (*self.top_right() + *self.bottom_right()) - (*self.top_left() + *self.bottom_left());
-        if centerLine == Point::default() {
+        if center_line == Point::default() {
             return 0.0;
         }
-        let centerLineF = Point::normalized(centerLine);
-        f32::atan2(centerLineF.y, centerLineF.x).into()
+        let center_line_f = Point::normalized(center_line);
+        f32::atan2(center_line_f.y, center_line_f.x).into()
     }
     pub const fn points(&self) -> &[Point] {
         &self.0
@@ -90,22 +90,22 @@ impl Quadrilateral {
     }
 
     #[allow(dead_code)]
-    pub fn line(y: i32, xStart: i32, xStop: i32) -> Quadrilateral {
+    pub fn line(y: i32, x_start: i32, x_stop: i32) -> Quadrilateral {
         Quadrilateral([
             Point {
-                x: xStart as f32,
+                x: x_start as f32,
                 y: y as f32,
             },
             Point {
-                x: xStop as f32,
+                x: x_stop as f32,
                 y: y as f32,
             },
             Point {
-                x: xStop as f32,
+                x: x_stop as f32,
                 y: y as f32,
             },
             Point {
-                x: xStart as f32,
+                x: x_start as f32,
                 y: y as f32,
             },
         ])
@@ -113,15 +113,15 @@ impl Quadrilateral {
 
     #[allow(dead_code)]
     pub fn is_convex(&self) -> bool {
-        let N = self.0.len();
+        let n = self.0.len();
         let mut sign = false;
 
         let mut m = f32::INFINITY;
         let mut max_cross = 0.0_f32;
 
-        for i in 0..N {
-            let d1 = self.0[(i + 2) % N] - self.0[(i + 1) % N];
-            let d2 = self.0[i] - self.0[(i + 1) % N];
+        for i in 0..n {
+            let d1 = self.0[(i + 2) % n] - self.0[(i + 1) % n];
+            let d2 = self.0[i] - self.0[(i + 1) % n];
             let cp = d1.cross(d2);
 
             m = f32::min(m, cp.abs());
@@ -206,12 +206,12 @@ impl Quadrilateral {
 
     pub fn blend(a: &Quadrilateral, b: &Quadrilateral) -> Self {
         let c = a[0];
-        let dist2First = |a, b| Point::distance(a, c) < Point::distance(b, c);
-        // rotate points such that the the two topLeft points are closest to each other
+        let dist2_first = |a, b| Point::distance(a, c) < Point::distance(b, c);
+        // rotate points such that the the two top_left points are closest to each other
         let min_element =
             b.0.iter()
                 .copied()
-                .min_by(|a, b| match dist2First(*a, *b) {
+                .min_by(|a, b| match dist2_first(*a, *b) {
                     true => std::cmp::Ordering::Less,
                     false => std::cmp::Ordering::Greater,
                 })

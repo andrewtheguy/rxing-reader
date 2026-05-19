@@ -20,7 +20,7 @@ use crate::Point;
  * Meta-data container for QR Code decoding. Instances of this class may be used to convey information back to the
  * decoding caller. Callers are expected to process this.
  *
- * @see com.google.zxing.common.DecoderRXingResult#getOther()
+ * @see com.google.zxing.common.DecoderRXingResult#get_other()
  */
 pub struct QRCodeDecoderMetaData(bool);
 
@@ -32,7 +32,7 @@ impl QRCodeDecoderMetaData {
     /**
      * @return true if the QR Code was mirrored.
      */
-    pub fn isMirrored(&self) -> bool {
+    pub fn is_mirrored(&self) -> bool {
         self.0
     }
 
@@ -41,7 +41,7 @@ impl QRCodeDecoderMetaData {
      *
      * @param points Array of points to apply mirror correction to.
      */
-    pub fn applyMirroredCorrection(&self, points: &mut [Point]) {
+    pub fn apply_mirrored_correction(&self, points: &mut [Point]) {
         if !self.0 || points.is_empty() || points.len() < 3 {
             return;
         }

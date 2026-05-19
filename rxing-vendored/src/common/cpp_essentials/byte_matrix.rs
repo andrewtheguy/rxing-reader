@@ -40,11 +40,11 @@ impl ByteMatrix {
         }
     }
 
-    pub fn getHeight(&self) -> u32 {
+    pub fn get_height(&self) -> u32 {
         self.height
     }
 
-    pub fn getWidth(&self) -> u32 {
+    pub fn get_width(&self) -> u32 {
         self.width
     }
 
@@ -55,7 +55,7 @@ impl ByteMatrix {
     /**
      * @return an internal representation as bytes, in row-major order. array[y][x] represents point (x,y)
      */
-    pub fn getArray(&self) -> &Vec<Vec<u8>> {
+    pub fn get_array(&self) -> &Vec<Vec<u8>> {
         &self.bytes
     }
 
@@ -78,8 +78,8 @@ impl fmt::Display for ByteMatrix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut result = String::with_capacity(2 * self.width as usize * self.height as usize + 2);
         for y in 0..self.height as usize {
-            let bytesY = &self.bytes[y];
-            for byte in bytesY.iter().take(self.width as usize) {
+            let bytes_y = &self.bytes[y];
+            for byte in bytes_y.iter().take(self.width as usize) {
                 match *byte {
                     0 => result.push_str(" 0"),
                     1 => result.push_str(" 1"),
@@ -96,9 +96,9 @@ impl TryFrom<ByteMatrix> for BitMatrix {
     type Error = Exceptions;
 
     fn try_from(value: ByteMatrix) -> Result<Self, Self::Error> {
-        let mut bit_matrix = BitMatrix::new(value.getWidth(), value.getHeight())?;
-        for y in 0..value.getHeight() {
-            for x in 0..value.getWidth() {
+        let mut bit_matrix = BitMatrix::new(value.get_width(), value.get_height())?;
+        for y in 0..value.get_height() {
+            for x in 0..value.get_width() {
                 if value.get(x, y) > 0 {
                     bit_matrix.set(x, y);
                 }

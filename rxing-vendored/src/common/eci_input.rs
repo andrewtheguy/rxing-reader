@@ -48,9 +48,9 @@ pub trait ECIInput: Display {
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      * @throws  IllegalArgumentException
-     *          if the value at the {@code index} argument is an ECI (@see #isECI)
+     *          if the value at the {@code index} argument is an ECI (@see #is_eci)
      */
-    fn charAt(&self, index: usize) -> Result<char>;
+    fn char_at(&self, index: usize) -> Result<char>;
 
     /**
      * Returns a {@code CharSequence} that is a subsequence of this sequence.
@@ -70,9 +70,9 @@ pub trait ECIInput: Display {
      *          if {@code end} is greater than {@code length()},
      *          or if {@code start} is greater than {@code end}
      * @throws  IllegalArgumentException
-     *          if a value in the range {@code start}-{@code end} is an ECI (@see #isECI)
+     *          if a value in the range {@code start}-{@code end} is an ECI (@see #is_eci)
      */
-    fn subSequence(&self, start: usize, end: usize) -> Result<Vec<char>>;
+    fn sub_sequence(&self, start: usize, end: usize) -> Result<Vec<char>>;
 
     /**
      * Determines if a value is an ECI
@@ -85,7 +85,7 @@ pub trait ECIInput: Display {
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      */
-    fn isECI(&self, index: usize) -> Result<bool>;
+    fn is_eci(&self, index: usize) -> Result<bool>;
 
     /**
      * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
@@ -103,8 +103,8 @@ pub trait ECIInput: Display {
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      * @throws  IllegalArgumentException
-     *          if the value at the {@code index} argument is not an ECI (@see #isECI)
+     *          if the value at the {@code index} argument is not an ECI (@see #is_eci)
      */
-    fn getECIValue(&self, index: usize) -> Result<Eci>;
-    fn haveNCharacters(&self, index: usize, n: usize) -> Result<bool>;
+    fn get_ecivalue(&self, index: usize) -> Result<Eci>;
+    fn have_ncharacters(&self, index: usize, n: usize) -> Result<bool>;
 }

@@ -98,7 +98,7 @@ impl Default for FormatInformation {
 impl FormatInformation {
     fn new(format_info: u8) -> Result<Self> {
         // Bits 3,4
-        let error_correction_level = ErrorCorrectionLevel::forBits((format_info >> 3) & 0x03)?;
+        let error_correction_level = ErrorCorrectionLevel::for_bits((format_info >> 3) & 0x03)?;
         // Bottom 3 bits
         let data_mask = format_info & 0x07;
         Ok(Self {

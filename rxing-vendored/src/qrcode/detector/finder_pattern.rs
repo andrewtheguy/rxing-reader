@@ -25,7 +25,7 @@ use crate::{Point, point};
  */
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FinderPattern {
-    estimatedModuleSize: f32,
+    estimated_module_size: f32,
     count: usize,
     pub(crate) point: Point,
 }
@@ -43,23 +43,23 @@ impl From<FinderPattern> for Point {
 }
 
 impl FinderPattern {
-    pub fn new(posX: f32, posY: f32, estimatedModuleSize: f32) -> Self {
-        Self::private_new(posX, posY, estimatedModuleSize, 1)
+    pub fn new(pos_x: f32, pos_y: f32, estimated_module_size: f32) -> Self {
+        Self::private_new(pos_x, pos_y, estimated_module_size, 1)
     }
 
-    fn private_new(posX: f32, posY: f32, estimatedModuleSize: f32, count: usize) -> Self {
+    fn private_new(pos_x: f32, pos_y: f32, estimated_module_size: f32, count: usize) -> Self {
         Self {
-            estimatedModuleSize,
+            estimated_module_size,
             count,
-            point: point(posX, posY),
+            point: point(pos_x, pos_y),
         }
     }
 
-    pub fn getEstimatedModuleSize(&self) -> f32 {
-        self.estimatedModuleSize
+    pub fn get_estimated_module_size(&self) -> f32 {
+        self.estimated_module_size
     }
 
-    pub fn getCount(&self) -> usize {
+    pub fn get_count(&self) -> usize {
         self.count
     }
 
@@ -67,10 +67,10 @@ impl FinderPattern {
      * <p>Determines if this finder pattern "about equals" a finder pattern at the stated
      * position and size -- meaning, it is at nearly the same center with nearly the same size.</p>
      */
-    pub fn aboutEquals(&self, moduleSize: f32, i: f32, j: f32) -> bool {
-        if (i - self.point.y).abs() <= moduleSize && (j - self.point.x).abs() <= moduleSize {
-            let moduleSizeDiff = (moduleSize - self.estimatedModuleSize).abs();
-            moduleSizeDiff <= 1.0 || moduleSizeDiff <= self.estimatedModuleSize
+    pub fn about_equals(&self, module_size: f32, i: f32, j: f32) -> bool {
+        if (i - self.point.y).abs() <= module_size && (j - self.point.x).abs() <= module_size {
+            let module_size_diff = (module_size - self.estimated_module_size).abs();
+            module_size_diff <= 1.0 || module_size_diff <= self.estimated_module_size
         } else {
             false
         }
@@ -81,17 +81,17 @@ impl FinderPattern {
      * with a new estimate. It returns a new {@code FinderPattern} containing a weighted average
      * based on count.
      */
-    pub fn combineEstimate(&self, i: f32, j: f32, newModuleSize: f32) -> FinderPattern {
-        let combinedCount = self.count as f32 + 1.0;
-        let combinedX = (self.count as f32 * self.point.x + j) / combinedCount;
-        let combinedY = (self.count as f32 * self.point.y + i) / combinedCount;
-        let combinedModuleSize =
-            (self.count as f32 * self.estimatedModuleSize + newModuleSize) / combinedCount;
+    pub fn combine_estimate(&self, i: f32, j: f32, new_module_size: f32) -> FinderPattern {
+        let combined_count = self.count as f32 + 1.0;
+        let combined_x = (self.count as f32 * self.point.x + j) / combined_count;
+        let combined_y = (self.count as f32 * self.point.y + i) / combined_count;
+        let combined_module_size =
+            (self.count as f32 * self.estimated_module_size + new_module_size) / combined_count;
         FinderPattern::private_new(
-            combinedX,
-            combinedY,
-            combinedModuleSize,
-            combinedCount.round() as usize,
+            combined_x,
+            combined_y,
+            combined_module_size,
+            combined_count.round() as usize,
         )
     }
 }

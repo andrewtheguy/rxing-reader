@@ -40,11 +40,11 @@ fn collect_bytes(results: RxingResult<Vec<RXingResult>>) -> Vec<Vec<u8>> {
     results
         .unwrap_or_default()
         .into_iter()
-        .map(|r| r.getRawBytes().to_vec())
+        .map(|r| r.get_raw_bytes().to_vec())
         .collect()
 }
 
-/// Decode on `bitmap` once, then optionally flip the BitMatrix in place and
+/// decode on `bitmap` once, then optionally flip the BitMatrix in place and
 /// retry when no result was found.
 pub fn decode_with_optional_invert<B: Binarizer>(
     bitmap: &mut BinaryBitmap<B>,
@@ -97,7 +97,7 @@ pub fn decode_one_layer(
     }
 }
 
-/// Decode QR payload bytes from a luma image through the shared pyramid,
+/// decode QR payload bytes from a luma image through the shared pyramid,
 /// close-pass, binarizer, and optional-inversion pipeline.
 pub fn decode_inner(
     luma: &[u8],
@@ -109,7 +109,7 @@ pub fn decode_inner(
     max_number_of_symbols: u32,
 ) -> Vec<Vec<u8>> {
     let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
+        possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),
         try_harder: Some(try_harder),
         ..DecodeHints::default()
     };

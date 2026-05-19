@@ -67,7 +67,7 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
     fn get_black_matrix(&self) -> Result<&BitMatrix> {
         let matrix = self
             .black_matrix
-            .get_or_try_init(|| Self::calculateBlackMatrix(&self.ghb))?;
+            .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
         Ok(matrix)
     }
 
@@ -85,7 +85,7 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
 
     fn get_black_row_from_matrix(&self, y: usize) -> Result<Cow<'_, BitArray>> {
         if let Some(matrix) = self.black_matrix.get() {
-            Ok(Cow::Owned(matrix.getRow(y as u32)))
+            Ok(Cow::Owned(matrix.get_row(y as u32)))
         } else {
             self.get_black_row(y)
         }
@@ -109,7 +109,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
         }
     }
 
-    fn calculateBlackMatrix<LS2: LuminanceSource>(
+    fn calculate_black_matrix<LS2: LuminanceSource>(
         ghb: &GlobalHistogramBinarizer<LS2>,
     ) -> Result<BitMatrix> {
         let source = ghb.get_luminance_source();
@@ -126,7 +126,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
             if (height & BLOCK_SIZE_MASK) != 0 {
                 sub_height += 1;
             }
-            let black_points = Self::calculateBlackPoints(
+            let black_points = Self::calculate_black_points(
                 &luminances,
                 sub_width as u32,
                 sub_height as u32,
@@ -135,7 +135,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
             );
 
             let mut new_matrix = BitMatrix::new(width as u32, height as u32)?;
-            Self::calculateThresholdForBlock(
+            Self::calculate_threshold_for_block(
                 &luminances,
                 sub_width as u32,
                 sub_height as u32,
@@ -157,7 +157,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
      * of the blocks around it. Also handles the corner cases (fractional blocks are computed based
      * on the last pixels in the row/column which are also used in the previous block).
      */
-    fn calculateThresholdForBlock(
+    fn calculate_threshold_for_block(
         luminances: &[u8],
         sub_width: u32,
         sub_height: u32,
@@ -166,27 +166,27 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
         black_points: &[u32],
         matrix: &mut BitMatrix,
     ) {
-        let maxYOffset = height - BLOCK_SIZE as u32;
-        let maxXOffset = width - BLOCK_SIZE as u32;
+        let max_yoffset = height - BLOCK_SIZE as u32;
+        let max_xoffset = width - BLOCK_SIZE as u32;
         for y in 0..sub_height {
-            let yoffset = u32::min(y << BLOCK_SIZE_POWER, maxYOffset);
+            let yoffset = u32::min(y << BLOCK_SIZE_POWER, max_yoffset);
 
             let top = u32::clamp(y, 2, sub_height - 3);
             for x in 0..sub_width {
-                let xoffset = u32::min(x << BLOCK_SIZE_POWER, maxXOffset);
+                let xoffset = u32::min(x << BLOCK_SIZE_POWER, max_xoffset);
 
                 let left = u32::clamp(x, 2, sub_width - 3);
                 let mut sum = 0;
                 for z in -2..=2 {
-                    let blackRow = &black_points[((top as i32 + z) as u32 * sub_width) as usize..];
-                    sum += blackRow[(left - 2) as usize]
-                        + blackRow[(left - 1) as usize]
-                        + blackRow[left as usize]
-                        + blackRow[(left + 1) as usize]
-                        + blackRow[(left + 2) as usize];
+                    let black_row = &black_points[((top as i32 + z) as u32 * sub_width) as usize..];
+                    sum += black_row[(left - 2) as usize]
+                        + black_row[(left - 1) as usize]
+                        + black_row[left as usize]
+                        + black_row[(left + 1) as usize]
+                        + black_row[(left + 2) as usize];
                 }
                 let average = sum / 25;
-                Self::thresholdBlock(luminances, xoffset, yoffset, average, width, matrix);
+                Self::threshold_block(luminances, xoffset, yoffset, average, width, matrix);
             }
         }
     }
@@ -194,7 +194,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
     /**
      * Applies a single threshold to a block of pixels.
      */
-    fn thresholdBlock(
+    fn threshold_block(
         luminances: &[u8],
         xoffset: u32,
         yoffset: u32,
@@ -219,21 +219,21 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
      * See the following thread for a discussion of this algorithm:
      *  http://groups.google.com/group/zxing/browse_thread/thread/d06efa2c35a7ddc0
      */
-    fn calculateBlackPoints(
+    fn calculate_black_points(
         luminances: &[u8],
-        subWidth: u32,
-        subHeight: u32,
+        sub_width: u32,
+        sub_height: u32,
         width: u32,
         height: u32,
     ) -> Vec<u32> {
-        let maxYOffset = height as usize - BLOCK_SIZE;
-        let maxXOffset = width as usize - BLOCK_SIZE;
-        let mut blackPoints = vec![0; (subHeight * subWidth) as usize];
-        for y in 0..subHeight {
-            let yoffset = u32::min(y << BLOCK_SIZE_POWER, maxYOffset as u32);
+        let max_yoffset = height as usize - BLOCK_SIZE;
+        let max_xoffset = width as usize - BLOCK_SIZE;
+        let mut black_points = vec![0; (sub_height * sub_width) as usize];
+        for y in 0..sub_height {
+            let yoffset = u32::min(y << BLOCK_SIZE_POWER, max_yoffset as u32);
 
-            for x in 0..subWidth {
-                let xoffset = u32::min(x << BLOCK_SIZE_POWER, maxXOffset as u32);
+            for x in 0..sub_width {
+                let xoffset = u32::min(x << BLOCK_SIZE_POWER, max_xoffset as u32);
 
                 let mut sum: u32 = 0;
                 let mut min = u8::MAX;
@@ -286,19 +286,19 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
                         // the boundaries is used for the interior.
 
                         // The (min < bp) is arbitrary but works better than other heuristics that were tried.
-                        let average_neighbor_black_point: u32 = (blackPoints
-                            [(y as usize - 1) * subWidth as usize + x as usize]
-                            + (2 * blackPoints[y as usize * subWidth as usize + x as usize - 1])
-                            + blackPoints[(y as usize - 1) * subWidth as usize + x as usize - 1])
+                        let average_neighbor_black_point: u32 = (black_points
+                            [(y as usize - 1) * sub_width as usize + x as usize]
+                            + (2 * black_points[y as usize * sub_width as usize + x as usize - 1])
+                            + black_points[(y as usize - 1) * sub_width as usize + x as usize - 1])
                             / 4;
                         if (min as u32) < average_neighbor_black_point {
                             average = average_neighbor_black_point;
                         }
                     }
                 }
-                blackPoints[(y * subWidth + x) as usize] = average;
+                black_points[(y * sub_width + x) as usize] = average;
             }
         }
-        blackPoints
+        black_points
     }
 }

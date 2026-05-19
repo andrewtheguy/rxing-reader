@@ -12,8 +12,8 @@ pub type Result<T, E = crate::Exceptions> = std::result::Result<T, E>;
 
 /// Encapsulates the result of detecting a barcode in an image.
 pub trait DetectorRXingResult {
-    fn getBits(&self) -> &BitMatrix;
-    fn getPoints(&self) -> &[Point];
+    fn get_bits(&self) -> &BitMatrix;
+    fn get_points(&self) -> &[Point];
 }
 
 mod bit_matrix;

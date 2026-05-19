@@ -21,28 +21,28 @@ pub struct EdgeTracer<'a> {
 }
 
 impl BitMatrixCursorTrait for EdgeTracer<'_> {
-    fn testAt(&self, p: Point) -> Value {
-        if self.img.isIn(p, 0) {
+    fn test_at(&self, p: Point) -> Value {
+        if self.img.is_in_with_border(p, 0) {
             Value::from(self.img.get_point(p))
         } else {
             Value::Invalid
         }
     }
 
-    fn isIn(&self, p: Point) -> bool {
-        self.img.isIn(p, 0)
+    fn is_in(&self, p: Point) -> bool {
+        self.img.is_in_with_border(p, 0)
     }
 
-    fn isInSelf(&self) -> bool {
-        self.isIn(self.p)
+    fn is_in_self(&self) -> bool {
+        self.is_in(self.p)
     }
 
-    fn isBlack(&self) -> bool {
-        self.blackAt(self.p)
+    fn is_black(&self) -> bool {
+        self.black_at(self.p)
     }
 
-    fn isWhite(&self) -> bool {
-        self.whiteAt(self.p)
+    fn is_white(&self) -> bool {
+        self.white_at(self.p)
     }
 
     fn front(&self) -> &Point {
@@ -70,15 +70,15 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
         }
     }
 
-    fn turnBack(&mut self) {
+    fn turn_back(&mut self) {
         self.d = self.back()
     }
 
-    fn turnLeft(&mut self) {
+    fn turn_left(&mut self) {
         self.d = self.left()
     }
 
-    fn turnRight(&mut self) {
+    fn turn_right(&mut self) {
         self.d = self.right()
     }
 
@@ -86,33 +86,33 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
         self.d = self.direction(dir)
     }
 
-    fn edgeAt_point(&self, d: Point) -> Value {
-        let v = self.testAt(self.p);
-        if self.testAt(self.p + d) != v {
+    fn edge_at_point(&self, d: Point) -> Value {
+        let v = self.test_at(self.p);
+        if self.test_at(self.p + d) != v {
             v
         } else {
             Value::Invalid
         }
     }
 
-    fn setDirection(&mut self, dir: Point) {
-        self.d = dir.bresenhamDirection();
+    fn set_direction(&mut self, dir: Point) {
+        self.d = dir.bresenham_direction();
     }
 
     fn step(&mut self, s: Option<f32>) -> bool {
         let s = s.unwrap_or(1.0);
         self.p += self.d * s;
-        self.isIn(self.p)
+        self.is_in(self.p)
     }
 
-    fn movedBy(self, d: Point) -> Self {
+    fn moved_by(self, d: Point) -> Self {
         let mut res = self;
         res.p += d;
 
         res
     }
 
-    fn turnedBack(&self) -> Self {
+    fn turned_back(&self) -> Self {
         let mut res = self.clone();
         res.d = res.back();
 
@@ -120,23 +120,23 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
     }
 
     /**
-     * @brief stepToEdge advances cursor to one step behind the next (or n-th) edge.
+     * @brief step_to_edge advances cursor to one step behind the next (or n-th) edge.
      * @param nth number of edges to pass
      * @param range max number of steps to take
      * @param backup whether or not to backup one step so we land in front of the edge
      * @return number of steps taken or 0 if moved outside of range/image
      */
-    fn stepToEdge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32 {
+    fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32 {
         let mut nth = nth.unwrap_or(1);
         let range = range.unwrap_or(0);
         let backup = backup.unwrap_or(false);
-        // TODO: provide an alternative and faster out-of-bounds check than isIn() inside testAt()
+        // TODO: provide an alternative and faster out-of-bounds check than is_in() inside test_at()
         let mut steps = 0;
-        let mut lv = self.testAt(self.p);
+        let mut lv = self.test_at(self.p);
 
-        while nth > 0 && (range <= 0 || steps < range) && lv.isValid() {
+        while nth > 0 && (range <= 0 || steps < range) && lv.is_valid() {
             steps += 1;
-            let v = self.testAt(self.p + steps * self.d);
+            let v = self.test_at(self.p + steps * self.d);
             if lv != v {
                 lv = v;
                 nth -= 1;
@@ -167,47 +167,47 @@ impl<'a> EdgeTracer<'_> {
         EdgeTracer {
             img: image,
             p,
-            d: Point::bresenhamDirection(d),
+            d: Point::bresenham_direction(d),
             history: None,
             state: 0,
         }
     }
 
-    fn traceStep(
+    fn trace_step(
         &mut self,
-        dEdge: Point,
-        maxStepSize: i32,
-        goodDirection: bool,
+        d_edge: Point,
+        max_step_size: i32,
+        good_direction: bool,
     ) -> Result<StepResult> {
-        let dEdge = Point::mainDirection(dEdge);
-        for breadth in 1..=(if maxStepSize == 1 {
+        let d_edge = Point::main_direction(d_edge);
+        for breadth in 1..=(if max_step_size == 1 {
             2
-        } else if goodDirection {
+        } else if good_direction {
             1
         } else {
             3
         }) {
-            for step in 1..=maxStepSize {
+            for step in 1..=max_step_size {
                 for i in 0..=(2 * (step / 4 + 1) * breadth) {
-                    let mut pEdge = self.p
+                    let mut p_edge = self.p
                         + step * self.d
-                        + (if i & 1 > 0 { (i + 1) / 2 } else { -i / 2 }) * dEdge;
+                        + (if i & 1 > 0 { (i + 1) / 2 } else { -i / 2 }) * d_edge;
 
-                    if !self.blackAt(pEdge + dEdge) {
+                    if !self.black_at(p_edge + d_edge) {
                         continue;
                     }
 
                     // found black pixel -> go 'outward' until we hit the b/w border
-                    for _j in 0..(std::cmp::max(maxStepSize, 3)) {
-                        if self.whiteAt(pEdge) {
+                    for _j in 0..(std::cmp::max(max_step_size, 3)) {
+                        if self.white_at(p_edge) {
                             // if we are not making any progress, we still have another endless loop bug
-                            if self.p == pEdge.centered() {
+                            if self.p == p_edge.centered() {
                                 return Err(Exceptions::ILLEGAL_STATE);
                             }
-                            self.p = pEdge.centered();
+                            self.p = p_edge.centered();
 
                             if let Some(history) = &self.history
-                                && maxStepSize == 1
+                                && max_step_size == 1
                             {
                                 if history
                                     .read()
@@ -233,12 +233,12 @@ impl<'a> EdgeTracer<'_> {
 
                             return Ok(StepResult::Found);
                         }
-                        pEdge -= dEdge;
-                        if self.blackAt(pEdge - self.d) {
-                            pEdge -= self.d;
+                        p_edge -= d_edge;
+                        if self.black_at(p_edge - self.d) {
+                            p_edge -= self.d;
                         }
 
-                        if !self.isIn(pEdge) {
+                        if !self.is_in(p_edge) {
                             break;
                         }
                     }
@@ -250,35 +250,35 @@ impl<'a> EdgeTracer<'_> {
         Ok(StepResult::OpenEnd)
     }
 
-    pub fn updateDirectionFromOrigin(&mut self, origin: Point) -> bool {
+    pub fn update_direction_from_origin(&mut self, origin: Point) -> bool {
         let old_d = self.d;
-        self.setDirection(self.p - origin);
+        self.set_direction(self.p - origin);
         // if the new direction is pointing "backward", i.e. angle(new, old) > 90 deg -> break
         if Point::dot(self.d, old_d) < 0.0 {
             return false;
         }
         // make sure d stays in the same quadrant to prevent an infinite loop
         if (self.d.x).abs() == (self.d.y).abs() {
-            self.d = Point::mainDirection(old_d) + 0.99 * (self.d - Point::mainDirection(old_d));
-        } else if Point::mainDirection(self.d) != Point::mainDirection(old_d) {
-            self.d = Point::mainDirection(old_d) + 0.99 * Point::mainDirection(self.d);
+            self.d = Point::main_direction(old_d) + 0.99 * (self.d - Point::main_direction(old_d));
+        } else if Point::main_direction(self.d) != Point::main_direction(old_d) {
+            self.d = Point::main_direction(old_d) + 0.99 * Point::main_direction(self.d);
         }
         true
     }
 
-    pub fn traceLine<T: RegressionLineTrait>(
+    pub fn trace_line<T: RegressionLineTrait>(
         &mut self,
-        dEdge: Point,
+        d_edge: Point,
         line: &mut T,
     ) -> Result<bool> {
-        line.set_direction_inward(dEdge);
+        line.set_direction_inward(d_edge);
         loop {
             line.add(self.p)?;
             if line.points().len() % 50 == 10 {
                 if !line.evaluate_max_distance(None, None) {
                     return Ok(false);
                 }
-                if !self.updateDirectionFromOrigin(
+                if !self.update_direction_from_origin(
                     self.p - line.project(self.p)
                         + **line
                             .points()
@@ -289,32 +289,32 @@ impl<'a> EdgeTracer<'_> {
                     return Ok(false);
                 }
             }
-            let stepResult = self.traceStep(dEdge, 1, line.is_valid())?;
-            if stepResult != StepResult::Found {
-                return Ok(stepResult == StepResult::OpenEnd && line.points().len() > 1);
+            let step_result = self.trace_step(d_edge, 1, line.is_valid())?;
+            if step_result != StepResult::Found {
+                return Ok(step_result == StepResult::OpenEnd && line.points().len() > 1);
             }
         }
     }
 
-    pub fn traceGaps<T: RegressionLineTrait>(
+    pub fn trace_gaps<T: RegressionLineTrait>(
         &mut self,
-        dEdge: Point,
+        d_edge: Point,
         line: &mut T,
-        maxStepSize: i32,
-        finishLine: &mut T,
+        max_step_size: i32,
+        finish_line: &mut T,
     ) -> Result<bool> {
-        let mut maxStepSize = maxStepSize;
-        let maxStepsPerGap = maxStepSize;
+        let mut max_step_size = max_step_size;
+        let max_steps_per_gap = max_step_size;
         let mut steps = 0;
-        line.set_direction_inward(dEdge);
+        line.set_direction_inward(d_edge);
         let mut gaps = 0;
-        let mut lastP = Point { x: 0.0, y: 0.0 };
+        let mut last_p = Point { x: 0.0, y: 0.0 };
         loop {
             // detect an endless loop (lack of progress). if encountered, please report.
             // this fixes a deadlock in falsepositives-1/#570.png and the regression in #574
             steps += 1;
-            if self.p == std::mem::replace(&mut lastP, self.p)
-                || steps > (if gaps == 0 { 2 } else { gaps + 1 }) * maxStepsPerGap
+            if self.p == std::mem::replace(&mut last_p, self.p)
+                || steps > (if gaps == 0 { 2 } else { gaps + 1 }) * max_steps_per_gap
             {
                 return Ok(false);
             }
@@ -341,7 +341,7 @@ impl<'a> EdgeTracer<'_> {
             // if we are drifting towards the inside of the code, pull the current position back out onto the line
             if line.is_valid() && line.signed_distance(self.p) > 3.0 {
                 // The current direction d and the line we are tracing are supposed to be roughly parallel.
-                // In case the 'go outward' step in traceStep lead us astray, we might end up with a line
+                // In case the 'go outward' step in trace_step lead us astray, we might end up with a line
                 // that is almost perpendicular to d. Then the back-projection below can result in an
                 // endless loop. Break if the angle between d and line is greater than 45 deg.
                 if (Point::dot(Point::normalized(self.d), line.normal())).abs() > 0.7
@@ -376,11 +376,11 @@ impl<'a> EdgeTracer<'_> {
                 }
                 self.p = Point::centered(np);
             } else {
-                let stepLengthInMainDir = if line.points().is_empty() {
+                let step_length_in_main_dir = if line.points().is_empty() {
                     0.0
                 } else {
                     Point::dot(
-                        Point::mainDirection(self.d),
+                        Point::main_direction(self.d),
                         self.p
                             - line
                                 .points()
@@ -391,13 +391,13 @@ impl<'a> EdgeTracer<'_> {
                 };
                 line.add(self.p)?;
 
-                if stepLengthInMainDir > 1.0 {
+                if step_length_in_main_dir > 1.0 {
                     gaps += 1;
                     if gaps >= 2 || line.points().len() > 5 {
                         if !line.evaluate_max_distance(Some(1.5), None) {
                             return Ok(false);
                         }
-                        if !self.updateDirectionFromOrigin(
+                        if !self.update_direction_from_origin(
                             self.p - line.project(self.p)
                                 + line
                                     .points()
@@ -410,42 +410,42 @@ impl<'a> EdgeTracer<'_> {
                         // check if the first half of the top-line trace is complete.
                         // the minimum code size is 10x10 -> every code has at least 4 gaps
                         //TODO: maybe switch to termination condition based on bottom line length to get a better
-                        // finishLine for the right line trace
-                        if !finishLine.is_valid() && gaps == 4 {
+                        // finish_line for the right line trace
+                        if !finish_line.is_valid() && gaps == 4 {
                             // undo the last insert, it will be inserted again after the restart
                             line.pop_back();
                             return Ok(true);
                         }
                     }
-                } else if gaps == 0 && line.points().len() >= (2 * maxStepSize) as usize {
+                } else if gaps == 0 && line.points().len() >= (2 * max_step_size) as usize {
                     return Ok(false);
                 } // no point in following a line that has no gaps
             }
 
-            if finishLine.is_valid() {
-                maxStepSize =
-                    std::cmp::min(maxStepSize, (finishLine.signed_distance(self.p)) as i32);
+            if finish_line.is_valid() {
+                max_step_size =
+                    std::cmp::min(max_step_size, (finish_line.signed_distance(self.p)) as i32);
             }
 
-            let stepResult = self.traceStep(dEdge, maxStepSize, line.is_valid())?;
+            let step_result = self.trace_step(d_edge, max_step_size, line.is_valid())?;
 
-            if stepResult != StepResult::Found
-            // we are successful iff we found an open end across a valid finishLine
+            if step_result != StepResult::Found
+            // we are successful iff we found an open end across a valid finish_line
             {
-                return Ok(stepResult == StepResult::OpenEnd
-                    && finishLine.is_valid()
-                    && (finishLine.signed_distance(self.p)) as i32 <= maxStepSize + 1);
+                return Ok(step_result == StepResult::OpenEnd
+                    && finish_line.is_valid()
+                    && (finish_line.signed_distance(self.p)) as i32 <= max_step_size + 1);
             }
         }
     }
 
-    pub fn traceCorner(&mut self, dir: &mut Point, corner: &mut Point) -> Result<bool> {
+    pub fn trace_corner(&mut self, dir: &mut Point, corner: &mut Point) -> Result<bool> {
         if !self.step(None) {
             return Ok(false);
         }
         *corner = self.p;
         std::mem::swap(&mut self.d, dir);
-        self.traceStep(-1.0 * (*dir), 2, false)?;
-        Ok(self.isIn(*corner) && self.isIn(self.p))
+        self.trace_step(-1.0 * (*dir), 2, false)?;
+        Ok(self.is_in(*corner) && self.is_in(self.p))
     }
 }

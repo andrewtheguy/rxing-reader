@@ -32,8 +32,8 @@ impl BitMatrix {
         Ok(result)
     }
 
-    pub fn getTopLeftOnBitWithPosition(&self, left: &mut u32, top: &mut u32) -> bool {
-        let Some(Point { x, y }) = self.getTopLeftOnBit() else {
+    pub fn get_top_left_on_bit_with_position(&self, left: &mut u32, top: &mut u32) -> bool {
+        let Some(Point { x, y }) = self.get_top_left_on_bit() else {
             return false;
         };
         *left = x as u32;
@@ -42,8 +42,8 @@ impl BitMatrix {
         true
     }
 
-    pub fn getBottomRightOnBitWithPosition(&self, right: &mut u32, bottom: &mut u32) -> bool {
-        let Some(Point { x, y }) = self.getBottomRightOnBit() else {
+    pub fn get_bottom_right_on_bit_with_position(&self, right: &mut u32, bottom: &mut u32) -> bool {
+        let Some(Point { x, y }) = self.get_bottom_right_on_bit() else {
             return false;
         };
         *right = x as u32;
@@ -67,8 +67,8 @@ impl BitMatrix {
 
         let mut right = 0;
         let mut bottom = 0;
-        if !self.getTopLeftOnBitWithPosition(&mut left, &mut top)
-            || !self.getBottomRightOnBitWithPosition(&mut right, &mut bottom)
+        if !self.get_top_left_on_bit_with_position(&mut left, &mut top)
+            || !self.get_bottom_right_on_bit_with_position(&mut right, &mut bottom)
             || bottom - top + 1 < min_size
             || right - left + 1 < min_size
         {

@@ -87,7 +87,7 @@ impl LuminanceSource for Luma8LuminanceSource {
             inverted: self.inverted,
         };
         new_matrix.transpose();
-        new_matrix.reverseColumns();
+        new_matrix.reverse_columns();
         Ok(new_matrix)
     }
 
@@ -110,7 +110,7 @@ impl LuminanceSource for Luma8LuminanceSource {
 }
 
 impl Luma8LuminanceSource {
-    fn reverseColumns(&mut self) {
+    fn reverse_columns(&mut self) {
         for col in 0..(self.get_width()) {
             let mut a = 0;
             let mut b = self.get_height() - 1;

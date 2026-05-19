@@ -78,51 +78,51 @@ impl GenericGFPoly {
         })
     }
 
-    pub fn getCoefficients(&self) -> &Vec<i32> {
+    pub fn get_coefficients(&self) -> &Vec<i32> {
         &self.coefficients
     }
 
     /**
      * @return degree of this polynomial
      */
-    pub fn getDegree(&self) -> usize {
+    pub fn get_degree(&self) -> usize {
         self.coefficients.len() - 1
     }
 
     /**
      * @return true iff this polynomial is the monomial "0"
      */
-    pub fn isZero(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.coefficients[0] == 0
     }
 
     /**
      * @return coefficient of x^degree term in this polynomial
      */
-    pub fn getCoefficient(&self, degree: usize) -> i32 {
+    pub fn get_coefficient(&self, degree: usize) -> i32 {
         self.coefficients[self.coefficients.len() - 1 - degree]
     }
 
     /**
      * @return evaluation of this polynomial at a given point
      */
-    pub fn evaluateAt(&self, a: usize) -> i32 {
+    pub fn evaluate_at(&self, a: usize) -> i32 {
         if a == 0 {
             // Just return the x^0 coefficient
-            return self.getCoefficient(0);
+            return self.get_coefficient(0);
         }
         if a == 1 {
             // Just the sum of the coefficients
             let mut result = 0;
             for coefficient in &self.coefficients {
-                result = GenericGF::addOrSubtract(result, *coefficient);
+                result = GenericGF::add_or_subtract(result, *coefficient);
             }
             return result;
         }
         let mut result = self.coefficients[0];
         let size = self.coefficients.len();
         for i in 1..size {
-            result = GenericGF::addOrSubtract(
+            result = GenericGF::add_or_subtract(
                 self.field.multiply(a as i32, result),
                 self.coefficients[i],
             );
@@ -130,38 +130,38 @@ impl GenericGFPoly {
         result
     }
 
-    pub fn addOrSubtract(&self, other: &GenericGFPoly) -> Result<GenericGFPoly> {
+    pub fn add_or_subtract(&self, other: &GenericGFPoly) -> Result<GenericGFPoly> {
         if self.field != other.field {
             return Err(Exceptions::illegal_argument_with(
                 "GenericGFPolys do not have same GenericGF field",
             ));
         }
-        if self.isZero() {
+        if self.is_zero() {
             return Ok(other.clone());
         }
-        if other.isZero() {
+        if other.is_zero() {
             return Ok(self.clone());
         }
 
-        let mut smallerCoefficients = self.coefficients.clone();
-        let mut largerCoefficients = other.coefficients.clone();
-        if smallerCoefficients.len() > largerCoefficients.len() {
-            std::mem::swap(&mut smallerCoefficients, &mut largerCoefficients)
+        let mut smaller_coefficients = self.coefficients.clone();
+        let mut larger_coefficients = other.coefficients.clone();
+        if smaller_coefficients.len() > larger_coefficients.len() {
+            std::mem::swap(&mut smaller_coefficients, &mut larger_coefficients)
         }
 
-        let mut sumDiff = vec![0; largerCoefficients.len()];
-        let lengthDiff = largerCoefficients.len() - smallerCoefficients.len();
+        let mut sum_diff = vec![0; larger_coefficients.len()];
+        let length_diff = larger_coefficients.len() - smaller_coefficients.len();
         // Copy high-order terms only found in higher-degree polynomial's coefficients
-        sumDiff[0..lengthDiff].clone_from_slice(&largerCoefficients[0..lengthDiff]);
+        sum_diff[0..length_diff].clone_from_slice(&larger_coefficients[0..length_diff]);
 
-        for i in lengthDiff..largerCoefficients.len() {
-            sumDiff[i] = GenericGF::addOrSubtract(
-                smallerCoefficients[i - lengthDiff],
-                largerCoefficients[i],
+        for i in length_diff..larger_coefficients.len() {
+            sum_diff[i] = GenericGF::add_or_subtract(
+                smaller_coefficients[i - length_diff],
+                larger_coefficients[i],
             );
         }
 
-        GenericGFPoly::new(self.field, &sumDiff)
+        GenericGFPoly::new(self.field, &sum_diff)
     }
 
     pub fn multiply(&self, other: &GenericGFPoly) -> Result<GenericGFPoly> {
@@ -170,20 +170,20 @@ impl GenericGFPoly {
                 "GenericGFPolys do not have same GenericGF field",
             ));
         }
-        if self.isZero() || other.isZero() {
-            return Ok(self.getZero());
+        if self.is_zero() || other.is_zero() {
+            return Ok(self.get_zero());
         }
-        let aCoefficients = self.coefficients.clone();
-        let aLength = aCoefficients.len();
-        let bCoefficients = other.coefficients.clone();
-        let bLength = bCoefficients.len();
-        let mut product = vec![0; aLength + bLength - 1];
-        for i in 0..aLength {
-            let aCoeff = aCoefficients[i];
-            for j in 0..bLength {
-                product[i + j] = GenericGF::addOrSubtract(
+        let a_coefficients = self.coefficients.clone();
+        let a_length = a_coefficients.len();
+        let b_coefficients = other.coefficients.clone();
+        let b_length = b_coefficients.len();
+        let mut product = vec![0; a_length + b_length - 1];
+        for i in 0..a_length {
+            let a_coeff = a_coefficients[i];
+            for j in 0..b_length {
+                product[i + j] = GenericGF::add_or_subtract(
                     product[i + j],
-                    self.field.multiply(aCoeff, bCoefficients[j]),
+                    self.field.multiply(a_coeff, b_coefficients[j]),
                 );
             }
         }
@@ -192,7 +192,7 @@ impl GenericGFPoly {
 
     pub fn multiply_with_scalar(&self, scalar: i32) -> GenericGFPoly {
         if scalar == 0 {
-            return self.getZero();
+            return self.get_zero();
         }
         if scalar == 1 {
             return self.clone();
@@ -206,17 +206,17 @@ impl GenericGFPoly {
         GenericGFPoly::new(self.field, &product).unwrap()
     }
 
-    pub fn getZero(&self) -> Self {
+    pub fn get_zero(&self) -> Self {
         GenericGFPoly::new(self.field, &[0]).unwrap()
     }
 
-    pub fn getOne(&self) -> Self {
+    pub fn get_one(&self) -> Self {
         GenericGFPoly::new(self.field, &[1]).unwrap()
     }
 
     pub fn multiply_by_monomial(&self, degree: usize, coefficient: i32) -> Result<GenericGFPoly> {
         if coefficient == 0 {
-            return Ok(self.getZero());
+            return Ok(self.get_zero());
         }
         let size = self.coefficients.len();
         let mut product = vec![0; size + degree];
@@ -232,29 +232,29 @@ impl GenericGFPoly {
                 "GenericGFPolys do not have same GenericGF field",
             ));
         }
-        if other.isZero() {
+        if other.is_zero() {
             return Err(Exceptions::illegal_argument_with("Divide by 0"));
         }
 
-        let mut quotient = self.getZero();
+        let mut quotient = self.get_zero();
         let mut remainder = self.clone();
 
-        let denominator_leading_term = other.getCoefficient(other.getDegree());
+        let denominator_leading_term = other.get_coefficient(other.get_degree());
         let inverse_denominator_leading_term = match self.field.inverse(denominator_leading_term) {
             Ok(val) => val,
             Err(_issue) => return Err(Exceptions::illegal_argument_with("arithmetic issue")),
         };
 
-        while remainder.getDegree() >= other.getDegree() && !remainder.isZero() {
-            let degree_difference = remainder.getDegree() - other.getDegree();
+        while remainder.get_degree() >= other.get_degree() && !remainder.is_zero() {
+            let degree_difference = remainder.get_degree() - other.get_degree();
             let scale = self.field.multiply(
-                remainder.getCoefficient(remainder.getDegree()),
+                remainder.get_coefficient(remainder.get_degree()),
                 inverse_denominator_leading_term,
             );
             let term = other.multiply_by_monomial(degree_difference, scale)?;
-            let iteration_quotient = GenericGF::buildMonomial(self.field, degree_difference, scale);
-            quotient = quotient.addOrSubtract(&iteration_quotient)?;
-            remainder = remainder.addOrSubtract(&term)?;
+            let iteration_quotient = GenericGF::build_monomial(self.field, degree_difference, scale);
+            quotient = quotient.add_or_subtract(&iteration_quotient)?;
+            remainder = remainder.add_or_subtract(&term)?;
         }
 
         Ok((quotient, remainder))
@@ -263,15 +263,15 @@ impl GenericGFPoly {
 
 impl fmt::Display for GenericGFPoly {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.isZero() {
+        if self.is_zero() {
             return write!(f, "0");
         }
-        let mut result = String::with_capacity(8 * self.getDegree());
-        for degree in (0..=self.getDegree()).rev() {
-            let mut coefficient = self.getCoefficient(degree);
+        let mut result = String::with_capacity(8 * self.get_degree());
+        for degree in (0..=self.get_degree()).rev() {
+            let mut coefficient = self.get_coefficient(degree);
             if coefficient != 0 {
                 if coefficient < 0 {
-                    if degree == self.getDegree() {
+                    if degree == self.get_degree() {
                         result.push('-');
                     } else {
                         result.push_str(" - ");

@@ -18,11 +18,11 @@ impl QRCodeDetectorResult {
 }
 
 impl DetectorRXingResult for QRCodeDetectorResult {
-    fn getBits(&self) -> &crate::common::BitMatrix {
+    fn get_bits(&self) -> &crate::common::BitMatrix {
         &self.bit_source
     }
 
-    fn getPoints(&self) -> &[crate::Point] {
+    fn get_points(&self) -> &[crate::Point] {
         &self.result_points
     }
 }

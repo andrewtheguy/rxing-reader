@@ -12,12 +12,12 @@ where
     T: Copy + Clone + Default + Eq + PartialEq,
 {
     content: ECIStringBuilder,
-    ecLevel: String,
-    lineCount: u32,     // = 0;
-    versionNumber: u32, // = 0;
-    structuredAppend: StructuredAppendInfo,
-    isMirrored: bool, // = false;
-    readerInit: bool, // = false;
+    ec_level: String,
+    line_count: u32,     // = 0;
+    version_number: u32, // = 0;
+    structured_append: StructuredAppendInfo,
+    is_mirrored: bool, // = false;
+    reader_init: bool, // = false;
     error: Option<Exceptions>,
     extra: Arc<T>,
 }
@@ -29,12 +29,12 @@ where
     fn default() -> Self {
         Self {
             content: Default::default(),
-            ecLevel: Default::default(),
-            lineCount: 0,
-            versionNumber: 0,
-            structuredAppend: Default::default(),
-            isMirrored: false,
-            readerInit: false,
+            ec_level: Default::default(),
+            line_count: 0,
+            version_number: 0,
+            structured_append: Default::default(),
+            is_mirrored: false,
+            reader_init: false,
             error: None,
             extra: Default::default(),
         }
@@ -55,7 +55,7 @@ where
         }
     }
 
-    pub fn isValid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.content.symbology.code != 0 && self.error.is_none()
     }
 
@@ -68,95 +68,95 @@ impl<T> DecoderResult<T>
 where
     T: Copy + Clone + Default + Eq + PartialEq,
 {
-    pub fn ecLevel(&self) -> &str {
-        &self.ecLevel
+    pub fn ec_level(&self) -> &str {
+        &self.ec_level
     }
-    pub fn setEcLevel(&mut self, ecLevel: String) {
-        self.ecLevel = ecLevel
+    pub fn set_ec_level(&mut self, ec_level: String) {
+        self.ec_level = ec_level
     }
-    pub fn withEcLevel(mut self, ecLevel: String) -> DecoderResult<T> {
-        self.setEcLevel(ecLevel);
+    pub fn with_ec_level(mut self, ec_level: String) -> DecoderResult<T> {
+        self.set_ec_level(ec_level);
         self
     }
 
-    pub fn lineCount(&self) -> u32 {
-        self.lineCount
+    pub fn line_count(&self) -> u32 {
+        self.line_count
     }
-    pub fn setLineCount(&mut self, lc: u32) {
-        self.lineCount = lc
+    pub fn set_line_count(&mut self, lc: u32) {
+        self.line_count = lc
     }
-    pub fn withLineCount(mut self, lc: u32) -> DecoderResult<T> {
-        self.setLineCount(lc);
+    pub fn with_line_count(mut self, lc: u32) -> DecoderResult<T> {
+        self.set_line_count(lc);
         self
     }
 
-    pub fn versionNumber(&self) -> u32 {
-        self.versionNumber
+    pub fn version_number(&self) -> u32 {
+        self.version_number
     }
-    pub fn setVersionNumber(&mut self, vn: u32) {
-        self.versionNumber = vn
+    pub fn set_version_number(&mut self, vn: u32) {
+        self.version_number = vn
     }
-    pub fn withVersionNumber(mut self, vn: u32) -> DecoderResult<T> {
-        self.setVersionNumber(vn);
+    pub fn with_version_number(mut self, vn: u32) -> DecoderResult<T> {
+        self.set_version_number(vn);
         self
     }
 
-    pub fn structuredAppend(&self) -> &StructuredAppendInfo {
-        &self.structuredAppend
+    pub fn structured_append(&self) -> &StructuredAppendInfo {
+        &self.structured_append
     }
-    pub fn setStructuredAppend(&mut self, sai: StructuredAppendInfo) {
-        self.structuredAppend = sai
+    pub fn set_structured_append(&mut self, sai: StructuredAppendInfo) {
+        self.structured_append = sai
     }
-    pub fn withStructuredAppend(mut self, sai: StructuredAppendInfo) -> DecoderResult<T> {
-        self.setStructuredAppend(sai);
+    pub fn with_structured_append(mut self, sai: StructuredAppendInfo) -> DecoderResult<T> {
+        self.set_structured_append(sai);
         self
     }
 
-    pub fn isMirrored(&self) -> bool {
-        self.isMirrored
+    pub fn is_mirrored(&self) -> bool {
+        self.is_mirrored
     }
-    pub fn setIsMirrored(&mut self, is_mirrored: bool) {
-        self.isMirrored = is_mirrored
+    pub fn set_is_mirrored(&mut self, is_mirrored: bool) {
+        self.is_mirrored = is_mirrored
     }
-    pub fn withIsMirrored(mut self, is_mirrored: bool) -> DecoderResult<T> {
-        self.setIsMirrored(is_mirrored);
+    pub fn with_is_mirrored(mut self, is_mirrored: bool) -> DecoderResult<T> {
+        self.set_is_mirrored(is_mirrored);
         self
     }
 
-    pub fn readerInit(&self) -> bool {
-        self.readerInit
+    pub fn reader_init(&self) -> bool {
+        self.reader_init
     }
-    pub fn setReaderInit(&mut self, reader_init: bool) {
-        self.readerInit = reader_init
+    pub fn set_reader_init(&mut self, reader_init: bool) {
+        self.reader_init = reader_init
     }
-    pub fn withReaderInit(mut self, reader_init: bool) -> DecoderResult<T> {
-        self.setReaderInit(reader_init);
+    pub fn with_reader_init(mut self, reader_init: bool) -> DecoderResult<T> {
+        self.set_reader_init(reader_init);
         self
     }
 
     pub fn extra(&self) -> Arc<T> {
         self.extra.clone()
     }
-    pub fn setExtra(&mut self, extra: Arc<T>) {
+    pub fn set_extra(&mut self, extra: Arc<T>) {
         self.extra = extra
     }
-    pub fn withExtra(mut self, extra: Arc<T>) -> DecoderResult<T> {
-        self.setExtra(extra);
+    pub fn with_extra(mut self, extra: Arc<T>) -> DecoderResult<T> {
+        self.set_extra(extra);
         self
     }
 
     pub fn error(&self) -> &Option<Exceptions> {
         &self.error
     }
-    pub fn setError(&mut self, error: Option<Exceptions>) {
+    pub fn set_error(&mut self, error: Option<Exceptions>) {
         self.error = error
     }
-    pub fn withError(mut self, error: Option<Exceptions>) -> DecoderResult<T> {
-        self.setError(error);
+    pub fn with_error(mut self, error: Option<Exceptions>) -> DecoderResult<T> {
+        self.set_error(error);
         self
     }
 
-    pub fn withIsModel1(mut self, is_model_1: bool) -> DecoderResult<T> {
+    pub fn with_is_model1(mut self, is_model_1: bool) -> DecoderResult<T> {
         if is_model_1 {
             self.content.symbology.modifier = SYMBOLOGY_MODIFIER_MODEL_1
         }
@@ -172,7 +172,7 @@ where
         self.content.to_string()
     }
 
-    pub fn symbologyIdentifier(&self) -> String {
+    pub fn symbology_identifier(&self) -> String {
         let s = self.content.symbology;
         if s.code > 0 {
             format!(
@@ -181,7 +181,7 @@ where
                 char::from(
                     s.modifier
                         + if self.content.has_eci {
-                            s.eciModifierOffset
+                            s.eci_modifier_offset
                         } else {
                             0
                         }

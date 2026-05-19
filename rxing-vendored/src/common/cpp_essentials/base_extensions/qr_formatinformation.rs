@@ -12,48 +12,48 @@ pub const FORMAT_INFO_MASK_RMQR_SUB: u32 = 0x20A7B; // Finder sub pattern side
 
 impl FormatInformation {
     /**
-     * @param formatInfoBits1 format info indicator, with mask still applied
-     * @param formatInfoBits2 second copy of same info; both are checked at the same time to establish best match
+     * @param format_info_bits1 format info indicator, with mask still applied
+     * @param format_info_bits2 second copy of same info; both are checked at the same time to establish best match
      */
-    pub fn DecodeQR(formatInfoBits1: u32, formatInfoBits2: u32) -> Self {
+    pub fn decode_qr(format_info_bits1: u32, format_info_bits2: u32) -> Self {
         // maks out the 'Dark Module' for mirrored and non-mirrored case (see Figure 25 in ISO/IEC 18004:2015)
-        let mirroredFormatInfoBits2 = Self::MirrorBits(
-            ((formatInfoBits2 >> 1) & 0b111111110000000) | (formatInfoBits2 & 0b1111111),
+        let mirrored_format_info_bits2 = Self::mirror_bits(
+            ((format_info_bits2 >> 1) & 0b111111110000000) | (format_info_bits2 & 0b1111111),
         );
-        let formatInfoBits2 =
-            ((formatInfoBits2 >> 1) & 0b111111100000000) | (formatInfoBits2 & 0b11111111);
-        // Some (Model2) QR codes apparently do not apply the XOR mask. Try with (standard) and without (quirk) masking.
-        let mut fi = Self::FindBestFormatInfo(
+        let format_info_bits2 =
+            ((format_info_bits2 >> 1) & 0b111111100000000) | (format_info_bits2 & 0b11111111);
+        // Some (model2) QR codes apparently do not apply the XOR mask. Try with (standard) and without (quirk) masking.
+        let mut fi = Self::find_best_format_info(
             &[FORMAT_INFO_MASK_QR, 0, FORMAT_INFO_MASK_QR_MODEL1],
             &[
-                formatInfoBits1,
-                formatInfoBits2,
-                Self::MirrorBits(formatInfoBits1),
-                mirroredFormatInfoBits2,
+                format_info_bits1,
+                format_info_bits2,
+                Self::mirror_bits(format_info_bits1),
+                mirrored_format_info_bits2,
             ],
         );
 
         // Use bits 3/4 for error correction, and 0-2 for mask.
         fi.error_correction_level =
-            ErrorCorrectionLevel::ECLevelFromBits((fi.data >> 3) as u8 & 0x03, false);
+            ErrorCorrectionLevel::eclevel_from_bits((fi.data >> 3) as u8 & 0x03, false);
         fi.data_mask = fi.data as u8 & 0x07;
         fi.is_mirrored = fi.bits_index > 1;
 
         fi
     }
 
-    pub fn DecodeMQR(formatInfoBits: u32) -> Self {
+    pub fn decode_mqr(format_info_bits: u32) -> Self {
         // We don't use the additional masking (with 0x4445) to work around potentially non complying MicroQRCode encoders
-        let mut fi = Self::FindBestFormatInfo(
+        let mut fi = Self::find_best_format_info(
             &[FORMAT_INFO_MASK_MICRO, 0],
-            &[formatInfoBits, Self::MirrorBits(formatInfoBits)],
+            &[format_info_bits, Self::mirror_bits(format_info_bits)],
         );
 
         const BITS_TO_VERSION: [u8; 8] = [1, 2, 2, 3, 3, 4, 4, 4];
 
         // Bits 2/3/4 contain both error correction level and version, 0/1 contain mask.
         fi.error_correction_level =
-            ErrorCorrectionLevel::ECLevelFromBits((fi.data >> 2) as u8 & 0x07, true);
+            ErrorCorrectionLevel::eclevel_from_bits((fi.data >> 2) as u8 & 0x07, true);
         fi.data_mask = fi.data as u8 & 0x03;
         fi.micro_version = BITS_TO_VERSION[((fi.data >> 2) as u8 & 0x07) as usize] as u32;
         fi.is_mirrored = fi.bits_index == 1;
@@ -62,20 +62,20 @@ impl FormatInformation {
     }
 
     /**
-     * @param formatInfoBits1 format info indicator, with mask still applied
-     * @param formatInfoBits2 second copy of same info; both are checked at the same time to establish best match
+     * @param format_info_bits1 format info indicator, with mask still applied
+     * @param format_info_bits2 second copy of same info; both are checked at the same time to establish best match
      */
-    pub fn DecodeRMQR(formatInfoBits1: u32, formatInfoBits2: u32) -> Self {
-        let mut fi = if formatInfoBits2 != 0 {
-            Self::FindBestFormatInfoRMQR(&[formatInfoBits1], &[formatInfoBits2])
+    pub fn decode_rmqr(format_info_bits1: u32, format_info_bits2: u32) -> Self {
+        let mut fi = if format_info_bits2 != 0 {
+            Self::find_best_format_info_rmqr(&[format_info_bits1], &[format_info_bits2])
         } else {
             // TODO probably remove if `sampleRMQR()` done properly
-            Self::FindBestFormatInfoRMQR(&[formatInfoBits1], &[])
+            Self::find_best_format_info_rmqr(&[format_info_bits1], &[])
         };
 
         // Bit 6 is error correction (M/H), and bits 0-5 version.
         fi.error_correction_level =
-            ErrorCorrectionLevel::ECLevelFromBits(((fi.data >> 5) as u8 & 1) << 1, false); // Shift to match QRCode M/H
+            ErrorCorrectionLevel::eclevel_from_bits(((fi.data >> 5) as u8 & 1) << 1, false); // Shift to match QRCode M/H
         fi.data_mask = 4; // ((y / 2) + (x / 3)) % 2 == 0
         fi.micro_version = (fi.data & 0x1F) + 1;
         fi.is_mirrored = false; // TODO: implement mirrored format bit reading
@@ -84,11 +84,11 @@ impl FormatInformation {
     }
 
     #[inline(always)]
-    pub fn MirrorBits(bits: u32) -> u32 {
+    pub fn mirror_bits(bits: u32) -> u32 {
         (bits.reverse_bits()) >> 17
     }
 
-    pub fn FindBestFormatInfo(masks: &[u32], bits: &[u32]) -> Self {
+    pub fn find_best_format_info(masks: &[u32], bits: &[u32]) -> Self {
         let mut fi = FormatInformation::default();
 
         // See ISO 18004:2015, Annex C, Table C.1
@@ -118,7 +118,7 @@ impl FormatInformation {
         fi
     }
 
-    pub fn FindBestFormatInfoRMQR(bits: &[u32], subbits: &[u32]) -> Self {
+    pub fn find_best_format_info_rmqr(bits: &[u32], subbits: &[u32]) -> Self {
         // See ISO/IEC 23941:2022, Annex C, Table C.1 - Valid format information sequences
         const MASKED_PATTERNS: [u32; 64] = [
             // Finder pattern side
@@ -181,8 +181,8 @@ impl FormatInformation {
         }
     }
 
-    // Hamming distance of the 32 masked codes is 7 (64 and 8 for rMQR), by construction, so <= 3 bits differing means we found a match
-    pub const fn isValid(&self) -> bool {
+    // Hamming distance of the 32 masked codes is 7 (64 and 8 for r_mqr), by construction, so <= 3 bits differing means we found a match
+    pub const fn is_valid(&self) -> bool {
         self.hamming_distance <= 3
     }
 

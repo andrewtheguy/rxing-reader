@@ -29,32 +29,32 @@ impl GridSampler for DefaultGridSampler {
     fn sample_grid(
         &self,
         image: &BitMatrix,
-        dimensionX: u32,
-        dimensionY: u32,
+        dimension_x: u32,
+        dimension_y: u32,
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
-        if dimensionX == 0 || dimensionY == 0 {
+        if dimension_x == 0 || dimension_y == 0 {
             return Err(Exceptions::NOT_FOUND);
         }
 
         for SamplerControl { p0, p1, transform } in controls {
             // Precheck the corners of every roi to bail out early if the grid is "obviously" not completely inside the image
-            let isInside = |x: f32, y: f32| {
+            let is_inside = |x: f32, y: f32| {
                 transform
                     .transform_point(Point::centered(point(x, y)))
                     .is_some_and(|p| image.is_in(p))
             };
-            if !transform.isValid()
-                || !isInside(p0.x, p0.y)
-                || !isInside(p1.x - 1.0, p0.y)
-                || !isInside(p1.x - 1.0, p1.y - 1.0)
-                || !isInside(p0.x, p1.y - 1.0)
+            if !transform.is_valid()
+                || !is_inside(p0.x, p0.y)
+                || !is_inside(p1.x - 1.0, p0.y)
+                || !is_inside(p1.x - 1.0, p1.y - 1.0)
+                || !is_inside(p0.x, p1.y - 1.0)
             {
                 return Err(Exceptions::NOT_FOUND);
             }
         }
 
-        let mut bits = BitMatrix::new(dimensionX, dimensionY)?;
+        let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
         for SamplerControl { p0, p1, transform } in controls {
             for y in (p0.y as i32)..(p1.y as i32) {
                 for x in (p0.x as i32)..(p1.x as i32) {
@@ -66,7 +66,7 @@ impl GridSampler for DefaultGridSampler {
                     // that even though all boundary grid points get projected inside the image, it can still happen that an
                     // inner grid points is not. See #563. A true perspective transformation cannot have this property.
                     // The following check takes 100% care of the issue and turned out to be less of a performance impact than feared.
-                    // TODO: Check some mathematical/numercial property of mod2Pix to determine if it is a perspective transforation.
+                    // TODO: Check some mathematical/numercial property of mod2_pix to determine if it is a perspective transforation.
                     if !image.is_in(p) {
                         return Err(Exceptions::NOT_FOUND);
                     }
@@ -78,7 +78,7 @@ impl GridSampler for DefaultGridSampler {
             }
         }
 
-        let projectCorner = |p: Point| -> Point {
+        let project_corner = |p: Point| -> Point {
             for SamplerControl { p0, p1, transform } in controls {
                 if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y
                     && let Some(transformed) = transform.transform_point(p)
@@ -89,10 +89,10 @@ impl GridSampler for DefaultGridSampler {
             Point::default()
         };
 
-        let tl = projectCorner(Point::default());
-        let tr = projectCorner(Point::from((dimensionX - 1, 0)));
-        let br = projectCorner(Point::from((dimensionX - 1, dimensionY - 1)));
-        let bl = projectCorner(Point::from((0, dimensionY - 1)));
+        let tl = project_corner(Point::default());
+        let tr = project_corner(Point::from((dimension_x - 1, 0)));
+        let br = project_corner(Point::from((dimension_x - 1, dimension_y - 1)));
+        let bl = project_corner(Point::from((0, dimension_y - 1)));
 
         Ok((bits, [tl, tr, bl, br]))
     }

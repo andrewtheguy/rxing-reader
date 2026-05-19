@@ -23,31 +23,31 @@ use super::FinderPattern;
  * @author Sean Owen
  */
 pub struct FinderPatternInfo {
-    bottomLeft: FinderPattern,
-    topLeft: FinderPattern,
-    topRight: FinderPattern,
+    bottom_left: FinderPattern,
+    top_left: FinderPattern,
+    top_right: FinderPattern,
 }
 
 impl FinderPatternInfo {
     /// Expects the order to be [bottom_left, top_left, top_right]
-    pub fn new(patternCenters: [FinderPattern; 3]) -> Self {
-        let [a, b, c] = patternCenters;
+    pub fn new(pattern_centers: [FinderPattern; 3]) -> Self {
+        let [a, b, c] = pattern_centers;
         Self {
-            bottomLeft: a,
-            topLeft: b,
-            topRight: c,
+            bottom_left: a,
+            top_left: b,
+            top_right: c,
         }
     }
 
-    pub fn getBottomLeft(&self) -> &FinderPattern {
-        &self.bottomLeft
+    pub fn get_bottom_left(&self) -> &FinderPattern {
+        &self.bottom_left
     }
 
-    pub fn getTopLeft(&self) -> &FinderPattern {
-        &self.topLeft
+    pub fn get_top_left(&self) -> &FinderPattern {
+        &self.top_left
     }
 
-    pub fn getTopRight(&self) -> &FinderPattern {
-        &self.topRight
+    pub fn get_top_right(&self) -> &FinderPattern {
+        &self.top_right
     }
 }

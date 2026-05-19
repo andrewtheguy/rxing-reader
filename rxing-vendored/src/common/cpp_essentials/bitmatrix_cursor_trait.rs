@@ -9,19 +9,19 @@ use super::{Direction, Value, util::opposite};
  * in a Bresenham style (PointF) or in a discrete way (step only horizontal/vertical/diagonal (PointI)).
  */
 pub trait BitMatrixCursorTrait {
-    fn testAt(&self, p: Point) -> Value;
+    fn test_at(&self, p: Point) -> Value;
 
-    fn blackAt(&self, pos: Point) -> bool {
-        self.testAt(pos).isBlack()
+    fn black_at(&self, pos: Point) -> bool {
+        self.test_at(pos).is_black()
     }
-    fn whiteAt(&self, pos: Point) -> bool {
-        self.testAt(pos).isWhite()
+    fn white_at(&self, pos: Point) -> bool {
+        self.test_at(pos).is_white()
     }
 
-    fn isIn(&self, p: Point) -> bool;
-    fn isInSelf(&self) -> bool;
-    fn isBlack(&self) -> bool;
-    fn isWhite(&self) -> bool;
+    fn is_in(&self, p: Point) -> bool;
+    fn is_in_self(&self) -> bool;
+    fn is_black(&self) -> bool;
+    fn is_white(&self) -> bool;
 
     fn front(&self) -> &Point;
     fn back(&self) -> Point;
@@ -31,55 +31,55 @@ pub trait BitMatrixCursorTrait {
         self.right() * Into::<i32>::into(dir)
     }
 
-    fn turnBack(&mut self);
-    fn turnLeft(&mut self);
-    fn turnRight(&mut self);
+    fn turn_back(&mut self);
+    fn turn_left(&mut self);
+    fn turn_right(&mut self);
     fn turn(&mut self, dir: Direction);
 
-    fn edgeAt_point(&self, d: Point) -> Value;
+    fn edge_at_point(&self, d: Point) -> Value;
 
-    fn edgeAtFront(&self) -> Value {
-        self.edgeAt_point(*self.front())
+    fn edge_at_front(&self) -> Value {
+        self.edge_at_point(*self.front())
     }
-    fn edgeAtBack(&self) -> Value {
-        self.edgeAt_point(self.back())
+    fn edge_at_back(&self) -> Value {
+        self.edge_at_point(self.back())
     }
-    fn edgeAtLeft(&self) -> Value {
-        self.edgeAt_point(self.left())
+    fn edge_at_left(&self) -> Value {
+        self.edge_at_point(self.left())
     }
-    fn edgeAtRight(&self) -> Value {
-        self.edgeAt_point(self.right())
+    fn edge_at_right(&self) -> Value {
+        self.edge_at_point(self.right())
     }
-    fn edgeAt_direction(&self, dir: Direction) -> Value {
-        self.edgeAt_point(self.direction(dir))
+    fn edge_at_direction(&self, dir: Direction) -> Value {
+        self.edge_at_point(self.direction(dir))
     }
 
-    fn setDirection(&mut self, dir: Point);
+    fn set_direction(&mut self, dir: Point);
 
     fn step(&mut self, s: Option<f32>) -> bool;
 
-    fn movedBy(self, d: Point) -> Self;
-    fn turnedBack(&self) -> Self;
+    fn moved_by(self, d: Point) -> Self;
+    fn turned_back(&self) -> Self;
 
     /**
-     * @brief stepToEdge advances cursor to one step behind the next (or n-th) edge.
+     * @brief step_to_edge advances cursor to one step behind the next (or n-th) edge.
      * @param nth number of edges to pass
      * @param range max number of steps to take
      * @param backup whether or not to backup one step so we land in front of the edge
      * @return number of steps taken or 0 if moved outside of range/image
      */
-    fn stepToEdge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32;
+    fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32;
 
-    fn stepAlongEdge(&mut self, dir: Direction, skipCorner: Option<bool>) -> bool {
-        let skipCorner = skipCorner.unwrap_or_default();
+    fn step_along_edge(&mut self, dir: Direction, skip_corner: Option<bool>) -> bool {
+        let skip_corner = skip_corner.unwrap_or_default();
 
-        if !self.edgeAt_direction(dir).isValid() {
+        if !self.edge_at_direction(dir).is_valid() {
             self.turn(dir);
-        } else if self.edgeAtFront().isValid() {
+        } else if self.edge_at_front().is_valid() {
             self.turn(opposite(dir));
-            if self.edgeAtFront().isValid() {
+            if self.edge_at_front().is_valid() {
                 self.turn(opposite(dir));
-                if self.edgeAtFront().isValid() {
+                if self.edge_at_front().is_valid() {
                     return false;
                 }
             }
@@ -87,7 +87,7 @@ pub trait BitMatrixCursorTrait {
 
         let mut ret = self.step(None);
 
-        if ret && skipCorner && !self.edgeAt_direction(dir).isValid() {
+        if ret && skip_corner && !self.edge_at_direction(dir).is_valid() {
             self.turn(dir);
             ret = self.step(None);
         }
@@ -95,7 +95,7 @@ pub trait BitMatrixCursorTrait {
         ret
     }
 
-    fn countEdges(&mut self, range: i32) -> i32 {
+    fn count_edges(&mut self, range: i32) -> i32 {
         let mut res = 0;
         let mut range = range;
 
@@ -105,7 +105,7 @@ pub trait BitMatrixCursorTrait {
             steps = if range == 0 {
                 0
             } else {
-                self.stepToEdge(Some(1), Some(range), None)
+                self.step_to_edge(Some(1), Some(range), None)
             };
             steps > 0
         } {
@@ -122,7 +122,7 @@ pub trait BitMatrixCursorTrait {
 
     fn img(&self) -> &BitMatrix;
 
-    fn readPattern<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
+    fn read_pattern<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
         &mut self,
         range: Option<i32>,
     ) -> Option<[T; LEN]> {
@@ -130,25 +130,25 @@ pub trait BitMatrixCursorTrait {
         let mut res = [T::default(); LEN];
         for i in res.iter_mut() {
             *i = self
-                .stepToEdge(Some(1), Some(range), None)
+                .step_to_edge(Some(1), Some(range), None)
                 .try_into()
                 .ok()?;
         }
         Some(res)
     }
 
-    fn readPatternFromBlack<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
+    fn read_pattern_from_black<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
         &mut self,
-        maxWhitePrefix: i32,
+        max_white_prefix: i32,
         range: Option<i32>,
     ) -> Option<[T; LEN]> {
         let range = range.unwrap_or(0);
-        if maxWhitePrefix != 0
-            && self.isWhite()
-            && self.stepToEdge(Some(1), Some(maxWhitePrefix), None) == 0
+        if max_white_prefix != 0
+            && self.is_white()
+            && self.step_to_edge(Some(1), Some(max_white_prefix), None) == 0
         {
             return None;
         }
-        self.readPattern::<LEN, _>(Some(range))
+        self.read_pattern::<LEN, _>(Some(range))
     }
 }

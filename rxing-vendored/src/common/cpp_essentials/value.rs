@@ -5,13 +5,13 @@ pub enum Value {
     Black = 1,
 }
 impl Value {
-    pub fn isBlack(&self) -> bool {
+    pub fn is_black(&self) -> bool {
         self == &Value::Black
     }
-    pub fn isWhite(&self) -> bool {
+    pub fn is_white(&self) -> bool {
         self == &Value::White
     }
-    pub fn isValid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self != &Value::Invalid
     }
 }

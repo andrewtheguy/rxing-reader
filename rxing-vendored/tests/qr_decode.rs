@@ -141,7 +141,7 @@ fn qr_sample_inverted_png_requires_try_invert() {
 fn qr_sample_small_in_canvas_png_requires_try_harder() {
     // The baseline `qr_sample.png` downscaled to 80x80 and pasted into a
     // 1600x1600 white canvas (see `generate_synthetic_fixtures` below).
-    // `FindFinderPatterns` picks skip = (3*1600)/(4*97) ≈ 12 by default;
+    // `find_finder_patterns` picks skip = (3*1600)/(4*97) ≈ 12 by default;
     // the shrunken finder modules are ~3 px tall, so the coarse scan walks
     // past them and only the dense try_harder=true scan (skip=3) catches
     // one. try_invert and the binarizer choice are both irrelevant.
@@ -586,7 +586,7 @@ fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
     let source = Luma8LuminanceSource::new(luma, w, h);
     let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
     let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
+        possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),
         ..DecodeHints::default()
     };
     QrReader
@@ -594,7 +594,7 @@ fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
         .map(|results| {
             results
                 .into_iter()
-                .map(|r| r.getRawBytes().to_vec())
+                .map(|r| r.get_raw_bytes().to_vec())
                 .collect()
         })
         .unwrap_or_default()
@@ -605,7 +605,7 @@ const QR_COMPLEX_TEXT: &[u8] = b"https://qr-code-styling.com";
 #[test]
 fn decodes_two_qr_codes_in_single_image() {
     // Side-by-side composite of the two clean QR fixtures. Verifies that
-    // FindFinderPatterns surfaces both independent finder-pattern triples
+    // find_finder_patterns surfaces both independent finder-pattern triples
     // and that the multi-decode loop returns both payloads when the count
     // cap permits.
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_two_codes.png");
@@ -677,7 +677,7 @@ fn decodes_three_qr_codes_in_single_image() {
     // Three-symbol fixture: qr_sample twice plus qr_code_complex.
     // Exercises that the multi-decode loop keeps iterating past two and
     // that two identical payloads in the same image don't collapse into
-    // a single result (FindFinderPatterns yields three independent
+    // a single result (find_finder_patterns yields three independent
     // triples, decode returns three results).
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_three_codes.png");
     let decoded = decode_all(&rgba, w, h, 0);

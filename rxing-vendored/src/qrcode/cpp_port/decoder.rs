@@ -14,7 +14,7 @@ use crate::common::{
 };
 use crate::qrcode::common::{ErrorCorrectionLevel, Mode, Version};
 use crate::qrcode::cpp_port::bitmatrix_parser::{
-    ReadCodewords, ReadFormatInformation, ReadVersion,
+    read_codewords, read_format_information, read_version,
 };
 use crate::qrcode::decoder::DataBlock;
 
@@ -22,26 +22,26 @@ use crate::qrcode::decoder::DataBlock;
 * <p>Given data and error-correction codewords received, possibly corrupted by errors, attempts to
 * correct the errors in-place using Reed-Solomon error correction.</p>
 *
-* @param codewordBytes data and error correction codewords
-* @param numDataCodewords number of codewords that are data bytes
+* @param codeword_bytes data and error correction codewords
+* @param num_data_codewords number of codewords that are data bytes
 * @return false if error correction fails
 */
-pub fn CorrectErrors(codewordBytes: &mut [u8], numDataCodewords: u32) -> Result<bool> {
+pub fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: u32) -> Result<bool> {
     // First read into an array of ints
-    let mut codewordsInts: Vec<i32> = codewordBytes.iter().copied().map(|b| b as i32).collect();
+    let mut codewords_ints: Vec<i32> = codeword_bytes.iter().copied().map(|b| b as i32).collect();
 
-    let numECCodewords = ((codewordBytes.len() as u32) - numDataCodewords) as i32;
+    let num_eccodewords = ((codeword_bytes.len() as u32) - num_data_codewords) as i32;
     let rs = ReedSolomonDecoder::new(get_predefined_genericgf(
         PredefinedGenericGF::QrCodeField256,
     ));
 
-    rs.decode(&mut codewordsInts, numECCodewords)?;
+    rs.decode(&mut codewords_ints, num_eccodewords)?;
 
     // Copy back into array of bytes -- only need to worry about the bytes that were data
     // We don't care about errors in the error-correction codewords
-    for (dst, src) in codewordBytes[..numDataCodewords as usize]
+    for (dst, src) in codeword_bytes[..num_data_codewords as usize]
         .iter_mut()
-        .zip(codewordsInts[..numDataCodewords as usize].iter())
+        .zip(codewords_ints[..num_data_codewords as usize].iter())
     {
         *dst = *src as u8;
     }
@@ -52,7 +52,7 @@ pub fn CorrectErrors(codewordBytes: &mut [u8], numDataCodewords: u32) -> Result<
 /**
 * See specification GBT 18284-2000
 */
-pub fn DecodeHanziSegment(
+pub fn decode_hanzi_segment(
     bits: &mut BitSource,
     count: u32,
     result: &mut ECIStringBuilder,
@@ -66,52 +66,52 @@ pub fn DecodeHanziSegment(
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let twoBytes = bits.readBits(13)?;
-        let mut assembledTwoBytes = ((twoBytes / 0x060) << 8) | (twoBytes % 0x060);
-        if assembledTwoBytes < 0x00A00 {
+        let two_bytes = bits.read_bits(13)?;
+        let mut assembled_two_bytes = ((two_bytes / 0x060) << 8) | (two_bytes % 0x060);
+        if assembled_two_bytes < 0x00A00 {
             // In the 0xA1A1 to 0xAAFE range
-            assembledTwoBytes += 0x0A1A1;
+            assembled_two_bytes += 0x0A1A1;
         } else {
             // In the 0xB0A1 to 0xFAFE range
-            assembledTwoBytes += 0x0A6A1;
+            assembled_two_bytes += 0x0A6A1;
         }
-        *result += ((assembledTwoBytes >> 8) & 0xFF) as u8;
-        *result += (assembledTwoBytes & 0xFF) as u8;
+        *result += ((assembled_two_bytes >> 8) & 0xFF) as u8;
+        *result += (assembled_two_bytes & 0xFF) as u8;
         count -= 1;
     }
     Ok(())
 }
 
-pub fn DecodeKanjiSegment(
+pub fn decode_kanji_segment(
     bits: &mut BitSource,
     count: u32,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     let mut count = count;
     // Each character will require 2 bytes. Read the characters as 2-byte pairs
-    // and decode as Shift_JIS afterwards
-    result.switch_encoding(CharacterSet::Shift_JIS, false);
+    // and decode as ShiftJis afterwards
+    result.switch_encoding(CharacterSet::ShiftJis, false);
     result.reserve(2 * count as usize);
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let twoBytes = bits.readBits(13)?;
-        let mut assembledTwoBytes = ((twoBytes / 0x0C0) << 8) | (twoBytes % 0x0C0);
-        if assembledTwoBytes < 0x01F00 {
+        let two_bytes = bits.read_bits(13)?;
+        let mut assembled_two_bytes = ((two_bytes / 0x0C0) << 8) | (two_bytes % 0x0C0);
+        if assembled_two_bytes < 0x01F00 {
             // In the 0x8140 to 0x9FFC range
-            assembledTwoBytes += 0x08140;
+            assembled_two_bytes += 0x08140;
         } else {
             // In the 0xE040 to 0xEBBF range
-            assembledTwoBytes += 0x0C140;
+            assembled_two_bytes += 0x0C140;
         }
-        *result += (assembledTwoBytes >> 8) as u8;
-        *result += (assembledTwoBytes) as u8;
+        *result += (assembled_two_bytes >> 8) as u8;
+        *result += (assembled_two_bytes) as u8;
         count -= 1;
     }
     Ok(())
 }
 
-pub fn DecodeByteSegment(
+pub fn decode_byte_segment(
     bits: &mut BitSource,
     count: u32,
     result: &mut ECIStringBuilder,
@@ -120,12 +120,12 @@ pub fn DecodeByteSegment(
     result.reserve(count as usize);
 
     for _i in 0..count {
-        *result += (bits.readBits(8)?) as u8;
+        *result += (bits.read_bits(8)?) as u8;
     }
     Ok(())
 }
 
-pub fn ToAlphaNumericChar(value: u32) -> Result<char> {
+pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     let value = value as usize;
     /**
      * See ISO 18004:2006, 6.4.4 Table 5
@@ -145,7 +145,7 @@ pub fn ToAlphaNumericChar(value: u32) -> Result<char> {
     Ok(ALPHANUMERIC_CHARS[value])
 }
 
-pub fn DecodeAlphanumericSegment(
+pub fn decode_alphanumeric_segment(
     bits: &mut BitSource,
     count: u32,
     result: &mut ECIStringBuilder,
@@ -156,17 +156,17 @@ pub fn DecodeAlphanumericSegment(
     let mut buffer = Vec::new();
 
     while count > 1 {
-        let nextTwoCharsBits = bits.readBits(11)?;
-        buffer.push(ToAlphaNumericChar(nextTwoCharsBits / 45)?);
-        buffer.push(ToAlphaNumericChar(nextTwoCharsBits % 45)?);
+        let next_two_chars_bits = bits.read_bits(11)?;
+        buffer.push(to_alpha_numeric_char(next_two_chars_bits / 45)?);
+        buffer.push(to_alpha_numeric_char(next_two_chars_bits % 45)?);
         count -= 2;
     }
     if count == 1 {
         // special case: one character left
-        buffer.push(ToAlphaNumericChar(bits.readBits(6)?)?);
+        buffer.push(to_alpha_numeric_char(bits.read_bits(6)?)?);
     }
     // See section 6.4.8.1, 6.4.8.2
-    if result.symbology.aiFlag != AIFlag::None {
+    if result.symbology.ai_flag != AIFlag::None {
         // We need to massage the result a bit if in an FNC1 mode:
         let mut i = 0;
         while i < buffer.len() {
@@ -190,7 +190,7 @@ pub fn DecodeAlphanumericSegment(
     Ok(())
 }
 
-pub fn DecodeNumericSegment(
+pub fn decode_numeric_segment(
     bits: &mut BitSource,
     count: u32,
     result: &mut ECIStringBuilder,
@@ -202,9 +202,9 @@ pub fn DecodeNumericSegment(
 
     while count > 0 {
         let n = std::cmp::min(count, 3);
-        let nDigits = bits.readBits(1 + 3 * n as usize)?; // read 4, 7 or 10 bits into 1, 2 or 3 digits
-        result.append_string(&crate::common::cpp_essentials::util::ToString(
-            nDigits as usize,
+        let n_digits = bits.read_bits(1 + 3 * n as usize)?; // read 4, 7 or 10 bits into 1, 2 or 3 digits
+        result.append_string(&crate::common::cpp_essentials::util::to_string(
+            n_digits as usize,
             n as usize,
         )?);
         count -= n;
@@ -213,28 +213,28 @@ pub fn DecodeNumericSegment(
     Ok(())
 }
 
-pub fn ParseECIValue(bits: &mut BitSource) -> Result<Eci> {
-    let firstByte = bits.readBits(8)?;
-    if (firstByte & 0x80) == 0 {
+pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
+    let first_byte = bits.read_bits(8)?;
+    if (first_byte & 0x80) == 0 {
         // just one byte
-        return Eci::try_from(firstByte & 0x7F);
+        return Eci::try_from(first_byte & 0x7F);
     }
-    if (firstByte & 0xC0) == 0x80 {
+    if (first_byte & 0xC0) == 0x80 {
         // two bytes
-        let secondByte = bits.readBits(8)?;
-        return Eci::try_from(((firstByte & 0x3F) << 8) | secondByte);
+        let second_byte = bits.read_bits(8)?;
+        return Eci::try_from(((first_byte & 0x3F) << 8) | second_byte);
     }
-    if (firstByte & 0xE0) == 0xC0 {
+    if (first_byte & 0xE0) == 0xC0 {
         // three bytes
-        let secondThirdBytes = bits.readBits(16)?;
-        return Eci::try_from(((firstByte & 0x1F) << 16) | secondThirdBytes);
+        let second_third_bytes = bits.read_bits(16)?;
+        return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
-    Err(Exceptions::format_with("ParseECIValue: invalid value"))
+    Err(Exceptions::format_with("parse_ecivalue: invalid value"))
 }
 
 /**
  * QR codes encode mode indicators and terminator codes into a constant bit length of 4.
- * Micro QR codes have terminator codes that vary in bit length but are always longer than
+ * micro QR codes have terminator codes that vary in bit length but are always longer than
  * the mode indicators.
  * M1 - 0 length mode code, 3 bits terminator code
  * M2 - 1 bit mode code, 5 bits terminator code
@@ -249,10 +249,10 @@ pub fn ParseECIValue(bits: &mut BitSource) -> Result<Eci> {
  * @param bits the stream of bits that might have a terminator code
  * @param version the QR or micro QR code version
  */
-pub fn IsEndOfStream(bits: &mut BitSource, version: &Version) -> Result<bool> {
-    let bitsRequired = Mode::get_terminator_bit_length(version); //super::qr_codec_mode::TerminatorBitsLength(version);
-    let bitsAvailable = std::cmp::min(bits.available(), bitsRequired as usize);
-    Ok(bitsAvailable == 0 || bits.peek_bits(bitsAvailable)? == 0)
+pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
+    let bits_required = Mode::get_terminator_bit_length(version); //super::qr_codec_mode::TerminatorBitsLength(version);
+    let bits_available = std::cmp::min(bits.available(), bits_required as usize);
+    Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
 }
 
 /**
@@ -262,43 +262,43 @@ pub fn IsEndOfStream(bits: &mut BitSource, version: &Version) -> Result<bool> {
 * <p>See ISO 18004:2006, 6.4.3 - 6.4.7</p>
 */
 // ZXING_EXPORT_TEST_ONLY
-pub fn DecodeBitStream(
+pub fn decode_bit_stream(
     bytes: &[u8],
     version: &Version,
-    ecLevel: ErrorCorrectionLevel,
+    ec_level: ErrorCorrectionLevel,
 ) -> Result<DecoderResult<bool>> {
     let mut bits = BitSource::new(bytes);
     let mut result = ECIStringBuilder::default();
     result.symbology = SymbologyIdentifier {
         code: b'Q',
         modifier: b'1',
-        eciModifierOffset: 1,
-        aiFlag: AIFlag::None,
+        eci_modifier_offset: 1,
+        ai_flag: AIFlag::None,
     };
-    let mut structuredAppend = StructuredAppendInfo::default();
-    let modeBitLength = Mode::get_codec_mode_bits_length(version);
+    let mut structured_append = StructuredAppendInfo::default();
+    let mode_bit_length = Mode::get_codec_mode_bits_length(version);
 
-    if version.isModel1() {
-        bits.readBits(4)?; /* Model 1 is leading with 4 0-bits -> drop them */
+    if version.is_model1() {
+        bits.read_bits(4)?; /* Model 1 is leading with 4 0-bits -> drop them */
     }
 
     let res = (|| {
-        while !IsEndOfStream(&mut bits, version)? {
-            let mode: Mode = if modeBitLength == 0 {
-                Mode::NUMERIC // MicroQRCode version 1 is always NUMERIC and modeBitLength is 0
+        while !is_end_of_stream(&mut bits, version)? {
+            let mode: Mode = if mode_bit_length == 0 {
+                Mode::NUMERIC // MicroQRCode version 1 is always NUMERIC and mode_bit_length is 0
             } else {
-                Mode::CodecModeForBits(
-                    bits.readBits(modeBitLength as usize)?,
+                Mode::codec_mode_for_bits(
+                    bits.read_bits(mode_bit_length as usize)?,
                     Some(version.qr_type),
                 )?
             };
 
             match mode {
-                Mode::FNC1_FIRST_POSITION => {
+                Mode::Fnc1FirstPosition => {
                     result.symbology.modifier = b'3';
-                    result.symbology.aiFlag = AIFlag::GS1; // In Alphanumeric mode undouble doubled '%' and treat single '%' as <GS>
+                    result.symbology.ai_flag = AIFlag::GS1; // In Alphanumeric mode undouble doubled '%' and treat single '%' as <GS>
                 }
-                Mode::FNC1_SECOND_POSITION => {
+                Mode::Fnc1SecondPosition => {
                     if !result.is_empty() {
                         return Err(Exceptions::format_with(
                             "AIM Application Indicator (FNC1 in second position) at illegal position",
@@ -306,52 +306,52 @@ pub fn DecodeBitStream(
                     }
                     result.symbology.modifier = b'5';
                     // ISO/IEC 18004:2015 7.4.8.3 AIM Application Indicator (FNC1 in second position), "00-99" or "A-Za-z"
-                    let appInd = bits.readBits(8)?;
-                    if appInd < 100 {
+                    let app_ind = bits.read_bits(8)?;
+                    if app_ind < 100 {
                         // "00-09"
                         result +=
-                            crate::common::cpp_essentials::util::ToString(appInd as usize, 2)?;
-                    } else if (165..=190).contains(&appInd) || (197..=222).contains(&appInd) {
+                            crate::common::cpp_essentials::util::to_string(app_ind as usize, 2)?;
+                    } else if (165..=190).contains(&app_ind) || (197..=222).contains(&app_ind) {
                         // "A-Za-z"
-                        result += (appInd - 100) as u8;
+                        result += (app_ind - 100) as u8;
                     } else {
                         return Err(Exceptions::format_with("Invalid AIM Application Indicator"));
                     }
-                    result.symbology.aiFlag = AIFlag::AIM;
+                    result.symbology.ai_flag = AIFlag::AIM;
                 }
-                Mode::STRUCTURED_APPEND => {
+                Mode::StructuredAppend => {
                     // sequence number and parity is added later to the result metadata
                     // Read next 4 bits of index, 4 bits of symbol count, and 8 bits of parity data, then continue
-                    structuredAppend.index = bits.readBits(4)? as i32;
-                    structuredAppend.count = bits.readBits(4)? as i32 + 1;
-                    structuredAppend.id = (bits.readBits(8)?).to_string();
+                    structured_append.index = bits.read_bits(4)? as i32;
+                    structured_append.count = bits.read_bits(4)? as i32 + 1;
+                    structured_append.id = (bits.read_bits(8)?).to_string();
                 }
                 Mode::ECI => {
                     // Count doesn't apply to ECI
-                    result.switch_encoding(ParseECIValue(&mut bits)?.into(), true);
+                    result.switch_encoding(parse_ecivalue(&mut bits)?.into(), true);
                 }
                 Mode::HANZI => {
                     // First handle Hanzi mode which does not start with character count
                     // chinese mode contains a sub set indicator right after mode indicator
-                    let subset = bits.readBits(4)?;
+                    let subset = bits.read_bits(4)?;
                     if subset != 1 {
                         // GB2312_SUBSET is the only supported one right now
                         return Err(Exceptions::format_with("Unsupported HANZI subset"));
                     }
-                    let count = bits.readBits(mode.CharacterCountBits(version) as usize)?;
-                    DecodeHanziSegment(&mut bits, count, &mut result)?;
+                    let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
+                    decode_hanzi_segment(&mut bits, count, &mut result)?;
                 }
                 _ => {
                     // "Normal" QR code modes:
                     // How many characters will follow, encoded in this mode?
-                    let count = bits.readBits(mode.CharacterCountBits(version) as usize)?;
+                    let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
                     match mode {
-                        Mode::NUMERIC => DecodeNumericSegment(&mut bits, count, &mut result)?,
+                        Mode::NUMERIC => decode_numeric_segment(&mut bits, count, &mut result)?,
                         Mode::ALPHANUMERIC => {
-                            DecodeAlphanumericSegment(&mut bits, count, &mut result)?
+                            decode_alphanumeric_segment(&mut bits, count, &mut result)?
                         }
-                        Mode::BYTE => DecodeByteSegment(&mut bits, count, &mut result)?,
-                        Mode::KANJI => DecodeKanjiSegment(&mut bits, count, &mut result)?,
+                        Mode::BYTE => decode_byte_segment(&mut bits, count, &mut result)?,
+                        Mode::KANJI => decode_kanji_segment(&mut bits, count, &mut result)?,
                         _ => return Err(Exceptions::format_with("Invalid CodecMode")),
                     };
                 }
@@ -361,66 +361,66 @@ pub fn DecodeBitStream(
     })();
 
     Ok(DecoderResult::with_eci_string_builder(result)
-        .withError(res.err())
-        .withEcLevel(ecLevel.to_string())
-        .withVersionNumber(version.getVersionNumber())
-        .withStructuredAppend(structuredAppend)
-        .withIsModel1(version.isModel1()))
+        .with_error(res.err())
+        .with_ec_level(ec_level.to_string())
+        .with_version_number(version.get_version_number())
+        .with_structured_append(structured_append)
+        .with_is_model1(version.is_model1()))
 }
 
-pub fn Decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
-    if !Version::HasValidSize(bits) {
+pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
+    if !Version::has_valid_size(bits) {
         return Err(Exceptions::format_with("Invalid symbol size"));
     }
-    let Ok(formatInfo) = ReadFormatInformation(bits) else {
+    let Ok(format_info) = read_format_information(bits) else {
         return Err(Exceptions::format_with("Invalid format information"));
     };
 
-    let Ok(pversion) = ReadVersion(bits, formatInfo.qr_type()) else {
+    let Ok(pversion) = read_version(bits, format_info.qr_type()) else {
         return Err(Exceptions::format_with("Invalid version"));
     };
     let version = pversion;
 
-    let Ok(formatInfo) = ReadFormatInformation(bits) else {
+    let Ok(format_info) = read_format_information(bits) else {
         return Err(Exceptions::format_with("Invalid format information"));
     };
 
     // Read codewords
-    let codewords = ReadCodewords(bits, version, &formatInfo)?;
+    let codewords = read_codewords(bits, version, &format_info)?;
     if codewords.is_empty() {
         return Err(Exceptions::format_with("Failed to read codewords"));
     }
 
     // Separate into data blocks
-    let dataBlocks: Vec<DataBlock> =
-        DataBlock::getDataBlocks(&codewords, version, formatInfo.error_correction_level)?;
-    if dataBlocks.is_empty() {
+    let data_blocks: Vec<DataBlock> =
+        DataBlock::get_data_blocks(&codewords, version, format_info.error_correction_level)?;
+    if data_blocks.is_empty() {
         return Err(Exceptions::format_with("Failed to get data blocks"));
     }
 
     // Count total number of data bytes
-    let op = |totalBytes, dataBlock: &DataBlock| totalBytes + dataBlock.getNumDataCodewords();
-    let totalBytes = dataBlocks.iter().fold(0, op);
-    let mut resultBytes = vec![0u8; totalBytes as usize];
-    let mut resultIterator = 0;
+    let op = |total_bytes, data_block: &DataBlock| total_bytes + data_block.get_num_data_codewords();
+    let total_bytes = data_blocks.iter().fold(0, op);
+    let mut result_bytes = vec![0u8; total_bytes as usize];
+    let mut result_iterator = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
-    for dataBlock in dataBlocks.iter() {
-        let mut codewordBytes = dataBlock.getCodewords().to_vec();
-        let numDataCodewords = dataBlock.getNumDataCodewords() as usize;
+    for data_block in data_blocks.iter() {
+        let mut codeword_bytes = data_block.get_codewords().to_vec();
+        let num_data_codewords = data_block.get_num_data_codewords() as usize;
 
-        if !CorrectErrors(&mut codewordBytes, numDataCodewords as u32)? {
+        if !correct_errors(&mut codeword_bytes, num_data_codewords as u32)? {
             return Err(Exceptions::CHECKSUM);
         }
 
-        resultBytes[resultIterator..(resultIterator + numDataCodewords)]
-            .copy_from_slice(&codewordBytes[..numDataCodewords]);
-        resultIterator += numDataCodewords;
+        result_bytes[result_iterator..(result_iterator + num_data_codewords)]
+            .copy_from_slice(&codeword_bytes[..num_data_codewords]);
+        result_iterator += num_data_codewords;
     }
 
-    // Decode the contents of that stream of bytes
+    // decode the contents of that stream of bytes
     Ok(
-        DecodeBitStream(&resultBytes, version, formatInfo.error_correction_level)?
-            .withIsMirrored(formatInfo.is_mirrored),
+        decode_bit_stream(&result_bytes, version, format_info.error_correction_level)?
+            .with_is_mirrored(format_info.is_mirrored),
     )
 }

@@ -150,7 +150,7 @@ impl ECIStringBuilder {
     /// Finishes encoding anything in the buffer using the current ECI and resets.
     ///
     /// This function can panic
-    pub fn encodeCurrentBytesIfAny(&self) -> String {
+    pub fn encode_current_bytes_if_any(&self) -> String {
         let mut encoded_string = String::with_capacity(self.bytes.len());
         // First encode the first set
         let (_eci, end, _) =
@@ -201,7 +201,7 @@ impl ECIStringBuilder {
                 return None;
             }
         } else if eci == Eci::Unknown
-            && let Some(found_encoding) = string_utils::guessCharset(bytes, &DecodeHints::default())
+            && let Some(found_encoding) = string_utils::guess_charset(bytes, &DecodeHints::default())
             && let Ok(found_encoded_str) = found_encoding.decode(bytes)
         {
             encoded_string.push_str(&found_encoded_str);
@@ -226,7 +226,7 @@ impl ECIStringBuilder {
      *
      * @param value characters to append
      */
-    pub fn appendCharacters(&mut self, value: &str) {
+    pub fn append_characters(&mut self, value: &str) {
         self.append_string(value);
     }
 
@@ -253,7 +253,7 @@ impl ECIStringBuilder {
     }
 
     pub fn build_result(mut self) -> Self {
-        self.eci_result = Some(self.encodeCurrentBytesIfAny());
+        self.eci_result = Some(self.encode_current_bytes_if_any());
 
         self
     }
@@ -264,7 +264,7 @@ impl fmt::Display for ECIStringBuilder {
         if let Some(res) = &self.eci_result {
             write!(f, "{res}")
         } else {
-            write!(f, "{}", self.encodeCurrentBytesIfAny())
+            write!(f, "{}", self.encode_current_bytes_if_any())
         }
     }
 }
@@ -301,8 +301,8 @@ pub enum AIFlag {
 pub struct SymbologyIdentifier {
     pub code: u8,
     pub modifier: u8,
-    pub eciModifierOffset: u8,
-    pub aiFlag: AIFlag,
+    pub eci_modifier_offset: u8,
+    pub ai_flag: AIFlag,
 }
 
 impl Default for SymbologyIdentifier {
@@ -310,8 +310,8 @@ impl Default for SymbologyIdentifier {
         Self {
             code: 0,
             modifier: 0,
-            eciModifierOffset: 0,
-            aiFlag: AIFlag::None,
+            eci_modifier_offset: 0,
+            ai_flag: AIFlag::None,
         }
     }
 }

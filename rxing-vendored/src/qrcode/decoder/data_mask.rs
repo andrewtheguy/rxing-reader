@@ -33,45 +33,45 @@ pub enum DataMask {
     /**
      * 000: mask bits for which (x + y) mod 2 == 0
      */
-    DATA_MASK_000,
+    DataMask000,
 
     /**
      * 001: mask bits for which x mod 2 == 0
      */
-    DATA_MASK_001,
+    DataMask001,
 
     /**
      * 010: mask bits for which y mod 3 == 0
      */
-    DATA_MASK_010,
+    DataMask010,
 
     /**
      * 011: mask bits for which (x + y) mod 3 == 0
      */
-    DATA_MASK_011,
+    DataMask011,
 
     /**
      * 100: mask bits for which (x/2 + y/3) mod 2 == 0
      */
-    DATA_MASK_100,
+    DataMask100,
 
     /**
      * 101: mask bits for which xy mod 2 + xy mod 3 == 0
      * equivalently, such that xy mod 6 == 0
      */
-    DATA_MASK_101,
+    DataMask101,
 
     /**
      * 110: mask bits for which (xy mod 2 + xy mod 3) mod 2 == 0
      * equivalently, such that xy mod 6 < 3
      */
-    DATA_MASK_110,
+    DataMask110,
 
     /**
      * 111: mask bits for which ((x+y)mod 2 + xy mod 3) mod 2 == 0
      * equivalently, such that (x + y + xy mod 3) mod 2 == 0
      */
-    DATA_MASK_111,
+    DataMask111,
     // End of enum constants.
 }
 
@@ -83,26 +83,26 @@ impl DataMask {
      * @param bits representation of QR Code bits
      * @param dimension dimension of QR Code, represented by bits, being unmasked
      */
-    pub fn unmaskBitMatrix(&self, bits: &mut BitMatrix, dimension: u32) {
+    pub fn unmask_bit_matrix(&self, bits: &mut BitMatrix, dimension: u32) {
         for i in 0..dimension {
             for j in 0..dimension {
-                if self.isMasked(i, j) {
+                if self.is_masked(i, j) {
                     bits.flip_coords(j, i);
                 }
             }
         }
     }
 
-    pub fn isMasked(&self, i: u32, j: u32) -> bool {
+    pub fn is_masked(&self, i: u32, j: u32) -> bool {
         match self {
-            DataMask::DATA_MASK_000 => ((i + j) & 0x01) == 0,
-            DataMask::DATA_MASK_001 => (i & 0x01) == 0,
-            DataMask::DATA_MASK_010 => j.is_multiple_of(3),
-            DataMask::DATA_MASK_011 => (i + j).is_multiple_of(3),
-            DataMask::DATA_MASK_100 => (((i / 2) + (j / 3)) & 0x01) == 0,
-            DataMask::DATA_MASK_101 => (i * j).is_multiple_of(6),
-            DataMask::DATA_MASK_110 => ((i * j) % 6) < 3,
-            DataMask::DATA_MASK_111 => ((i + j + ((i * j) % 3)) & 0x01) == 0,
+            DataMask::DataMask000 => ((i + j) & 0x01) == 0,
+            DataMask::DataMask001 => (i & 0x01) == 0,
+            DataMask::DataMask010 => j.is_multiple_of(3),
+            DataMask::DataMask011 => (i + j).is_multiple_of(3),
+            DataMask::DataMask100 => (((i / 2) + (j / 3)) & 0x01) == 0,
+            DataMask::DataMask101 => (i * j).is_multiple_of(6),
+            DataMask::DataMask110 => ((i * j) % 6) < 3,
+            DataMask::DataMask111 => ((i + j + ((i * j) % 3)) & 0x01) == 0,
         }
     }
 }
@@ -112,14 +112,14 @@ impl TryFrom<u8> for DataMask {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(DataMask::DATA_MASK_000),
-            1 => Ok(DataMask::DATA_MASK_001),
-            2 => Ok(DataMask::DATA_MASK_010),
-            3 => Ok(DataMask::DATA_MASK_011),
-            4 => Ok(DataMask::DATA_MASK_100),
-            5 => Ok(DataMask::DATA_MASK_101),
-            6 => Ok(DataMask::DATA_MASK_110),
-            7 => Ok(DataMask::DATA_MASK_111),
+            0 => Ok(DataMask::DataMask000),
+            1 => Ok(DataMask::DataMask001),
+            2 => Ok(DataMask::DataMask010),
+            3 => Ok(DataMask::DataMask011),
+            4 => Ok(DataMask::DataMask100),
+            5 => Ok(DataMask::DataMask101),
+            6 => Ok(DataMask::DataMask110),
+            7 => Ok(DataMask::DataMask111),
             _ => Err(Exceptions::illegal_argument_with(format!(
                 "{value} is not between 0 and 7"
             ))),

@@ -51,7 +51,7 @@ const RMQR_SIZES: [PointI; 32] = [
 ];
 
 impl Version {
-    pub fn Model1(version_number: u32) -> Result<VersionRef> {
+    pub fn model1(version_number: u32) -> Result<VersionRef> {
         if !(1..=14).contains(&version_number) {
             Err(Exceptions::ILLEGAL_ARGUMENT)
         } else {
@@ -59,7 +59,7 @@ impl Version {
         }
     }
 
-    pub fn Model2(version_number: u32) -> Result<VersionRef> {
+    pub fn model2(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
             Err(Exceptions::ILLEGAL_ARGUMENT)
         } else {
@@ -67,7 +67,7 @@ impl Version {
         }
     }
 
-    pub fn Micro(version_number: u32) -> Result<VersionRef> {
+    pub fn micro(version_number: u32) -> Result<VersionRef> {
         if !(1..=4).contains(&version_number) {
             Err(Exceptions::ILLEGAL_ARGUMENT)
         } else {
@@ -75,7 +75,7 @@ impl Version {
         }
     }
 
-    pub fn rMQR(version_number: u32) -> Result<VersionRef> {
+    pub fn r_mqr(version_number: u32) -> Result<VersionRef> {
         let version_number = version_number as usize;
         if version_number < 1 || version_number > (RMQR_VERSIONS.len()) {
             Err(Exceptions::ILLEGAL_ARGUMENT)
@@ -84,64 +84,67 @@ impl Version {
         }
     }
 
-    pub const fn DimensionOfVersion(version: u32, is_micro: bool) -> u32 {
-        Self::DimensionOffset(is_micro) + Self::DimensionStep(is_micro) * version
+    pub const fn dimension_of_version(version: u32, is_micro: bool) -> u32 {
+        Self::dimension_offset(is_micro) + Self::dimension_step(is_micro) * version
     }
 
-    pub const fn DimensionOffset(is_micro: bool) -> u32 {
+    pub const fn dimension_offset(is_micro: bool) -> u32 {
         match is_micro {
             true => 9,
             false => 17,
         }
     }
 
-    pub const fn DimensionStep(is_micro: bool) -> u32 {
+    pub const fn dimension_step(is_micro: bool) -> u32 {
         match is_micro {
             true => 2,
             false => 4,
         }
     }
-    pub fn DecodeVersionInformation(versionBitsA: i32, versionBitsB: i32) -> Result<VersionRef> {
-        let mut bestDifference = u32::MAX;
-        let mut bestVersion = 0;
-        for (i, targetVersion) in VERSION_DECODE_INFO.into_iter().enumerate() {
-            for bits in [versionBitsA, versionBitsB] {
-                let bitsDifference = ((bits as u32) ^ targetVersion).count_ones();
-                if bitsDifference < bestDifference {
-                    bestVersion = i + 7;
-                    bestDifference = bitsDifference;
+    pub fn decode_version_information_pair(
+        version_bits_a: i32,
+        version_bits_b: i32,
+    ) -> Result<VersionRef> {
+        let mut best_difference = u32::MAX;
+        let mut best_version = 0;
+        for (i, target_version) in VERSION_DECODE_INFO.into_iter().enumerate() {
+            for bits in [version_bits_a, version_bits_b] {
+                let bits_difference = ((bits as u32) ^ target_version).count_ones();
+                if bits_difference < best_difference {
+                    best_version = i + 7;
+                    best_difference = bits_difference;
                 }
             }
-            if bestDifference == 0 {
+            if best_difference == 0 {
                 break;
             }
         }
         // We can tolerate up to 3 bits of error since no two version info codewords will
         // differ in less than 8 bits.
-        if bestDifference <= 3 {
-            return Self::getVersionForNumber(bestVersion as u32);
+        if best_difference <= 3 {
+            return Self::get_version_for_number(best_version as u32);
         }
         // If we didn't find a close enough match, fail
         Err(Exceptions::ILLEGAL_STATE)
     }
 
-    pub const fn isMicro(&self) -> bool {
+    pub const fn is_micro(&self) -> bool {
         Type::const_eq(self.qr_type, Type::Micro)
     }
 
-    pub const fn isModel1(&self) -> bool {
+    pub const fn is_model1(&self) -> bool {
         Type::const_eq(self.qr_type, Type::Model1)
     }
 
-    pub const fn isModel2(&self) -> bool {
+    pub const fn is_model2(&self) -> bool {
         Type::const_eq(self.qr_type, Type::Model2)
     }
 
-    pub const fn isRMQR(&self) -> bool {
+    pub const fn is_rmqr(&self) -> bool {
         Type::const_eq(self.qr_type, Type::RectMicro)
     }
 
-    pub fn SymbolSize(version: u32, qr_type: Type) -> PointI {
+    pub fn symbol_size(version: u32, qr_type: Type) -> PointI {
         let version = version as i32;
 
         let square = |s: i32| point(s, s);
@@ -179,7 +182,7 @@ impl Version {
         }
     }
 
-    pub fn IsValidSize(size: PointI, qr_type: Type) -> bool {
+    pub fn is_valid_size(size: PointI, qr_type: Type) -> bool {
         match qr_type {
             Type::Model1 => size.x == size.y && size.x >= 21 && size.x <= 73 && (size.x % 4 == 1),
             Type::Model2 => size.x == size.y && size.x >= 21 && size.x <= 177 && (size.x % 4 == 1),
@@ -192,43 +195,43 @@ impl Version {
                     && size.x <= 139
                     && size.y >= 7
                     && size.y <= 17
-                    && Self::IndexOf(&RMQR_SIZES, size).is_some()
+                    && Self::index_of(&RMQR_SIZES, size).is_some()
             }
         }
     }
-    pub fn HasValidSizeType(bitMatrix: &BitMatrix, qr_type: Type) -> bool {
-        Self::IsValidSize(
-            point(bitMatrix.width() as i32, bitMatrix.height() as i32),
+    pub fn has_valid_size_type(bit_matrix: &BitMatrix, qr_type: Type) -> bool {
+        Self::is_valid_size(
+            point(bit_matrix.width() as i32, bit_matrix.height() as i32),
             qr_type,
         )
     }
 
-    pub fn HasValidSize(matrix: &BitMatrix) -> bool {
-        Self::HasValidSizeType(matrix, Type::Model1)
-            || Self::HasValidSizeType(matrix, Type::Model2)
-            || Self::HasValidSizeType(matrix, Type::Micro)
-            || Self::HasValidSizeType(matrix, Type::RectMicro)
+    pub fn has_valid_size(matrix: &BitMatrix) -> bool {
+        Self::has_valid_size_type(matrix, Type::Model1)
+            || Self::has_valid_size_type(matrix, Type::Model2)
+            || Self::has_valid_size_type(matrix, Type::Micro)
+            || Self::has_valid_size_type(matrix, Type::RectMicro)
     }
 
-    fn IndexOf(points: &[PointI], search: PointI) -> Option<usize> {
+    fn index_of(points: &[PointI], search: PointI) -> Option<usize> {
         points.iter().position(|p| *p == search)
     }
 
-    pub fn NumberPoint(size: PointI) -> u32 {
+    pub fn number_point(size: PointI) -> u32 {
         if size.x != size.y {
-            Self::IndexOf(&RMQR_SIZES, size)
+            Self::index_of(&RMQR_SIZES, size)
                 .map(|idx| (idx + 1) as u32)
                 .unwrap_or(0)
-        } else if Self::IsValidSize(size, Type::Model2) {
+        } else if Self::is_valid_size(size, Type::Model2) {
             ((size.x - 17) / 4) as u32
-        } else if Self::IsValidSize(size, Type::Micro) {
+        } else if Self::is_valid_size(size, Type::Micro) {
             ((size.x - 9) / 2) as u32
         } else {
             0
         }
     }
 
-    pub fn Number(bitMatrix: &BitMatrix) -> u32 {
-        Self::NumberPoint(point(bitMatrix.width() as i32, bitMatrix.height() as i32))
+    pub fn number(bit_matrix: &BitMatrix) -> u32 {
+        Self::number_point(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
     }
 }

@@ -27,14 +27,14 @@ use crate::qrcode::common::{ErrorCorrectionLevel, VersionRef};
  * @author Sean Owen
  */
 pub struct DataBlock {
-    numDataCodewords: u32,
+    num_data_codewords: u32,
     codewords: Vec<u8>,
 }
 
 impl DataBlock {
-    fn new(numDataCodewords: u32, codewords: Vec<u8>) -> Self {
+    fn new(num_data_codewords: u32, codewords: Vec<u8>) -> Self {
         Self {
-            numDataCodewords,
+            num_data_codewords,
             codewords,
         }
     }
@@ -44,44 +44,44 @@ impl DataBlock {
      * That is, the first byte of data block 1 to n is written, then the second bytes, and so on. This
      * method will separate the data into original blocks.</p>
      *
-     * @param rawCodewords bytes as read directly from the QR Code
+     * @param raw_codewords bytes as read directly from the QR Code
      * @param version version of the QR Code
-     * @param ecLevel error-correction level of the QR Code
+     * @param ec_level error-correction level of the QR Code
      * @return DataBlocks containing original bytes, "de-interleaved" from representation in the
      *         QR Code
      */
-    pub fn getDataBlocks(
-        rawCodewords: &[u8],
+    pub fn get_data_blocks(
+        raw_codewords: &[u8],
         version: VersionRef,
-        ecLevel: ErrorCorrectionLevel,
+        ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
-        if rawCodewords.len() as u32 != version.getTotalCodewords() {
+        if raw_codewords.len() as u32 != version.get_total_codewords() {
             return Err(Exceptions::ILLEGAL_ARGUMENT);
         }
 
         // Figure out the number and size of data blocks used by this version and
         // error correction level
-        let ecBlocks = version.getECBlocksForLevel(ecLevel)?;
+        let ec_blocks = version.get_ecblocks_for_level(ec_level)?;
 
         // First count the total number of data blocks
-        let mut _totalBlocks = 0;
-        let ecBlockArray = ecBlocks.getECBlocks();
-        for ecBlock in ecBlockArray {
-            _totalBlocks += ecBlock.getCount();
+        let mut _total_blocks = 0;
+        let ec_block_array = ec_blocks.get_ecblocks();
+        for ec_block in ec_block_array {
+            _total_blocks += ec_block.get_count();
         }
 
         // Now establish DataBlocks of the appropriate size and number of data codewords
         let mut result = Vec::new();
-        let mut numRXingResultBlocks = 0;
-        for ecBlock in ecBlockArray {
-            for _i in 0..ecBlock.getCount() {
-                let numDataCodewords = ecBlock.getDataCodewords();
-                let numBlockCodewords = ecBlocks.getECCodewordsPerBlock() + numDataCodewords;
+        let mut num_rxing_result_blocks = 0;
+        for ec_block in ec_block_array {
+            for _i in 0..ec_block.get_count() {
+                let num_data_codewords = ec_block.get_data_codewords();
+                let num_block_codewords = ec_blocks.get_eccodewords_per_block() + num_data_codewords;
                 result.push(DataBlock::new(
-                    numDataCodewords,
-                    vec![0u8; numBlockCodewords as usize],
+                    num_data_codewords,
+                    vec![0u8; num_block_codewords as usize],
                 ));
-                numRXingResultBlocks += 1;
+                num_rxing_result_blocks += 1;
             }
         }
 
@@ -90,55 +90,55 @@ impl DataBlock {
         if result.is_empty() {
             return Err(Exceptions::ILLEGAL_ARGUMENT);
         }
-        let shorterBlocksTotalCodewords = result[0].codewords.len();
-        let mut longerBlocksStartAt = result.len() - 1;
+        let shorter_blocks_total_codewords = result[0].codewords.len();
+        let mut longer_blocks_start_at = result.len() - 1;
         loop {
-            let numCodewords = result[longerBlocksStartAt].codewords.len();
+            let num_codewords = result[longer_blocks_start_at].codewords.len();
 
-            if numCodewords == shorterBlocksTotalCodewords {
+            if num_codewords == shorter_blocks_total_codewords {
                 break;
             }
-            longerBlocksStartAt -= 1;
+            longer_blocks_start_at -= 1;
         }
-        longerBlocksStartAt += 1;
+        longer_blocks_start_at += 1;
 
-        let shorterBlocksNumDataCodewords =
-            shorterBlocksTotalCodewords - ecBlocks.getECCodewordsPerBlock() as usize;
+        let shorter_blocks_num_data_codewords =
+            shorter_blocks_total_codewords - ec_blocks.get_eccodewords_per_block() as usize;
         // The last elements of result may be 1 element longer;
         // first fill out as many elements as all of them have
-        let mut rawCodewordsOffset = 0;
-        for i in 0..shorterBlocksNumDataCodewords {
-            for result_j in result.iter_mut().take(numRXingResultBlocks) {
-                result_j.codewords[i] = rawCodewords[rawCodewordsOffset];
-                rawCodewordsOffset += 1;
+        let mut raw_codewords_offset = 0;
+        for i in 0..shorter_blocks_num_data_codewords {
+            for result_j in result.iter_mut().take(num_rxing_result_blocks) {
+                result_j.codewords[i] = raw_codewords[raw_codewords_offset];
+                raw_codewords_offset += 1;
             }
         }
         // Fill out the last data block in the longer ones
         for res in result
             .iter_mut()
-            .take(numRXingResultBlocks)
-            .skip(longerBlocksStartAt)
+            .take(num_rxing_result_blocks)
+            .skip(longer_blocks_start_at)
         {
-            res.codewords[shorterBlocksNumDataCodewords] = rawCodewords[rawCodewordsOffset];
-            rawCodewordsOffset += 1;
+            res.codewords[shorter_blocks_num_data_codewords] = raw_codewords[raw_codewords_offset];
+            raw_codewords_offset += 1;
         }
         // Now add in error correction blocks
         let max = result[0].codewords.len();
-        for i in shorterBlocksNumDataCodewords..max {
-            for (j, res) in result.iter_mut().enumerate().take(numRXingResultBlocks) {
-                let iOffset = if j < longerBlocksStartAt { i } else { i + 1 };
-                res.codewords[iOffset] = rawCodewords[rawCodewordsOffset];
-                rawCodewordsOffset += 1;
+        for i in shorter_blocks_num_data_codewords..max {
+            for (j, res) in result.iter_mut().enumerate().take(num_rxing_result_blocks) {
+                let i_offset = if j < longer_blocks_start_at { i } else { i + 1 };
+                res.codewords[i_offset] = raw_codewords[raw_codewords_offset];
+                raw_codewords_offset += 1;
             }
         }
         Ok(result)
     }
 
-    pub fn getNumDataCodewords(&self) -> u32 {
-        self.numDataCodewords
+    pub fn get_num_data_codewords(&self) -> u32 {
+        self.num_data_codewords
     }
 
-    pub fn getCodewords(&self) -> &[u8] {
+    pub fn get_codewords(&self) -> &[u8] {
         &self.codewords
     }
 }

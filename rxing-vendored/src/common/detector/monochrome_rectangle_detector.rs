@@ -52,156 +52,156 @@ impl<'a> MonochromeRectangleDetector<'_> {
      * @throws NotFoundException if no Data Matrix Code can be found
      */
     pub fn detect(&self) -> Result<[Point; 4]> {
-        let height = self.image.getHeight() as i32;
-        let width = self.image.getWidth() as i32;
-        let halfHeight = height / 2;
-        let halfWidth = width / 2;
-        let deltaY = 1.max(height / (MAX_MODULES * 8));
-        let deltaX = 1.max(width / (MAX_MODULES * 8));
+        let height = self.image.get_height() as i32;
+        let width = self.image.get_width() as i32;
+        let half_height = height / 2;
+        let half_width = width / 2;
+        let delta_y = 1.max(height / (MAX_MODULES * 8));
+        let delta_x = 1.max(width / (MAX_MODULES * 8));
 
         let mut top = 0;
         let mut bottom = height;
         let mut left = 0;
         let mut right = width;
-        let mut pointA = self.findCornerFromCenter(
-            halfWidth,
+        let mut point_a = self.find_corner_from_center(
+            half_width,
             0,
             left,
             right,
-            halfHeight,
-            -deltaY,
+            half_height,
+            -delta_y,
             top,
             bottom,
-            halfWidth / 2,
+            half_width / 2,
         )?;
-        top = (pointA.y - 1f32) as i32;
-        let pointB = self.findCornerFromCenter(
-            halfWidth,
-            -deltaX,
+        top = (point_a.y - 1f32) as i32;
+        let point_b = self.find_corner_from_center(
+            half_width,
+            -delta_x,
             left,
             right,
-            halfHeight,
+            half_height,
             0,
             top,
             bottom,
-            halfHeight / 2,
+            half_height / 2,
         )?;
-        left = (pointB.x - 1f32) as i32;
-        let pointC = self.findCornerFromCenter(
-            halfWidth,
-            deltaX,
+        left = (point_b.x - 1f32) as i32;
+        let point_c = self.find_corner_from_center(
+            half_width,
+            delta_x,
             left,
             right,
-            halfHeight,
+            half_height,
             0,
             top,
             bottom,
-            halfHeight / 2,
+            half_height / 2,
         )?;
-        right = (pointC.x + 1f32) as i32;
-        let pointD = self.findCornerFromCenter(
-            halfWidth,
+        right = (point_c.x + 1f32) as i32;
+        let point_d = self.find_corner_from_center(
+            half_width,
             0,
             left,
             right,
-            halfHeight,
-            deltaY,
+            half_height,
+            delta_y,
             top,
             bottom,
-            halfWidth / 2,
+            half_width / 2,
         )?;
-        bottom = (pointD.y + 1f32) as i32;
+        bottom = (point_d.y + 1f32) as i32;
 
         // Go try to find point A again with better information -- might have been off at first.
-        pointA = self.findCornerFromCenter(
-            halfWidth,
+        point_a = self.find_corner_from_center(
+            half_width,
             0,
             left,
             right,
-            halfHeight,
-            -deltaY,
+            half_height,
+            -delta_y,
             top,
             bottom,
-            halfWidth / 4,
+            half_width / 4,
         )?;
 
-        Ok([pointA, pointB, pointC, pointD])
+        Ok([point_a, point_b, point_c, point_d])
     }
 
     /**
      * Attempts to locate a corner of the barcode by scanning up, down, left or right from a center
      * point which should be within the barcode.
      *
-     * @param centerX center's x component (horizontal)
-     * @param deltaX same as deltaY but change in x per step instead
+     * @param center_x center's x component (horizontal)
+     * @param delta_x same as delta_y but change in x per step instead
      * @param left minimum value of x
      * @param right maximum value of x
-     * @param centerY center's y component (vertical)
-     * @param deltaY change in y per step. If scanning up this is negative; down, positive;
+     * @param center_y center's y component (vertical)
+     * @param delta_y change in y per step. If scanning up this is negative; down, positive;
      *  left or right, 0
      * @param top minimum value of y to search through (meaningless when di == 0)
      * @param bottom maximum value of y
-     * @param maxWhiteRun maximum run of white pixels that can still be considered to be within
+     * @param max_white_run maximum run of white pixels that can still be considered to be within
      *  the barcode
      * @return a {@link Point} encapsulating the corner that was found
      * @throws NotFoundException if such a point cannot be found
      */
     #[allow(clippy::too_many_arguments)]
-    fn findCornerFromCenter(
+    fn find_corner_from_center(
         &self,
-        centerX: i32,
-        deltaX: i32,
+        center_x: i32,
+        delta_x: i32,
         left: i32,
         right: i32,
-        centerY: i32,
-        deltaY: i32,
+        center_y: i32,
+        delta_y: i32,
         top: i32,
         bottom: i32,
-        maxWhiteRun: i32,
+        max_white_run: i32,
     ) -> Result<Point> {
-        let mut lastRange_z: Option<[i32; 2]> = None;
-        let mut y: i32 = centerY;
-        let mut x: i32 = centerX;
+        let mut last_range_z: Option<[i32; 2]> = None;
+        let mut y: i32 = center_y;
+        let mut x: i32 = center_x;
         while y < bottom && y >= top && x < right && x >= left {
-            let range: Option<[i32; 2]> = if deltaX == 0 {
+            let range: Option<[i32; 2]> = if delta_x == 0 {
                 // horizontal slices, up and down
-                self.blackWhiteRange(y, maxWhiteRun, left, right, true)
+                self.black_white_range(y, max_white_run, left, right, true)
             } else {
                 // vertical slices, left and right
-                self.blackWhiteRange(x, maxWhiteRun, top, bottom, false)
+                self.black_white_range(x, max_white_run, top, bottom, false)
             };
             if let Some(r) = range {
-                lastRange_z = Some(r);
-                y += deltaY;
-                x += deltaX;
-            } else if let Some(lastRange) = lastRange_z {
-                // lastRange was found
-                if deltaX == 0 {
-                    let lastY = y - deltaY;
-                    if lastRange[0] < centerX {
-                        if lastRange[1] > centerX {
+                last_range_z = Some(r);
+                y += delta_y;
+                x += delta_x;
+            } else if let Some(last_range) = last_range_z {
+                // last_range was found
+                if delta_x == 0 {
+                    let last_y = y - delta_y;
+                    if last_range[0] < center_x {
+                        if last_range[1] > center_x {
                             // straddle, choose one or the other based on direction
                             return Ok(point(
-                                lastRange[usize::from(deltaY <= 0)] as f32,
-                                lastY as f32,
+                                last_range[usize::from(delta_y <= 0)] as f32,
+                                last_y as f32,
                             ));
                         }
-                        return Ok(point(lastRange[0] as f32, lastY as f32));
+                        return Ok(point(last_range[0] as f32, last_y as f32));
                     } else {
-                        return Ok(point(lastRange[1] as f32, lastY as f32));
+                        return Ok(point(last_range[1] as f32, last_y as f32));
                     }
                 } else {
-                    let lastX = x - deltaX;
-                    if lastRange[0] < centerY {
-                        if lastRange[1] > centerY {
+                    let last_x = x - delta_x;
+                    if last_range[0] < center_y {
+                        if last_range[1] > center_y {
                             return Ok(point(
-                                lastX as f32,
-                                lastRange[usize::from(deltaX >= 0)] as f32,
+                                last_x as f32,
+                                last_range[usize::from(delta_x >= 0)] as f32,
                             ));
                         }
-                        return Ok(point(lastX as f32, lastRange[0] as f32));
+                        return Ok(point(last_x as f32, last_range[0] as f32));
                     } else {
-                        return Ok(point(lastX as f32, lastRange[1] as f32));
+                        return Ok(point(last_x as f32, last_range[1] as f32));
                     }
                 }
             } else {
@@ -215,50 +215,50 @@ impl<'a> MonochromeRectangleDetector<'_> {
      * Computes the start and end of a region of pixels, either horizontally or vertically, that could
      * be part of a Data Matrix barcode.
      *
-     * @param fixedDimension if scanning horizontally, this is the row (the fixed vertical location)
+     * @param fixed_dimension if scanning horizontally, this is the row (the fixed vertical location)
      *  where we are scanning. If scanning vertically it's the column, the fixed horizontal location
-     * @param maxWhiteRun largest run of white pixels that can still be considered part of the
+     * @param max_white_run largest run of white pixels that can still be considered part of the
      *  barcode region
-     * @param minDim minimum pixel location, horizontally or vertically, to consider
-     * @param maxDim maximum pixel location, horizontally or vertically, to consider
+     * @param min_dim minimum pixel location, horizontally or vertically, to consider
+     * @param max_dim maximum pixel location, horizontally or vertically, to consider
      * @param horizontal if true, we're scanning left-right, instead of up-down
      * @return int[] with start and end of found range, or null if no such range is found
      *  (e.g. only white was found)
      */
-    fn blackWhiteRange(
+    fn black_white_range(
         &self,
-        fixedDimension: i32,
-        maxWhiteRun: i32,
-        minDim: i32,
-        maxDim: i32,
+        fixed_dimension: i32,
+        max_white_run: i32,
+        min_dim: i32,
+        max_dim: i32,
         horizontal: bool,
     ) -> Option<[i32; 2]> {
-        let center = (minDim + maxDim) / 2;
+        let center = (min_dim + max_dim) / 2;
 
         // Scan left/up first
         let mut start = center;
-        while start >= minDim {
+        while start >= min_dim {
             if if horizontal {
-                self.image.get(start as u32, fixedDimension as u32)
+                self.image.get(start as u32, fixed_dimension as u32)
             } else {
-                self.image.get(fixedDimension as u32, start as u32)
+                self.image.get(fixed_dimension as u32, start as u32)
             } {
                 start -= 1;
             } else {
-                let whiteRunStart = start;
+                let white_run_start = start;
                 start -= 1;
-                while start >= minDim
+                while start >= min_dim
                     && !(if horizontal {
-                        self.image.get(start as u32, fixedDimension as u32)
+                        self.image.get(start as u32, fixed_dimension as u32)
                     } else {
-                        self.image.get(fixedDimension as u32, start as u32)
+                        self.image.get(fixed_dimension as u32, start as u32)
                     })
                 {
                     start -= 1;
                 }
-                let whiteRunSize = whiteRunStart - start;
-                if start < minDim || whiteRunSize > maxWhiteRun {
-                    start = whiteRunStart;
+                let white_run_size = white_run_start - start;
+                if start < min_dim || white_run_size > max_white_run {
+                    start = white_run_start;
                     break;
                 }
             }
@@ -267,28 +267,28 @@ impl<'a> MonochromeRectangleDetector<'_> {
 
         // Then try right/down
         let mut end = center;
-        while end < maxDim {
+        while end < max_dim {
             if if horizontal {
-                self.image.get(end as u32, fixedDimension as u32)
+                self.image.get(end as u32, fixed_dimension as u32)
             } else {
-                self.image.get(fixedDimension as u32, end as u32)
+                self.image.get(fixed_dimension as u32, end as u32)
             } {
                 end += 1;
             } else {
-                let whiteRunStart = end;
+                let white_run_start = end;
                 end += 1;
-                while end < maxDim
+                while end < max_dim
                     && !(if horizontal {
-                        self.image.get(end as u32, fixedDimension as u32)
+                        self.image.get(end as u32, fixed_dimension as u32)
                     } else {
-                        self.image.get(fixedDimension as u32, end as u32)
+                        self.image.get(fixed_dimension as u32, end as u32)
                     })
                 {
                     end += 1;
                 }
-                let whiteRunSize = end - whiteRunStart;
-                if end >= maxDim || whiteRunSize > maxWhiteRun {
-                    end = whiteRunStart;
+                let white_run_size = end - white_run_start;
+                if end >= max_dim || white_run_size > max_white_run {
+                    end = white_run_start;
                     break;
                 }
             }

@@ -50,7 +50,7 @@ fn read_inner(
 ///   pyramid (factor 3, threshold 500 px) and a 3×3 morphological-close
 ///   pass per layer, in addition to densifying the finder-pattern scan via
 ///   rxing's `TryHarder` hint. Equivalent to zxing-wasm's
-///   `tryHarder + tryDownscale + tryDenoise`.
+///   `try_harder + tryDownscale + tryDenoise`.
 /// - `try_invert`: retry with the BitMatrix flipped if the first pass yields
 ///   no results (covers white-on-dark / inverted-reflectance codes).
 /// - `use_hybrid_binarizer`: when `true`, use rxing's adaptive
@@ -65,7 +65,7 @@ fn read_inner(
 /// - `max_number_of_symbols`: cap the number of symbols returned per pass.
 ///   Pass `0` to remove the cap. Pass `1` when only one detection is needed —
 ///   lets the multi-decode loop short-circuit on the first valid result and
-///   skips Micro QR / rMQR fallbacks once a QR is found.
+///   skips micro QR / r_mqr fallbacks once a QR is found.
 ///
 /// Retry order when no results: original × invert →
 /// (try_harder: original-closed × invert → downscale 1× → 1× closed →

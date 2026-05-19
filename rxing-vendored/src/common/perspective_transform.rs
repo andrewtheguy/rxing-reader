@@ -71,12 +71,12 @@ impl PerspectiveTransform {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn quadrilateralToQuadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
+    pub fn quadrilateral_to_quadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
         if !src.is_convex() || !dst.is_convex() {
             return Err(Exceptions::ILLEGAL_STATE);
         }
-        let q_to_s = PerspectiveTransform::quadrilateralToSquare(dst)?;
-        let s_to_q = PerspectiveTransform::squareToQuadrilateral(src)?;
+        let q_to_s = PerspectiveTransform::quadrilateral_to_square(dst)?;
+        let s_to_q = PerspectiveTransform::square_to_quadrilateral(src)?;
         Ok(s_to_q * q_to_s)
     }
 
@@ -116,7 +116,7 @@ impl PerspectiveTransform {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn squareToQuadrilateral(square: Quadrilateral) -> Result<Self> {
+    pub fn square_to_quadrilateral(square: Quadrilateral) -> Result<Self> {
         let [p0, p1, p2, p3] = square.0;
 
         let d3 = p0 - p1 + p2 - p3;
@@ -158,12 +158,12 @@ impl PerspectiveTransform {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn quadrilateralToSquare(quad: Quadrilateral) -> Result<Self> {
+    pub fn quadrilateral_to_square(quad: Quadrilateral) -> Result<Self> {
         // Here, the adjoint serves as the inverse
-        Ok(PerspectiveTransform::squareToQuadrilateral(quad)?.buildAdjoint())
+        Ok(PerspectiveTransform::square_to_quadrilateral(quad)?.build_adjoint())
     }
 
-    const fn buildAdjoint(&self) -> Self {
+    const fn build_adjoint(&self) -> Self {
         // Adjoint is the transpose of the cofactor matrix:
         PerspectiveTransform::new(
             self.a22 * self.a33 - self.a23 * self.a32,
@@ -178,7 +178,7 @@ impl PerspectiveTransform {
         )
     }
 
-    pub const fn isValid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         !self.a33.is_nan()
     }
 }

@@ -45,66 +45,66 @@ pub enum RXingResultMetadataType {
      * <p>This maps to a {@link java.util.List} of byte arrays corresponding to the
      * raw bytes in the byte segments in the barcode, in order.</p>
      */
-    BYTE_SEGMENTS,
+    ByteSegments,
 
     /**
      * Error correction level used, if applicable. The value type depends on the
      * format, but is typically a String.
      */
-    ERROR_CORRECTION_LEVEL,
+    ErrorCorrectionLevel,
 
     /**
      * For some periodicals, indicates the issue number as an {@link Integer}.
      */
-    ISSUE_NUMBER,
+    IssueNumber,
 
     /**
      * For some products, indicates the suggested retail price in the barcode as a
      * formatted {@link String}.
      */
-    SUGGESTED_PRICE,
+    SuggestedPrice,
 
     /**
      * For some products, the possible country of manufacture as a {@link String} denoting the
      * ISO country code. Some map to multiple possible countries, like "US/CA".
      */
-    POSSIBLE_COUNTRY,
+    PossibleCountry,
 
     /**
      * For some products, the extension text
      */
-    UPC_EAN_EXTENSION,
+    UpcEanExtension,
 
     /**
      * If the code format supports structured append and the current scanned code is part of one then the
      * sequence number is given with it.
      */
-    STRUCTURED_APPEND_SEQUENCE,
+    StructuredAppendSequence,
 
     /**
      * If the code format supports structured append and the current scanned code is part of one then the
      * parity is given with it.
      */
-    STRUCTURED_APPEND_PARITY,
+    StructuredAppendParity,
 
     /**
      * Barcode Symbology Identifier.
      * Note: According to the GS1 specification the identifier may have to replace a leading FNC1/GS character
      * when prepending to the barcode content.
      */
-    SYMBOLOGY_IDENTIFIER,
+    SymbologyIdentifier,
 
-    IS_MIRRORED,
+    IsMirrored,
 
-    CONTENT_TYPE,
+    ContentType,
 
-    IS_INVERTED,
+    IsInverted,
 
     // In a filtered context, was the image "closed"
-    FILTERED_CLOSED,
+    FilteredClosed,
 
     // In a filtered context, what was the final read resolution
-    FILTERED_RESOLUTION,
+    FilteredResolution,
 }
 
 impl From<String> for RXingResultMetadataType {
@@ -112,28 +112,28 @@ impl From<String> for RXingResultMetadataType {
         match in_str.to_uppercase().as_str() {
             "OTHER" => RXingResultMetadataType::OTHER,
             "ORIENTATION" => RXingResultMetadataType::ORIENTATION,
-            "BYTE_SEGMENTS" | "BYTESEGMENTS" => RXingResultMetadataType::BYTE_SEGMENTS,
-            "ERROR_CORRECTION_LEVEL" | "ERRORCORRECTIONLEVEL" | "ECLEVEL" => {
-                RXingResultMetadataType::ERROR_CORRECTION_LEVEL
+            "BYTESEGMENTS" => RXingResultMetadataType::ByteSegments,
+            "ERRORCORRECTIONLEVEL" | "ECLEVEL" => {
+                RXingResultMetadataType::ErrorCorrectionLevel
             }
-            "ISSUE_NUMBER" | "ISSUENUMBER" => RXingResultMetadataType::ISSUE_NUMBER,
-            "SUGGESTED_PRICE" | "SUGGESTEDPRICE" => RXingResultMetadataType::SUGGESTED_PRICE,
-            "POSSIBLE_COUNTRY" | "POSSIBLECOUNTRY" => RXingResultMetadataType::POSSIBLE_COUNTRY,
-            "UPC_EAN_EXTENSION" | "UPCEANEXTENSION" => RXingResultMetadataType::UPC_EAN_EXTENSION,
-            "STRUCTURED_APPEND_SEQUENCE" | "STRUCTUREDAPPENDSEQUENCE" => {
-                RXingResultMetadataType::STRUCTURED_APPEND_SEQUENCE
+            "ISSUENUMBER" => RXingResultMetadataType::IssueNumber,
+            "SUGGESTEDPRICE" => RXingResultMetadataType::SuggestedPrice,
+            "POSSIBLECOUNTRY" => RXingResultMetadataType::PossibleCountry,
+            "UPCEANEXTENSION" => RXingResultMetadataType::UpcEanExtension,
+            "STRUCTUREDAPPENDSEQUENCE" => {
+                RXingResultMetadataType::StructuredAppendSequence
             }
-            "STRUCTURED_APPEND_PARITY" | "STRUCTUREDAPPENDPARITY" => {
-                RXingResultMetadataType::STRUCTURED_APPEND_PARITY
+            "STRUCTUREDAPPENDPARITY" => {
+                RXingResultMetadataType::StructuredAppendParity
             }
-            "SYMBOLOGY_IDENTIFIER" | "SYMBOLOGYIDENTIFIER" => {
-                RXingResultMetadataType::SYMBOLOGY_IDENTIFIER
+            "SYMBOLOGYIDENTIFIER" => {
+                RXingResultMetadataType::SymbologyIdentifier
             }
-            "IS_MIRRORED" | "ISMIRRORED" => RXingResultMetadataType::IS_MIRRORED,
-            "CONTENT_TYPE" | "CONTENTTYPE" => RXingResultMetadataType::CONTENT_TYPE,
-            "IS_INVERTED" | "ISINVERTED" => RXingResultMetadataType::IS_INVERTED,
-            "FILTERED_CLOSED" => RXingResultMetadataType::FILTERED_CLOSED,
-            "FILTERED_RESOLUTION" => RXingResultMetadataType::FILTERED_RESOLUTION,
+            "ISMIRRORED" => RXingResultMetadataType::IsMirrored,
+            "CONTENTTYPE" => RXingResultMetadataType::ContentType,
+            "ISINVERTED" => RXingResultMetadataType::IsInverted,
+            "FILTEREDCLOSED" => RXingResultMetadataType::FilteredClosed,
+            "FILTEREDRESOLUTION" => RXingResultMetadataType::FilteredResolution,
             _ => RXingResultMetadataType::OTHER,
         }
     }

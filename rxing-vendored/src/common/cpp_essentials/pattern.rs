@@ -11,7 +11,7 @@ use crate::{
 pub type PatternType = u16;
 pub type Pattern<const N: usize> = [PatternType; N];
 
-fn BarAndSpaceSum<
+fn bar_and_space_sum<
     const LEN: usize,
     T: Into<RT> + Copy,
     RT: Default + std::cmp::PartialEq + std::ops::AddAssign,
@@ -183,7 +183,7 @@ impl<'a> PatternView<'a> {
     pub fn index(&self) -> usize {
         self.current
     }
-    pub fn pixelsInFront(&self) -> PatternType {
+    pub fn pixels_in_front(&self) -> PatternType {
         self.data
             .0
             .iter()
@@ -191,7 +191,7 @@ impl<'a> PatternView<'a> {
             .copied()
             .sum::<PatternType>()
     }
-    pub fn pixelsTillEnd(&self) -> PatternType {
+    pub fn pixels_till_end(&self) -> PatternType {
         self.data
             .0
             .iter()
@@ -200,23 +200,23 @@ impl<'a> PatternView<'a> {
             .sum::<PatternType>()
             .saturating_sub(1)
     }
-    pub fn isAtFirstBar(&self) -> bool {
+    pub fn is_at_first_bar(&self) -> bool {
         self.start == (self.current + 1)
     }
-    pub fn isAtLastBar(&self) -> bool {
+    pub fn is_at_last_bar(&self) -> bool {
         self.current == self.start + self.count - 1
     }
-    pub fn isValidWithN(&self, n: usize) -> bool {
+    pub fn is_valid_with_n(&self, n: usize) -> bool {
         !self.data.0.is_empty()
             && self.start <= self.current + self.start
             && self.current + n < (self.data.0.len())
     }
-    pub fn isValid(&self) -> bool {
-        self.isValidWithN(self.size())
+    pub fn is_valid(&self) -> bool {
+        self.is_valid_with_n(self.size())
     }
 
-    pub fn has_quiet_zone_before(&self, scale: f32, acceptIfAtFirstBar: Option<bool>) -> bool {
-        if acceptIfAtFirstBar.unwrap_or(false) && self.isAtFirstBar() {
+    pub fn has_quiet_zone_before(&self, scale: f32, accept_if_at_first_bar: Option<bool>) -> bool {
+        if accept_if_at_first_bar.unwrap_or(false) && self.is_at_first_bar() {
             return true;
         }
         let prev_idx = (self.start + self.current).checked_sub(1);
@@ -228,8 +228,8 @@ impl<'a> PatternView<'a> {
         }
     }
 
-    pub fn hasQuietZoneAfter(&self, scale: f32, acceptIfAtLastBar: Option<bool>) -> bool {
-        if acceptIfAtLastBar.unwrap_or(true) && self.isAtLastBar() {
+    pub fn has_quiet_zone_after(&self, scale: f32, accept_if_at_last_bar: Option<bool>) -> bool {
+        if accept_if_at_last_bar.unwrap_or(true) && self.is_at_last_bar() {
             return true;
         }
         match self.data.0.get(self.start + self.current + self.count) {
@@ -240,7 +240,7 @@ impl<'a> PatternView<'a> {
         }
     }
 
-    pub fn subView(&self, offset: usize, size: Option<usize>) -> PatternView<'a> {
+    pub fn sub_view(&self, offset: usize, size: Option<usize>) -> PatternView<'a> {
         let mut size = size.unwrap_or(0);
         if size == 0 {
             size = self.count - offset;
@@ -259,15 +259,15 @@ impl<'a> PatternView<'a> {
         !self.data.0.is_empty()
     }
 
-    pub fn skipPair(&mut self) -> bool {
+    pub fn skip_pair(&mut self) -> bool {
         self.shift(2)
     }
 
-    pub fn skipSymbol(&mut self) -> bool {
+    pub fn skip_symbol(&mut self) -> bool {
         self.shift(self.count)
     }
 
-    pub fn skipSingle(&mut self) -> bool {
+    pub fn skip_single(&mut self) -> bool {
         self.shift(1)
     }
 
@@ -381,7 +381,7 @@ impl<T: Default + std::cmp::PartialEq> BarAndSpace<T> {
     }
 
     #[allow(dead_code)]
-    pub fn isValid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.bar != T::default() && self.space != T::default()
     }
 }
@@ -445,7 +445,7 @@ impl<const N: usize, const SUM: usize, const IS_SPARCE: bool> FixedPattern<N, SU
     }
 
     fn sums(&self) -> BarAndSpace<PatternType> {
-        BarAndSpaceSum::<N, PatternType, PatternType>(&self.data)
+        bar_and_space_sum::<N, PatternType, PatternType>(&self.data)
     }
 }
 
@@ -461,7 +461,7 @@ impl<const N: usize, const SUM: usize, const IS_SPARCE: bool> std::ops::Index<us
 
 pub type FixedSparcePattern<const N: usize, const SUM: usize> = FixedPattern<N, SUM, true>;
 
-pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPARSE: bool>(
+pub fn is_pattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPARSE: bool>(
     view: &PatternView,
     pattern: &FixedPattern<LEN, SUM, SPARSE>,
     space_in_pixel: Option<f32>,
@@ -476,41 +476,41 @@ pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPAR
     }
 
     if E2E {
-        let widths = BarAndSpaceSum::<LEN, PatternType, f64>(view_data);
+        let widths = bar_and_space_sum::<LEN, PatternType, f64>(view_data);
         let sums = pattern.sums();
-        let modSize: BarAndSpace<f64> = BarAndSpace {
+        let mod_size: BarAndSpace<f64> = BarAndSpace {
             bar: widths[0] / sums[0] as f64,
             space: widths[1] / sums[1] as f64,
         };
 
-        let [m, M] = [
-            f64::min(modSize[0], modSize[1]),
-            f64::max(modSize[0], modSize[1]),
+        let [min_module_size, max_module_size] = [
+            f64::min(mod_size[0], mod_size[1]),
+            f64::max(mod_size[0], mod_size[1]),
         ];
-        if M > 4.0 * m {
+        if max_module_size > 4.0 * min_module_size {
             // make sure module sizes of bars and spaces are not too far away from each other
             return 0.0;
         }
 
         if min_quiet_zone != 0.0
-            && (space_in_pixel.unwrap_or_default()) < min_quiet_zone * modSize.space as f32
+            && (space_in_pixel.unwrap_or_default()) < min_quiet_zone * mod_size.space as f32
         {
             return 0.0;
         }
 
         let thr: BarAndSpace<f64> = BarAndSpace {
-            bar: modSize[0] * 0.75 + 0.5,
-            space: modSize[1] / (2.0 + f64::from(LEN < 6)) + 0.5,
+            bar: mod_size[0] * 0.75 + 0.5,
+            space: mod_size[1] / (2.0 + f64::from(LEN < 6)) + 0.5,
         };
 
         for x in 0..LEN {
-            if (view_data[x] as f64 - pattern_data[x] as f64 * modSize[x]).abs() > thr[x] {
+            if (view_data[x] as f64 - pattern_data[x] as f64 * mod_size[x]).abs() > thr[x] {
                 return 0.0;
             }
         }
 
-        let moduleSize: f64 = (modSize[0] + modSize[1]) / 2.0;
-        return moduleSize as f32;
+        let module_size: f64 = (mod_size[0] + mod_size[1]) / 2.0;
+        return module_size as f32;
     }
 
     let width = view.sum(Some(LEN));
@@ -548,13 +548,13 @@ pub fn IsPattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPAR
     module_size
 }
 
-pub fn IsRightGuard<const N: usize, const SUM: usize, const IS_SPARCE: bool>(
+pub fn is_right_guard<const N: usize, const SUM: usize, const IS_SPARCE: bool>(
     view: &PatternView,
     pattern: &FixedPattern<N, SUM, IS_SPARCE>,
-    minQuietZone: f32,
-    moduleSizeRef: f32,
+    min_quiet_zone: f32,
+    module_size_ref: f32,
 ) -> bool {
-    let spaceInPixel = if view.isAtLastBar() {
+    let space_in_pixel = if view.is_at_last_bar() {
         None
     } else {
         Some(view.end().unwrap().into())
@@ -562,88 +562,88 @@ pub fn IsRightGuard<const N: usize, const SUM: usize, const IS_SPARCE: bool>(
 
     const E2E: bool = false;
 
-    IsPattern::<E2E, N, SUM, IS_SPARCE>(
+    is_pattern::<E2E, N, SUM, IS_SPARCE>(
         view,
         pattern,
-        spaceInPixel,
-        minQuietZone,
-        moduleSizeRef,
+        space_in_pixel,
+        min_quiet_zone,
+        module_size_ref,
     ) != 0.0
 }
 
-pub fn FindLeftGuardBy<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) -> bool>(
+pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) -> bool>(
     view: PatternView<'_>,
-    minSize: usize,
-    isGuard: Pred,
+    min_size: usize,
+    is_guard: Pred,
 ) -> Result<PatternView<'_>> {
     const PREV_IDX: isize = -1;
 
-    if view.size() < minSize {
+    if view.size() < min_size {
         return Err(Exceptions::ILLEGAL_STATE);
     }
 
-    let mut window = view.subView(0, Some(LEN));
-    if window.isAtFirstBar() && isGuard(&window, Some(f32::MAX)) {
+    let mut window = view.sub_view(0, Some(LEN));
+    if window.is_at_first_bar() && is_guard(&window, Some(f32::MAX)) {
         return Ok(window);
     }
-    let end = Into::<usize>::into(view.end().ok_or(Exceptions::INDEX_OUT_OF_BOUNDS)?) - minSize;
+    let end = Into::<usize>::into(view.end().ok_or(Exceptions::INDEX_OUT_OF_BOUNDS)?) - min_size;
     while (window.start + window.current) < end {
         let prev = window.try_get_index(PREV_IDX).map(|v| v as f32);
-        if isGuard(&window, prev) {
+        if is_guard(&window, prev) {
             return Ok(window);
         }
 
-        window.skipPair();
+        window.skip_pair();
     }
 
     Err(Exceptions::ILLEGAL_STATE)
 }
 
-pub fn FindLeftGuard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: bool>(
+pub fn find_left_guard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: bool>(
     view: PatternView<'a>,
-    minSize: usize,
+    min_size: usize,
     pattern: &FixedPattern<LEN, SUM, IS_SPARCE>,
-    minQuietZone: f32,
+    min_quiet_zone: f32,
 ) -> Result<PatternView<'a>> {
-    FindLeftGuardBy::<LEN, _>(view, std::cmp::max(minSize, LEN), |window, spaceInPixel| {
+    find_left_guard_by::<LEN, _>(view, std::cmp::max(min_size, LEN), |window, space_in_pixel| {
         // perform a fast plausability test for 1:1:3:1:1 pattern
         if window[2] < 2 as PatternType * std::cmp::max(window[0], window[4])
             || window[2] < std::cmp::max(window[1], window[3])
         {
             return false;
         }
-        IsPattern::<false, LEN, SUM, IS_SPARCE>(window, pattern, spaceInPixel, minQuietZone, 0.0)
+        is_pattern::<false, LEN, SUM, IS_SPARCE>(window, pattern, space_in_pixel, min_quiet_zone, 0.0)
             != 0.0
     })
 }
 
-pub fn NormalizedE2EPattern<const LEN: usize, const LEN_MINUS_2: usize, const SUM: usize>(
+pub fn normalized_e2_epattern<const LEN: usize, const LEN_MINUS_2: usize, const SUM: usize>(
     view: &PatternView,
 ) -> [PatternType; LEN_MINUS_2] {
-    let moduleSize: f32 = Into::<f32>::into(view.sum(Some(LEN))) / SUM as f32;
+    let module_size: f32 = Into::<f32>::into(view.sum(Some(LEN))) / SUM as f32;
 
     let mut e2e = [PatternType::default(); LEN_MINUS_2];
 
     for i in 0..LEN_MINUS_2 {
-        let v: f32 = (Into::<f32>::into(view[i]) + Into::<f32>::into(view[i + 1])) / moduleSize;
+        let v: f32 = (Into::<f32>::into(view[i]) + Into::<f32>::into(view[i + 1])) / module_size;
         e2e[i] = (v + 0.5) as PatternType;
     }
 
     e2e
 }
 
-pub fn NormalizedPattern<const LEN: usize, const SUM: usize>(
+pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
     view: &PatternView,
 ) -> Result<[PatternType; LEN]> {
-    let moduleSize: f32 = Into::<usize>::into(view.sum(Some(LEN))) as f32 / SUM as f32;
-    if !moduleSize.is_finite() || moduleSize <= f32::EPSILON {
+    let module_size: f32 = Into::<usize>::into(view.sum(Some(LEN))) as f32 / SUM as f32;
+    if !module_size.is_finite() || module_size <= f32::EPSILON {
         return Err(Exceptions::NOT_FOUND);
     }
     let mut err = SUM as isize;
     let mut is = [PatternType::default(); LEN];
     let mut rs = [0.0; LEN];
     for i in 0..LEN {
-        let v: f32 = Into::<f32>::into(view[i]) / moduleSize;
+        let v: f32 = Into::<f32>::into(view[i]) / module_size;
         is[i] = (v + 0.5) as PatternType;
         rs[i] = v - Into::<f32>::into(is[i]);
         err -= Into::<usize>::into(is[i]) as isize;
@@ -685,19 +685,19 @@ impl<T: Into<PatternType>> From<T> for Color {
     }
 }
 
-pub fn GetPatternRowTP(matrix: &BitMatrix, r: u32, pr: &mut PatternRow, transpose: bool) {
+pub fn get_pattern_row_tp(matrix: &BitMatrix, r: u32, pr: &mut PatternRow, transpose: bool) {
     let row = if transpose {
-        matrix.getCol(r)
+        matrix.get_col(r)
     } else {
-        matrix.getRow(r)
+        matrix.get_row(r)
     };
 
     let pixel_states: Vec<bool> = row.into();
 
-    GetPatternRow(&pixel_states, pr)
+    get_pattern_row(&pixel_states, pr)
 }
 
-pub fn GetPatternRow<T: Into<PatternType> + Copy + Default + From<T>>(
+pub fn get_pattern_row<T: Into<PatternType> + Copy + Default + From<T>>(
     b_row: &[T],
     p_row: &mut PatternRow,
 ) {
@@ -736,7 +736,7 @@ pub fn GetPatternRow<T: Into<PatternType> + Copy + Default + From<T>>(
 mod tests {
     use crate::common::cpp_essentials::PatternType;
 
-    use super::{FixedPattern, GetPatternRow, IsPattern, PatternRow, PatternView};
+    use super::{FixedPattern, get_pattern_row, is_pattern, PatternRow, PatternView};
     const N: usize = 33;
 
     #[test]
@@ -744,7 +744,7 @@ mod tests {
         for s in 1..=N {
             let t_in: Vec<PatternType> = vec![0; s];
             let mut pr = PatternRow::default();
-            GetPatternRow(&t_in, &mut pr);
+            get_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 1);
             assert_eq!(pr.0[0], s as PatternType);
@@ -756,7 +756,7 @@ mod tests {
         for s in 1..=N {
             let t_in: Vec<PatternType> = vec![0xff; s];
             let mut pr = PatternRow::default();
-            GetPatternRow(&t_in, &mut pr);
+            get_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], 0);
@@ -771,7 +771,7 @@ mod tests {
             let mut t_in: Vec<PatternType> = vec![0; N];
             t_in[..s].copy_from_slice(&vec![1; s]);
             let mut pr = PatternRow::default();
-            GetPatternRow(&t_in, &mut pr);
+            get_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], 0);
@@ -786,7 +786,7 @@ mod tests {
             let mut t_in: Vec<PatternType> = vec![0xff; N];
             t_in[..s].copy_from_slice(&vec![0; s]);
             let mut pr = PatternRow::default();
-            GetPatternRow(&t_in, &mut pr);
+            get_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], s as PatternType);
@@ -802,7 +802,7 @@ mod tests {
         let pattern = FixedPattern::<3, 3, false>::new([1, 1, 1]);
 
         assert_eq!(
-            IsPattern::<false, 3, 3, false>(&view, &pattern, None, 0.0, 0.0),
+            is_pattern::<false, 3, 3, false>(&view, &pattern, None, 0.0, 0.0),
             0.0
         );
     }
@@ -810,7 +810,7 @@ mod tests {
     #[test]
     fn basic_pattern_view() {
         let mut p_row = PatternRow::default();
-        GetPatternRow(
+        get_pattern_row(
             &[
                 0_u16, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
             ],
@@ -829,7 +829,7 @@ mod tests {
         assert_eq!(pv.index(), 0);
         assert!(pv.shift(1));
         assert_eq!(pv.index(), 1);
-        assert!(pv.skipPair());
+        assert!(pv.skip_pair());
         assert_eq!(pv.index(), 3);
     }
 }

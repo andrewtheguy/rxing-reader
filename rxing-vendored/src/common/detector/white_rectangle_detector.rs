@@ -37,10 +37,10 @@ pub struct WhiteRectangleDetector<'a> {
     image: &'a BitMatrix,
     height: i32,
     width: i32,
-    leftInit: i32,
-    rightInit: i32,
-    downInit: i32,
-    upInit: i32,
+    left_init: i32,
+    right_init: i32,
+    down_init: i32,
+    up_init: i32,
 }
 
 impl<'a> WhiteRectangleDetector<'_> {
@@ -48,47 +48,47 @@ impl<'a> WhiteRectangleDetector<'_> {
         WhiteRectangleDetector::new(
             image,
             INIT_SIZE,
-            image.getWidth() as i32 / 2,
-            image.getHeight() as i32 / 2,
+            image.get_width() as i32 / 2,
+            image.get_height() as i32 / 2,
         )
     }
 
     /**
      * @param image barcode image to find a rectangle in
-     * @param initSize initial size of search area around center
+     * @param init_size initial size of search area around center
      * @param x x position of search center
      * @param y y position of search center
-     * @throws NotFoundException if image is too small to accommodate {@code initSize}
+     * @throws NotFoundException if image is too small to accommodate {@code init_size}
      */
     pub const fn new(
         image: &'a BitMatrix,
-        initSize: i32,
+        init_size: i32,
         x: i32,
         y: i32,
     ) -> Result<WhiteRectangleDetector<'a>> {
-        let halfsize = initSize / 2;
+        let halfsize = init_size / 2;
 
-        let leftInit = x - halfsize;
-        let rightInit = x + halfsize;
-        let upInit = y - halfsize;
-        let downInit = y + halfsize;
+        let left_init = x - halfsize;
+        let right_init = x + halfsize;
+        let up_init = y - halfsize;
+        let down_init = y + halfsize;
 
-        if upInit < 0
-            || leftInit < 0
-            || downInit >= image.getHeight() as i32
-            || rightInit >= image.getWidth() as i32
+        if up_init < 0
+            || left_init < 0
+            || down_init >= image.get_height() as i32
+            || right_init >= image.get_width() as i32
         {
             return Err(Exceptions::NOT_FOUND);
         }
 
         Ok(WhiteRectangleDetector {
             image,
-            height: image.getHeight() as i32,
-            width: image.getWidth() as i32,
-            leftInit,
-            rightInit,
-            downInit,
-            upInit,
+            height: image.get_height() as i32,
+            width: image.get_width() as i32,
+            left_init,
+            right_init,
+            down_init,
+            up_init,
         })
     }
 
@@ -107,10 +107,10 @@ impl<'a> WhiteRectangleDetector<'_> {
      * @throws NotFoundException if no Data Matrix Code can be found
      */
     pub fn detect(&self) -> Result<[Point; 4]> {
-        let mut left: i32 = self.leftInit;
-        let mut right: i32 = self.rightInit;
-        let mut up: i32 = self.upInit;
-        let mut down: i32 = self.downInit;
+        let mut left: i32 = self.left_init;
+        let mut right: i32 = self.right_init;
+        let mut up: i32 = self.up_init;
+        let mut down: i32 = self.down_init;
         let mut size_exceeded = false;
         let mut a_black_point_found_on_border = true;
 

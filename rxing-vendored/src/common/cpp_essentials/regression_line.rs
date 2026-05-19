@@ -131,7 +131,7 @@ impl RegressionLineTrait for RegressionLine {
             max.y = f32::max(max.y, p.y);
         }
         let diff = max - min;
-        let len = diff.maxAbsComponent();
+        let len = diff.max_abs_component();
         let steps = f32::min(diff.x.abs(), diff.y.abs());
         // due to aliasing we get bad extrapolations if the line is short and too close to vertical/horizontal
         steps > 2.0 || len > 50.0
@@ -143,29 +143,29 @@ impl RegressionLineTrait for RegressionLine {
         }
         let mean = points.iter().sum::<Point>() / points.len() as f32;
 
-        let mut sumXX = 0.0;
-        let mut sumYY = 0.0;
-        let mut sumXY = 0.0;
+        let mut sum_xx = 0.0;
+        let mut sum_yy = 0.0;
+        let mut sum_xy = 0.0;
         for p in points {
             let d = *p - mean;
-            sumXX += d.x * d.x;
-            sumYY += d.y * d.y;
-            sumXY += d.x * d.y;
+            sum_xx += d.x * d.x;
+            sum_yy += d.y * d.y;
+            sum_xy += d.x * d.y;
         }
-        let l = if sumYY >= sumXX {
-            (sumYY * sumYY + sumXY * sumXY).sqrt()
+        let l = if sum_yy >= sum_xx {
+            (sum_yy * sum_yy + sum_xy * sum_xy).sqrt()
         } else {
-            (sumXX * sumXX + sumXY * sumXY).sqrt()
+            (sum_xx * sum_xx + sum_xy * sum_xy).sqrt()
         };
         if l <= f32::EPSILON {
             return false;
         }
-        if sumYY >= sumXX {
-            self.a = sumYY / l;
-            self.b = -sumXY / l;
+        if sum_yy >= sum_xx {
+            self.a = sum_yy / l;
+            self.b = -sum_xy / l;
         } else {
-            self.a = sumXY / l;
-            self.b = -sumXX / l;
+            self.a = sum_xy / l;
+            self.b = -sum_xx / l;
         }
         if Point::dot(self.direction_inward, self.normal()) < 0.0 {
             self.a = -self.a;

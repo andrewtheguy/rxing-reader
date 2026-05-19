@@ -28,7 +28,7 @@ const ENCODERS: [CharacterSet; 14] = [
     CharacterSet::ISO8859_9,
     CharacterSet::ISO8859_15,
     CharacterSet::ISO8859_16,
-    CharacterSet::Shift_JIS,
+    CharacterSet::ShiftJis,
     CharacterSet::Cp1250,
     CharacterSet::Cp1251,
     CharacterSet::Cp1252,
@@ -52,93 +52,93 @@ const ENCODERS: [CharacterSet; 14] = [
 #[derive(Clone)]
 pub struct ECIEncoderSet {
     encoders: Vec<CharacterSet>,
-    priorityEncoderIndex: Option<usize>,
+    priority_encoder_index: Option<usize>,
 }
 
 impl ECIEncoderSet {
     /**
      * Constructs an encoder set
      *
-     * @param stringToEncode the string that needs to be encoded
-     * @param priorityCharset The preferred {@link Charset} or null.
+     * @param string_to_encode the string that needs to be encoded
+     * @param priority_charset The preferred {@link Charset} or null.
      * @param fnc1 fnc1 denotes the character in the input that represents the FNC1 character or -1 for a non-GS1 bar
-     * code. When specified, it is considered an error to pass it as argument to the methods canEncode() or encode().
+     * code. When specified, it is considered an error to pass it as argument to the methods can_encode() or encode().
      */
     pub fn new(
-        stringToEncodeMain: &str,
-        priorityCharset: Option<CharacterSet>,
+        string_to_encode_main: &str,
+        priority_charset: Option<CharacterSet>,
         fnc1: Option<&str>,
     ) -> Self {
         // List of encoders that potentially encode characters not in ISO-8859-1 in one byte.
 
         let mut encoders: Vec<CharacterSet>;
-        let mut priorityEncoderIndexValue = None;
+        let mut priority_encoder_index_value = None;
 
-        let mut neededEncoders: Vec<CharacterSet> = Vec::new();
+        let mut needed_encoders: Vec<CharacterSet> = Vec::new();
 
-        let stringToEncode = stringToEncodeMain.graphemes(true).collect::<Vec<&str>>();
+        let string_to_encode = string_to_encode_main.graphemes(true).collect::<Vec<&str>>();
 
         //we always need the ISO-8859-1 encoder. It is the default encoding
-        neededEncoders.push(CharacterSet::ISO8859_1);
-        let mut needUnicodeEncoder = if let Some(pc) = priorityCharset {
+        needed_encoders.push(CharacterSet::ISO8859_1);
+        let mut need_unicode_encoder = if let Some(pc) = priority_charset {
             pc == CharacterSet::UTF8 || pc == CharacterSet::UTF16BE
         } else {
             false
         };
 
         //Walk over the input string and see if all characters can be encoded with the list of encoders
-        for i in 0..stringToEncode.len() {
-            let mut canEncode = false;
-            for encoder in &neededEncoders {
-                let c = stringToEncode.get(i).unwrap();
+        for i in 0..string_to_encode.len() {
+            let mut can_encode = false;
+            for encoder in &needed_encoders {
+                let c = string_to_encode.get(i).unwrap();
                 if (fnc1.is_some() && c == fnc1.as_ref().unwrap()) || encoder.encode(c).is_ok() {
-                    canEncode = true;
+                    can_encode = true;
                     break;
                 }
             }
-            if !canEncode {
+            if !can_encode {
                 //for the character at position i we don't yet have an encoder in the list
                 for encoder in ENCODERS.iter() {
-                    if encoder.encode(stringToEncode.get(i).unwrap()).is_ok() {
+                    if encoder.encode(string_to_encode.get(i).unwrap()).is_ok() {
                         //Good, we found an encoder that can encode the character. We add him to the list and continue scanning
                         //the input
-                        neededEncoders.push(*encoder);
-                        canEncode = true;
+                        needed_encoders.push(*encoder);
+                        can_encode = true;
                         break;
                     }
                 }
             }
 
-            if !canEncode {
+            if !can_encode {
                 //The character is not encodeable by any of the single byte encoders so we remember that we will need a
                 //Unicode encoder.
-                needUnicodeEncoder = true;
+                need_unicode_encoder = true;
             }
         }
 
-        if neededEncoders.len() == 1 && !needUnicodeEncoder {
+        if needed_encoders.len() == 1 && !need_unicode_encoder {
             //the entire input can be encoded by the ISO-8859-1 encoder
             encoders = vec![CharacterSet::ISO8859_1];
         } else {
             // we need more than one single byte encoder or we need a Unicode encoder.
             // In this case we append a UTF-8 and UTF-16 encoder to the list
-            encoders = Vec::with_capacity(neededEncoders.len() + 2);
+            encoders = Vec::with_capacity(needed_encoders.len() + 2);
 
-            encoders.extend(neededEncoders);
+            encoders.extend(needed_encoders);
 
             encoders.push(CharacterSet::UTF8);
             encoders.push(CharacterSet::UTF16BE);
         }
 
-        //Compute priorityEncoderIndex by looking up priorityCharset in encoders
-        if let Some(pc) = priorityCharset.as_ref() {
-            priorityEncoderIndexValue = encoders.iter().position(|enc| enc == pc);
+        //Compute priority_encoder_index by looking up priority_charset in encoders
+        if let Some(pc) = priority_charset.as_ref() {
+            priority_encoder_index_value = encoders.iter().position(|enc| enc == pc);
         }
         //invariants
         assert_eq!(encoders[0], CharacterSet::ISO8859_1);
         Self {
             encoders,
-            priorityEncoderIndex: priorityEncoderIndexValue,
+            priority_encoder_index: priority_encoder_index_value,
         }
     }
 
@@ -150,7 +150,7 @@ impl ECIEncoderSet {
         self.encoders.is_empty()
     }
 
-    pub fn getCharsetName(&self, index: usize) -> Option<&'static str> {
+    pub fn get_charset_name(&self, index: usize) -> Option<&'static str> {
         if index < self.len() {
             Some(self.encoders[index].get_charset_name())
         } else {
@@ -158,7 +158,7 @@ impl ECIEncoderSet {
         }
     }
 
-    pub fn getCharset(&self, index: usize) -> Option<CharacterSet> {
+    pub fn get_charset(&self, index: usize) -> Option<CharacterSet> {
         if index < self.len() {
             Some(self.encoders[index])
         } else {
@@ -166,9 +166,9 @@ impl ECIEncoderSet {
         }
     }
 
-    pub fn get_eci(&self, encoderIndex: usize) -> Eci {
-        if encoderIndex < self.len() {
-            self.encoders[encoderIndex].into()
+    pub fn get_eci(&self, encoder_index: usize) -> Eci {
+        if encoder_index < self.len() {
+            self.encoders[encoder_index].into()
         } else {
             Eci::Unknown
         }
@@ -177,13 +177,13 @@ impl ECIEncoderSet {
     /*
      *  returns -1 if no priority charset was defined
      */
-    pub const fn getPriorityEncoderIndex(&self) -> Option<usize> {
-        self.priorityEncoderIndex
+    pub const fn get_priority_encoder_index(&self) -> Option<usize> {
+        self.priority_encoder_index
     }
 
-    pub fn canEncode(&self, c: &str, encoderIndex: usize) -> Option<bool> {
-        if encoderIndex < self.len() {
-            let encoder = self.encoders[encoderIndex];
+    pub fn can_encode(&self, c: &str, encoder_index: usize) -> Option<bool> {
+        if encoder_index < self.len() {
+            let encoder = self.encoders[encoder_index];
             let enc_data = encoder.encode(c);
 
             Some(enc_data.is_ok())
@@ -192,18 +192,18 @@ impl ECIEncoderSet {
         }
     }
 
-    pub fn encode_char(&self, c: &str, encoderIndex: usize) -> Option<Vec<u8>> {
-        if encoderIndex < self.len() {
-            let encoder = self.encoders[encoderIndex];
+    pub fn encode_char(&self, c: &str, encoder_index: usize) -> Option<Vec<u8>> {
+        if encoder_index < self.len() {
+            let encoder = self.encoders[encoder_index];
             encoder.encode(c).ok()
         } else {
             None
         }
     }
 
-    pub fn encode_string(&self, s: &str, encoderIndex: usize) -> Option<Vec<u8>> {
-        if encoderIndex < self.len() {
-            let encoder = self.encoders[encoderIndex];
+    pub fn encode_string(&self, s: &str, encoder_index: usize) -> Option<Vec<u8>> {
+        if encoder_index < self.len() {
+            let encoder = self.encoders[encoder_index];
             encoder.encode(s).ok()
         } else {
             None

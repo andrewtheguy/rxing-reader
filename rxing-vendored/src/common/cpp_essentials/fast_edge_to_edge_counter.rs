@@ -5,7 +5,7 @@ use super::BitMatrixCursorTrait;
 pub struct FastEdgeToEdgeCounter<'a> {
     p: u32,
     stride: isize,
-    stepsToBorder: i32,
+    steps_to_border: i32,
     _arr: isize,
     under_array: &'a BitMatrix,
 }
@@ -25,7 +25,7 @@ impl FastEdgeToEdgeCounter<'_> {
         );
         let p = p as u32;
 
-        let maxStepsX: i32 = if cur.d().x != 0.0 {
+        let max_steps_x: i32 = if cur.d().x != 0.0 {
             if cur.d().x > 0.0 {
                 cur.img().width() as i32 - 1 - cur.p().x as i32
             } else {
@@ -34,7 +34,7 @@ impl FastEdgeToEdgeCounter<'_> {
         } else {
             i32::MAX
         };
-        let maxStepsY: i32 = if cur.d().y != 0.0 {
+        let max_steps_y: i32 = if cur.d().y != 0.0 {
             if cur.d().y > 0.0 {
                 cur.img().height() as i32 - 1 - cur.p().y as i32
             } else {
@@ -43,24 +43,24 @@ impl FastEdgeToEdgeCounter<'_> {
         } else {
             i32::MAX
         };
-        let stepsToBorder = std::cmp::min(maxStepsX, maxStepsY);
+        let steps_to_border = std::cmp::min(max_steps_x, max_steps_y);
 
         FastEdgeToEdgeCounter {
             p,
             stride,
-            stepsToBorder,
+            steps_to_border,
             _arr: cur.p().y as isize * stride,
             under_array: cur.img(),
         }
     }
 
-    pub fn stepToNextEdge(&mut self, range: u32) -> u32 {
-        let maxSteps = std::cmp::min(self.stepsToBorder, range as i32);
+    pub fn step_to_next_edge(&mut self, range: u32) -> u32 {
+        let max_steps = std::cmp::min(self.steps_to_border, range as i32);
         let mut steps = 0;
         loop {
             steps += 1;
-            if steps > maxSteps {
-                if maxSteps == self.stepsToBorder {
+            if steps > max_steps {
+                if max_steps == self.steps_to_border {
                     break;
                 } else {
                     return 0;
@@ -75,13 +75,13 @@ impl FastEdgeToEdgeCounter<'_> {
         }
 
         // Saturate at 0 instead of wrapping via unsigned_abs. The loop above can
-        // exit one step past the border (the `maxSteps == stepsToBorder` break path
-        // increments `steps` to `maxSteps + 1`), which can yield a negative index
+        // exit one step past the border (the `max_steps == steps_to_border` break path
+        // increments `steps` to `max_steps + 1`), which can yield a negative index
         // for negative stride. Caller never re-reads `self.p` in that terminal case,
         // but clamping keeps `self.p` in a defined state.
         let new_pos = self.p as isize + (steps as isize * self.stride);
         self.p = new_pos.max(0) as u32;
-        self.stepsToBorder -= steps;
+        self.steps_to_border -= steps;
 
         steps as u32
     }

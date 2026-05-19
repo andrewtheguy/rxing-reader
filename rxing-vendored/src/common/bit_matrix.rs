@@ -93,13 +93,13 @@ impl BitMatrix {
         &self,
         width: u32,
         height: u32,
-        rowSize: usize,
+        row_size: usize,
         bits: Vec<BaseType>,
     ) -> Self {
         Self {
             width,
             height,
-            row_size: rowSize,
+            row_size,
             bits,
         }
     }
@@ -127,9 +127,9 @@ impl BitMatrix {
         let Ok(mut bits) = BitMatrix::new(width, height) else {
             return Self::empty();
         };
-        for (i, imageI) in image.iter().enumerate().take(height as usize) {
-            for (j, imageI_j) in imageI.iter().enumerate().take(width as usize) {
-                if *imageI_j {
+        for (i, image_i) in image.iter().enumerate().take(height as usize) {
+            for (j, image_i_j) in image_i.iter().enumerate().take(width as usize) {
+                if *image_i_j {
                     bits.set(j as u32, i as u32);
                 }
             }
@@ -143,38 +143,38 @@ impl BitMatrix {
         unset_string: &str,
     ) -> Result<Self> {
         let mut bits = vec![false; string_representation.chars().count()];
-        let mut bitsPos = 0;
-        let mut rowStartPos = 0;
-        let mut rowLength = 0; //-1;
+        let mut bits_pos = 0;
+        let mut row_start_pos = 0;
+        let mut row_length = 0; //-1;
         let mut first_run = true;
-        let mut nRows = 0;
+        let mut n_rows = 0;
         let mut pos = 0;
         let chars: Vec<char> = string_representation.chars().collect();
         while pos < chars.len() {
             if chars.get(pos).ok_or(Exceptions::ILLEGAL_STATE)? == &'\n'
                 || chars.get(pos).ok_or(Exceptions::ILLEGAL_STATE)? == &'\r'
             {
-                if bitsPos > rowStartPos {
+                if bits_pos > row_start_pos {
                     if first_run {
                         first_run = false;
-                        rowLength = bitsPos - rowStartPos;
-                    } else if bitsPos - rowStartPos != rowLength {
+                        row_length = bits_pos - row_start_pos;
+                    } else if bits_pos - row_start_pos != row_length {
                         return Err(Exceptions::illegal_argument_with(
                             "row lengths do not match",
                         ));
                     }
-                    rowStartPos = bitsPos;
-                    nRows += 1;
+                    row_start_pos = bits_pos;
+                    n_rows += 1;
                 }
                 pos += 1;
             } else if string_representation[pos..].starts_with(set_string) {
                 pos += set_string.len();
-                bits[bitsPos] = true;
-                bitsPos += 1;
+                bits[bits_pos] = true;
+                bits_pos += 1;
             } else if string_representation[pos..].starts_with(unset_string) {
                 pos += unset_string.len();
-                bits[bitsPos] = false;
-                bitsPos += 1;
+                bits[bits_pos] = false;
+                bits_pos += 1;
             } else {
                 return Err(Exceptions::illegal_argument_with(format!(
                     "illegal character encountered: {}",
@@ -184,21 +184,21 @@ impl BitMatrix {
         }
 
         // no EOL at end?
-        if bitsPos > rowStartPos {
+        if bits_pos > row_start_pos {
             if first_run {
-                rowLength = bitsPos - rowStartPos;
-            } else if bitsPos - rowStartPos != rowLength {
+                row_length = bits_pos - row_start_pos;
+            } else if bits_pos - row_start_pos != row_length {
                 return Err(Exceptions::illegal_argument_with(
                     "row lengths do not match",
                 ));
             }
-            nRows += 1;
+            n_rows += 1;
         }
 
-        let mut matrix = BitMatrix::new(rowLength as u32, nRows)?;
-        for (i, bit) in bits.iter().enumerate().take(bitsPos) {
+        let mut matrix = BitMatrix::new(row_length as u32, n_rows)?;
+        for (i, bit) in bits.iter().enumerate().take(bits_pos) {
             if *bit {
-                matrix.set((i % rowLength) as u32, (i / rowLength) as u32);
+                matrix.set((i % row_length) as u32, (i / row_length) as u32);
             }
         }
         Ok(matrix)
@@ -232,8 +232,8 @@ impl BitMatrix {
 
     #[inline(always)]
     fn calculate_point_from_index(&self, index: usize) -> Point {
-        let row = index / (self.getWidth() as usize);
-        let column = index % (self.getWidth() as usize);
+        let row = index / (self.get_width() as usize);
+        let column = index % (self.get_width() as usize);
         point_i(column as u32, row as u32)
     }
 
@@ -350,8 +350,8 @@ impl BitMatrix {
         }
         for y in 0..self.height {
             let offset = y as usize * self.row_size;
-            let rowArray = mask.getRow(y);
-            let row = rowArray.getBitArray();
+            let row_array = mask.get_row(y);
+            let row = row_array.get_bit_array();
             for (x, row_x) in row.iter().enumerate().take(self.row_size) {
                 self.bits[offset + x] ^= *row_x;
             }
@@ -375,7 +375,7 @@ impl BitMatrix {
      * @param width The width of the region
      * @param height The height of the region
      */
-    pub fn setRegion(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
+    pub fn set_region(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
         if height < 1 || width < 1 {
             return Err(Exceptions::illegal_argument_with(
                 "height and width must be at least 1",
@@ -405,12 +405,12 @@ impl BitMatrix {
      * @return The resulting BitArray - this reference should always be used even when passing
      *         your own row
      */
-    pub fn getRow(&self, y: u32) -> BitArray {
+    pub fn get_row(&self, y: u32) -> BitArray {
         let mut rw = BitArray::with_size(self.width as usize);
 
         let offset = y as usize * self.row_size;
         for x in 0..self.row_size {
-            rw.setBulk(x * BASE_BITS, self.bits[offset + x]);
+            rw.set_bulk(x * BASE_BITS, self.bits[offset + x]);
         }
         rw
     }
@@ -418,7 +418,7 @@ impl BitMatrix {
     /// This method returns a column of the bitmatrix.
     ///
     /// The current implementation may be very slow.
-    pub fn getCol(&self, x: u32) -> BitArray {
+    pub fn get_col(&self, x: u32) -> BitArray {
         let mut cw = BitArray::with_size(self.height as usize);
 
         for y in 0..self.height {
@@ -434,9 +434,9 @@ impl BitMatrix {
      * @param y row to set
      * @param row {@link BitArray} to copy from
      */
-    pub fn setRow(&mut self, y: u32, row: &BitArray) {
+    pub fn set_row(&mut self, y: u32, row: &BitArray) {
         self.bits[y as usize * self.row_size..y as usize * self.row_size + self.row_size]
-            .clone_from_slice(&row.getBitArray()[0..self.row_size])
+            .clone_from_slice(&row.get_bit_array()[0..self.row_size])
     }
 
     /**
@@ -470,15 +470,15 @@ impl BitMatrix {
      * Modifies this {@code BitMatrix} to represent the same but rotated 180 degrees
      */
     pub fn rotate180(&mut self) {
-        let maxHeight = self.height.div_ceil(2);
-        for i in 0..maxHeight {
-            let mut topRow = self.getRow(i);
-            let bottomRowIndex = self.height - 1 - i;
-            let mut bottomRow = self.getRow(bottomRowIndex);
-            topRow.reverse();
-            bottomRow.reverse();
-            self.setRow(i, &bottomRow);
-            self.setRow(bottomRowIndex, &topRow);
+        let max_height = self.height.div_ceil(2);
+        for i in 0..max_height {
+            let mut top_row = self.get_row(i);
+            let bottom_row_index = self.height - 1 - i;
+            let mut bottom_row = self.get_row(bottom_row_index);
+            top_row.reverse();
+            bottom_row.reverse();
+            self.set_row(i, &bottom_row);
+            self.set_row(bottom_row_index, &top_row);
         }
     }
 
@@ -486,25 +486,25 @@ impl BitMatrix {
      * Modifies this {@code BitMatrix} to represent the same but rotated 90 degrees counterclockwise
      */
     pub fn rotate90(&mut self) {
-        let newWidth = self.height;
-        let newHeight = self.width;
-        let newRowSize = newWidth.div_ceil(BASE_BITS as u32);
-        let mut newBits = vec![0; (newRowSize * newHeight) as usize];
+        let new_width = self.height;
+        let new_height = self.width;
+        let new_row_size = new_width.div_ceil(BASE_BITS as u32);
+        let mut new_bits = vec![0; (new_row_size * new_height) as usize];
 
         for y in 0..self.height {
             for x in 0..self.width {
                 let offset = self.get_offset(y, x);
                 if ((self.bits[offset] >> (x as usize & BASE_SHIFT)) & 1) != 0 {
-                    let newOffset: usize =
-                        ((newHeight - 1 - x) * newRowSize + (y / BASE_BITS as u32)) as usize;
-                    newBits[newOffset] |= 1 << (y as usize & BASE_SHIFT);
+                    let new_offset: usize =
+                        ((new_height - 1 - x) * new_row_size + (y / BASE_BITS as u32)) as usize;
+                    new_bits[new_offset] |= 1 << (y as usize & BASE_SHIFT);
                 }
             }
         }
-        self.width = newWidth;
-        self.height = newHeight;
-        self.row_size = newRowSize as usize;
-        self.bits = newBits;
+        self.width = new_width;
+        self.height = new_height;
+        self.row_size = new_row_size as usize;
+        self.bits = new_bits;
     }
 
     /**
@@ -512,7 +512,7 @@ impl BitMatrix {
      *
      * @return {@code left,top,width,height} enclosing rectangle of all 1 bits, or null if it is all white
      */
-    pub fn getEnclosingRectangle(&self) -> Option<[u32; 4]> {
+    pub fn get_enclosing_rectangle(&self) -> Option<[u32; 4]> {
         let mut left = self.width;
         let mut top = self.height;
         let mut right: u32 = 0;
@@ -520,15 +520,15 @@ impl BitMatrix {
 
         for y in 0..self.height {
             for x32 in 0..self.row_size {
-                let theBits = self.bits[y as usize * self.row_size + x32];
-                if theBits != 0 {
+                let the_bits = self.bits[y as usize * self.row_size + x32];
+                if the_bits != 0 {
                     top = top.min(y);
                     bottom = bottom.max(y);
 
-                    let bit_lo: usize = theBits.trailing_zeros() as usize;
+                    let bit_lo: usize = the_bits.trailing_zeros() as usize;
                     left = left.min(((x32 * BASE_BITS) + bit_lo) as u32);
 
-                    let bit_hi: usize = (BASE_BITS - 1) - (theBits.leading_zeros() as usize);
+                    let bit_hi: usize = (BASE_BITS - 1) - (the_bits.leading_zeros() as usize);
                     right = right.max(((x32 * BASE_BITS) + bit_hi) as u32);
                 }
             }
@@ -546,41 +546,41 @@ impl BitMatrix {
      *
      * @return {@code x,y} coordinate of top-left-most 1 bit, or null if it is all white
      */
-    pub fn getTopLeftOnBit(&self) -> Option<Point> {
-        let mut bitsOffset = 0;
-        while bitsOffset < self.bits.len() && self.bits[bitsOffset] == 0 {
-            bitsOffset += 1;
+    pub fn get_top_left_on_bit(&self) -> Option<Point> {
+        let mut bits_offset = 0;
+        while bits_offset < self.bits.len() && self.bits[bits_offset] == 0 {
+            bits_offset += 1;
         }
-        if bitsOffset == self.bits.len() {
+        if bits_offset == self.bits.len() {
             return None;
         }
-        let y = bitsOffset / self.row_size;
-        let mut x = (bitsOffset % self.row_size) * BASE_BITS;
+        let y = bits_offset / self.row_size;
+        let mut x = (bits_offset % self.row_size) * BASE_BITS;
 
-        let theBits = self.bits[bitsOffset];
+        let the_bits = self.bits[bits_offset];
         let mut bit = 0;
-        while (theBits << (BASE_SHIFT - bit)) == 0 {
+        while (the_bits << (BASE_SHIFT - bit)) == 0 {
             bit += 1;
         }
         x += bit;
         Some(point(x as f32, y as f32))
     }
 
-    pub fn getBottomRightOnBit(&self) -> Option<Point> {
-        let mut bitsOffset = self.bits.len() as i64 - 1;
-        while bitsOffset >= 0 && self.bits[bitsOffset as usize] == 0 {
-            bitsOffset -= 1;
+    pub fn get_bottom_right_on_bit(&self) -> Option<Point> {
+        let mut bits_offset = self.bits.len() as i64 - 1;
+        while bits_offset >= 0 && self.bits[bits_offset as usize] == 0 {
+            bits_offset -= 1;
         }
-        if bitsOffset < 0 {
+        if bits_offset < 0 {
             return None;
         }
 
-        let y = bitsOffset as usize / self.row_size;
-        let mut x = (bitsOffset as usize % self.row_size) * BASE_BITS;
+        let y = bits_offset as usize / self.row_size;
+        let mut x = (bits_offset as usize % self.row_size) * BASE_BITS;
 
-        let theBits = self.bits[bitsOffset as usize];
+        let the_bits = self.bits[bits_offset as usize];
         let mut bit = BASE_BITS - 1;
-        while (theBits >> bit) == 0 {
+        while (the_bits >> bit) == 0 {
             bit -= 1;
         }
         x += bit;
@@ -592,7 +592,7 @@ impl BitMatrix {
      * @return The width of the matrix
      */
     #[inline(always)]
-    pub const fn getWidth(&self) -> u32 {
+    pub const fn get_width(&self) -> u32 {
         self.width()
     }
 
@@ -605,7 +605,7 @@ impl BitMatrix {
      * @return The height of the matrix
      */
     #[inline(always)]
-    pub const fn getHeight(&self) -> u32 {
+    pub const fn get_height(&self) -> u32 {
         self.height()
     }
 
@@ -618,38 +618,38 @@ impl BitMatrix {
      * @return The row size of the matrix
      */
     #[inline(always)]
-    pub fn getRowSize(&self) -> usize {
+    pub fn get_row_size(&self) -> usize {
         self.row_size
     }
 
     /**
-     * @param setString representation of a set bit
-     * @param unsetString representation of an unset bit
+     * @param set_string representation of a set bit
+     * @param unset_string representation of an unset bit
      * @return string representation of entire matrix utilizing given strings
      */
-    pub fn toString(&self, setString: &str, unsetString: &str) -> String {
-        self.buildToString(setString, unsetString, "\n")
+    pub fn to_string(&self, set_string: &str, unset_string: &str) -> String {
+        self.build_to_string(set_string, unset_string, "\n")
     }
 
     /**
-     * @param setString representation of a set bit
-     * @param unsetString representation of an unset bit
-     * @param lineSeparator newline character in string representation
+     * @param set_string representation of a set bit
+     * @param unset_string representation of an unset bit
+     * @param line_separator newline character in string representation
      * @return string representation of entire matrix utilizing given strings and line separator
-     * @deprecated call {@link #toString(String,String)} only, which uses \n line separator always
+     * @deprecated call {@link #to_string(String,String)} only, which uses \n line separator always
      */
-    fn buildToString(&self, setString: &str, unsetString: &str, lineSeparator: &str) -> String {
+    fn build_to_string(&self, set_string: &str, unset_string: &str, line_separator: &str) -> String {
         let mut result =
             String::with_capacity((self.height * (self.width + 1)).try_into().unwrap());
         for y in 0..self.height {
             for x in 0..self.width {
                 result.push_str(if self.get(x, y) {
-                    setString
+                    set_string
                 } else {
-                    unsetString
+                    unset_string
                 });
             }
-            result.push_str(lineSeparator);
+            result.push_str(line_separator);
         }
         result
     }
@@ -670,21 +670,21 @@ impl BitMatrix {
 
     #[inline(always)]
     pub fn is_in(&self, p: Point) -> bool {
-        self.isIn(p, 0)
+        self.is_in_with_border(p, 0)
     }
 
     #[inline(always)]
-    pub fn isIn(&self, p: Point, b: i32) -> bool {
+    pub fn is_in_with_border(&self, p: Point, b: i32) -> bool {
         b as f32 <= p.x
-            && p.x < self.getWidth() as f32 - b as f32
+            && p.x < self.get_width() as f32 - b as f32
             && b as f32 <= p.y
-            && p.y < self.getHeight() as f32 - b as f32
+            && p.y < self.get_height() as f32 - b as f32
     }
 }
 
 impl fmt::Display for BitMatrix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.toString("X ", "  "))
+        write!(f, "{}", self.to_string("X ", "  "))
     }
 }
 

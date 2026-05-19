@@ -39,8 +39,8 @@ pub trait GridSampler {
      * image space.
      *
      * @param image image to sample
-     * @param dimensionX width of {@link BitMatrix} to sample from image
-     * @param dimensionY height of {@link BitMatrix} to sample from image
+     * @param dimension_x width of {@link BitMatrix} to sample from image
+     * @param dimension_y height of {@link BitMatrix} to sample from image
      * @param p1ToX point 1 preimage X
      * @param p1ToY point 1 preimage Y
      * @param p2ToX point 2 preimage X
@@ -66,34 +66,34 @@ pub trait GridSampler {
     fn sample_grid_detailed(
         &self,
         image: &BitMatrix,
-        dimensionX: u32,
-        dimensionY: u32,
+        dimension_x: u32,
+        dimension_y: u32,
         dst: Quadrilateral,
         src: Quadrilateral,
     ) -> Result<(BitMatrix, [Point; 4])> {
-        let transform = PerspectiveTransform::quadrilateralToQuadrilateral(dst, src)?;
+        let transform = PerspectiveTransform::quadrilateral_to_quadrilateral(dst, src)?;
 
         self.sample_grid(
             image,
-            dimensionX,
-            dimensionY,
-            &[SamplerControl::new(dimensionX, dimensionY, transform)],
+            dimension_x,
+            dimension_y,
+            &[SamplerControl::new(dimension_x, dimension_y, transform)],
         )
     }
 
     fn sample_grid(
         &self,
         image: &BitMatrix,
-        dimensionX: u32,
-        dimensionY: u32,
+        dimension_x: u32,
+        dimension_y: u32,
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
-        if dimensionX == 0 || dimensionY == 0 {
+        if dimension_x == 0 || dimension_y == 0 {
             return Err(Exceptions::NOT_FOUND);
         }
-        let mut bits = BitMatrix::new(dimensionX, dimensionY)?;
-        let mut points = vec![Point::default(); dimensionX as usize];
-        for y in 0..dimensionY {
+        let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
+        let mut points = vec![Point::default(); dimension_x as usize];
+        for y in 0..dimension_y {
             let i_value = y as f32 + 0.5;
 
             for (x, point) in points.iter_mut().enumerate() {
@@ -106,7 +106,7 @@ pub trait GridSampler {
             }
             // Quick check to see if points transformed to something inside the image;
             // sufficient to check the endpoints
-            self.checkAndNudgePoints(image, &mut points)?;
+            self.check_and_nudge_points(image, &mut points)?;
             for (x, point) in points.iter().enumerate() {
                 if image.try_get(point.x as u32, point.y as u32).ok_or(
                     Exceptions::not_found_with(
@@ -131,9 +131,9 @@ pub trait GridSampler {
         };
 
         let top_left = project_corner(Point::default());
-        let top_right = project_corner(Point::from((dimensionX - 1, 0)));
-        let bottom_right = project_corner(Point::from((dimensionX - 1, dimensionY - 1)));
-        let bottom_left = project_corner(Point::from((0, dimensionY - 1)));
+        let top_right = project_corner(Point::from((dimension_x - 1, 0)));
+        let bottom_right = project_corner(Point::from((dimension_x - 1, dimension_y - 1)));
+        let bottom_left = project_corner(Point::from((0, dimension_y - 1)));
 
         Ok((bits, [top_left, top_right, bottom_left, bottom_right]))
     }
@@ -153,9 +153,9 @@ pub trait GridSampler {
      * @param points actual points in x1,y1,...,xn,yn form
      * @throws NotFoundException if an endpoint is lies outside the image boundaries
      */
-    fn checkAndNudgePoints(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
-        let width = image.getWidth();
-        let height = image.getHeight();
+    fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
+        let width = image.get_width();
+        let height = image.get_height();
         // Check and nudge points from start until we see some that are OK:
         let mut nudged;
         if points.is_empty() {

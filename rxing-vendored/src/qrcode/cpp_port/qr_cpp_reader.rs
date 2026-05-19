@@ -11,15 +11,15 @@ use crate::{
 };
 
 use super::{
-    decoder::Decode,
-    detector::{FindFinderPatterns, GenerateFinderPatternSets, SampleMQR, SampleQR, SampleRMQR},
+    decoder::decode,
+    detector::{find_finder_patterns, generate_finder_pattern_sets, sample_mqr, sample_qr, sample_rmqr},
 };
 
 #[derive(Default)]
 pub struct QrReader;
 
 impl QrReader {
-    /// Decode every QR / Micro QR / rMQR symbol found in `image`.
+    /// decode every QR / micro QR / r_mqr symbol found in `image`.
     ///
     /// `count` caps the number of results; pass `0` for unlimited.
     pub fn decode_set_number_with_hints<B: crate::Binarizer>(
@@ -28,105 +28,105 @@ impl QrReader {
         hints: &DecodeHints,
         count: u32,
     ) -> crate::common::Result<Vec<RXingResult>> {
-        let binImg = image.get_black_matrix()?;
-        let maxSymbols = count;
+        let bin_img = image.get_black_matrix()?;
+        let max_symbols = count;
         let try_harder = hints.try_harder.unwrap_or(false);
 
-        let mut allFPs = FindFinderPatterns(binImg, try_harder);
+        let mut all_fps = find_finder_patterns(bin_img, try_harder);
 
-        let mut usedFPs: Vec<ConcentricPattern> = Vec::new();
+        let mut used_fps: Vec<ConcentricPattern> = Vec::new();
         let mut results: Vec<RXingResult> = Vec::new();
 
         let (check_qr, check_mqr, check_rmqr) = if let Some(formats) = &hints.possible_formats {
             (
-                formats.contains(&BarcodeFormat::QR_CODE),
-                formats.contains(&BarcodeFormat::MICRO_QR_CODE),
-                formats.contains(&BarcodeFormat::RECTANGULAR_MICRO_QR_CODE),
+                formats.contains(&BarcodeFormat::QrCode),
+                formats.contains(&BarcodeFormat::MicroQrCode),
+                formats.contains(&BarcodeFormat::RectangularMicroQrCode),
             )
         } else {
             (true, true, true)
         };
 
         if check_qr {
-            let allFPSets = GenerateFinderPatternSets(&mut allFPs);
-            for fpSet in allFPSets {
-                if usedFPs.contains(&fpSet.bl)
-                    || usedFPs.contains(&fpSet.tl)
-                    || usedFPs.contains(&fpSet.tr)
+            let all_fpsets = generate_finder_pattern_sets(&mut all_fps);
+            for fp_set in all_fpsets {
+                if used_fps.contains(&fp_set.bl)
+                    || used_fps.contains(&fp_set.tl)
+                    || used_fps.contains(&fp_set.tr)
                 {
                     continue;
                 }
 
-                let detectorResult = SampleQR(binImg, &fpSet);
-                if let Ok(detectorResult) = detectorResult {
-                    let decoderResult = Decode(detectorResult.getBits());
-                    let position = detectorResult.getPoints();
-                    if let Ok(decoderResult) = decoderResult
-                        && decoderResult.isValid()
+                let detector_result = sample_qr(bin_img, &fp_set);
+                if let Ok(detector_result) = detector_result {
+                    let decoder_result = decode(detector_result.get_bits());
+                    let position = detector_result.get_points();
+                    if let Ok(decoder_result) = decoder_result
+                        && decoder_result.is_valid()
                     {
-                        usedFPs.push(fpSet.bl);
-                        usedFPs.push(fpSet.tl);
-                        usedFPs.push(fpSet.tr);
+                        used_fps.push(fp_set.bl);
+                        used_fps.push(fp_set.tl);
+                        used_fps.push(fp_set.tr);
 
                         results.push(RXingResult::with_decoder_result_bytes_only(
-                            decoderResult,
+                            decoder_result,
                             position,
-                            BarcodeFormat::QR_CODE,
+                            BarcodeFormat::QrCode,
                         ));
 
-                        if maxSymbols != 0 && (results.len() as u32) == maxSymbols {
+                        if max_symbols != 0 && (results.len() as u32) == max_symbols {
                             break;
                         }
                     }
                 }
             }
         }
-        if check_mqr && !(maxSymbols != 0 && (results.len() as u32) == maxSymbols) {
-            for fp in &allFPs {
-                if usedFPs.contains(fp) {
+        if check_mqr && !(max_symbols != 0 && (results.len() as u32) == max_symbols) {
+            for fp in &all_fps {
+                if used_fps.contains(fp) {
                     continue;
                 }
 
-                let detectorResult = SampleMQR(binImg, *fp);
-                if let Ok(detectorResult) = detectorResult {
-                    let decoderResult = Decode(detectorResult.getBits());
-                    let position = detectorResult.getPoints();
-                    if let Ok(decoderResult) = decoderResult
-                        && decoderResult.isValid()
+                let detector_result = sample_mqr(bin_img, *fp);
+                if let Ok(detector_result) = detector_result {
+                    let decoder_result = decode(detector_result.get_bits());
+                    let position = detector_result.get_points();
+                    if let Ok(decoder_result) = decoder_result
+                        && decoder_result.is_valid()
                     {
                         results.push(RXingResult::with_decoder_result_bytes_only(
-                            decoderResult,
+                            decoder_result,
                             position,
-                            BarcodeFormat::MICRO_QR_CODE,
+                            BarcodeFormat::MicroQrCode,
                         ));
 
-                        if maxSymbols != 0 && (results.len() as u32) == maxSymbols {
+                        if max_symbols != 0 && (results.len() as u32) == max_symbols {
                             break;
                         }
                     }
                 }
             }
         }
-        if check_rmqr && !(maxSymbols != 0 && (results.len() as u32) == maxSymbols) {
-            for fp in &allFPs {
-                if usedFPs.contains(fp) {
+        if check_rmqr && !(max_symbols != 0 && (results.len() as u32) == max_symbols) {
+            for fp in &all_fps {
+                if used_fps.contains(fp) {
                     continue;
                 }
 
-                let detectorResult = SampleRMQR(binImg, *fp);
-                if let Ok(detectorResult) = detectorResult {
-                    let decoderResult = Decode(detectorResult.getBits());
-                    let position = detectorResult.getPoints();
-                    if let Ok(decoderResult) = decoderResult
-                        && decoderResult.isValid()
+                let detector_result = sample_rmqr(bin_img, *fp);
+                if let Ok(detector_result) = detector_result {
+                    let decoder_result = decode(detector_result.get_bits());
+                    let position = detector_result.get_points();
+                    if let Ok(decoder_result) = decoder_result
+                        && decoder_result.is_valid()
                     {
                         results.push(RXingResult::with_decoder_result_bytes_only(
-                            decoderResult,
+                            decoder_result,
                             position,
-                            BarcodeFormat::RECTANGULAR_MICRO_QR_CODE,
+                            BarcodeFormat::RectangularMicroQrCode,
                         ));
 
-                        if maxSymbols != 0 && (results.len() as u32) == maxSymbols {
+                        if max_symbols != 0 && (results.len() as u32) == max_symbols {
                             break;
                         }
                     }

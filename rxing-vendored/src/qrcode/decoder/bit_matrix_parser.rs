@@ -26,28 +26,28 @@ use crate::qrcode::common::{FormatInformation, Version, VersionRef};
  * @author Sean Owen
  */
 pub struct BitMatrixParser {
-    bitMatrix: BitMatrix,
-    parsedVersion: Option<VersionRef>,
-    parsedFormatInfo: Option<FormatInformation>,
+    bit_matrix: BitMatrix,
+    parsed_version: Option<VersionRef>,
+    parsed_format_info: Option<FormatInformation>,
     mirror: bool,
 }
 
 impl BitMatrixParser {
     /**
-     * @param bitMatrix {@link BitMatrix} to parse
+     * @param bit_matrix {@link BitMatrix} to parse
      * @throws FormatException if dimension is not >= 21 and 1 mod 4
      */
     pub fn new(bit_matrix: BitMatrix) -> Result<Self> {
-        let dimension = bit_matrix.getHeight();
+        let dimension = bit_matrix.get_height();
         if dimension < 21 || (dimension & 0x03) != 1 {
             Err(Exceptions::format_with(format!(
                 "{dimension} < 21 || ({dimension} & 0x03) != 1"
             )))
         } else {
             Ok(Self {
-                bitMatrix: bit_matrix,
-                parsedVersion: None,
-                parsedFormatInfo: None,
+                bit_matrix,
+                parsed_version: None,
+                parsed_format_info: None,
                 mirror: false,
             })
         }
@@ -60,40 +60,40 @@ impl BitMatrixParser {
      * @throws FormatException if both format information locations cannot be parsed as
      * the valid encoding of format information
      */
-    pub fn readFormatInformation(&mut self) -> Result<&FormatInformation> {
-        if self.parsedFormatInfo.is_some() {
-            return self.parsedFormatInfo.as_ref().ok_or(Exceptions::PARSE);
+    pub fn read_format_information(&mut self) -> Result<&FormatInformation> {
+        if self.parsed_format_info.is_some() {
+            return self.parsed_format_info.as_ref().ok_or(Exceptions::PARSE);
         }
 
         // Read top-left format info bits
-        let mut formatInfoBits1 = 0;
+        let mut format_info_bits1 = 0;
         for i in 0..6 {
-            formatInfoBits1 = self.copyBit(i, 8, formatInfoBits1);
+            format_info_bits1 = self.copy_bit(i, 8, format_info_bits1);
         }
         // .. and skip a bit in the timing pattern ...
-        formatInfoBits1 = self.copyBit(7, 8, formatInfoBits1);
-        formatInfoBits1 = self.copyBit(8, 8, formatInfoBits1);
-        formatInfoBits1 = self.copyBit(8, 7, formatInfoBits1);
+        format_info_bits1 = self.copy_bit(7, 8, format_info_bits1);
+        format_info_bits1 = self.copy_bit(8, 8, format_info_bits1);
+        format_info_bits1 = self.copy_bit(8, 7, format_info_bits1);
         // .. and skip a bit in the timing pattern ...
         for j in (0..=5).rev() {
-            formatInfoBits1 = self.copyBit(8, j, formatInfoBits1);
+            format_info_bits1 = self.copy_bit(8, j, format_info_bits1);
         }
 
         // Read the top-right/bottom-left pattern too
-        let dimension = self.bitMatrix.getHeight();
-        let mut formatInfoBits2 = 0;
-        let jMin = dimension - 7;
-        for j in (jMin..=dimension - 1).rev() {
-            formatInfoBits2 = self.copyBit(8, j, formatInfoBits2);
+        let dimension = self.bit_matrix.get_height();
+        let mut format_info_bits2 = 0;
+        let j_min = dimension - 7;
+        for j in (j_min..=dimension - 1).rev() {
+            format_info_bits2 = self.copy_bit(8, j, format_info_bits2);
         }
         for i in (dimension - 8)..dimension {
-            formatInfoBits2 = self.copyBit(i, 8, formatInfoBits2);
+            format_info_bits2 = self.copy_bit(i, 8, format_info_bits2);
         }
 
-        self.parsedFormatInfo =
-            FormatInformation::decode_format_information(formatInfoBits1, formatInfoBits2);
+        self.parsed_format_info =
+            FormatInformation::decode_format_information(format_info_bits1, format_info_bits2);
 
-        self.parsedFormatInfo.as_ref().ok_or(Exceptions::FORMAT)
+        self.parsed_format_info.as_ref().ok_or(Exceptions::FORMAT)
     }
 
     /**
@@ -103,62 +103,62 @@ impl BitMatrixParser {
      * @throws FormatException if both version information locations cannot be parsed as
      * the valid encoding of version information
      */
-    pub fn readVersion(&mut self) -> Result<VersionRef> {
-        if let Some(pv) = self.parsedVersion {
+    pub fn read_version(&mut self) -> Result<VersionRef> {
+        if let Some(pv) = self.parsed_version {
             return Ok(pv);
         }
 
-        let dimension = self.bitMatrix.getHeight();
+        let dimension = self.bit_matrix.get_height();
 
-        let provisionalVersion = (dimension - 17) / 4;
-        if provisionalVersion <= 6 {
-            return Version::getVersionForNumber(provisionalVersion);
+        let provisional_version = (dimension - 17) / 4;
+        if provisional_version <= 6 {
+            return Version::get_version_for_number(provisional_version);
         }
 
         // Read top-right version info: 3 wide by 6 tall
-        let mut versionBits = 0;
-        let ijMin = dimension - 11;
+        let mut version_bits = 0;
+        let ij_min = dimension - 11;
         for j in (0..=5).rev() {
-            for i in (ijMin..(dimension - 8)).rev() {
-                versionBits = self.copyBit(i, j, versionBits);
+            for i in (ij_min..(dimension - 8)).rev() {
+                version_bits = self.copy_bit(i, j, version_bits);
             }
         }
 
-        if let Ok(theParsedVersion) = Version::decodeVersionInformation(versionBits)
-            && theParsedVersion.getDimensionForVersion() == dimension
+        if let Ok(the_parsed_version) = Version::decode_version_information(version_bits)
+            && the_parsed_version.get_dimension_for_version() == dimension
         {
-            self.parsedVersion = Some(theParsedVersion);
-            return Ok(theParsedVersion);
+            self.parsed_version = Some(the_parsed_version);
+            return Ok(the_parsed_version);
         }
 
         // Hmm, failed. Try bottom left: 6 wide by 3 tall
-        versionBits = 0;
+        version_bits = 0;
         for i in (0..=5).rev() {
-            for j in (ijMin..(dimension - 8)).rev() {
-                versionBits = self.copyBit(i, j, versionBits);
+            for j in (ij_min..(dimension - 8)).rev() {
+                version_bits = self.copy_bit(i, j, version_bits);
             }
         }
 
-        if let Ok(theParsedVersion) = Version::decodeVersionInformation(versionBits)
-            && theParsedVersion.getDimensionForVersion() == dimension
+        if let Ok(the_parsed_version) = Version::decode_version_information(version_bits)
+            && the_parsed_version.get_dimension_for_version() == dimension
         {
-            self.parsedVersion = Some(theParsedVersion);
-            return Ok(theParsedVersion);
+            self.parsed_version = Some(the_parsed_version);
+            return Ok(the_parsed_version);
         }
         Err(Exceptions::FORMAT)
     }
 
-    fn copyBit(&self, i: u32, j: u32, versionBits: u32) -> u32 {
+    fn copy_bit(&self, i: u32, j: u32, version_bits: u32) -> u32 {
         let bit = if self.mirror {
-            self.bitMatrix.get(j, i)
+            self.bit_matrix.get(j, i)
         } else {
-            self.bitMatrix.get(i, j)
+            self.bit_matrix.get(i, j)
         };
 
         if bit {
-            (versionBits << 1) | 0x1
+            (version_bits << 1) | 0x1
         } else {
-            versionBits << 1
+            version_bits << 1
         }
     }
 
@@ -170,22 +170,22 @@ impl BitMatrixParser {
      * @return bytes encoded within the QR Code
      * @throws FormatException if the exact number of bytes expected is not read
      */
-    pub fn readCodewords(&mut self) -> Result<Vec<u8>> {
-        let version = self.readVersion()?;
+    pub fn read_codewords(&mut self) -> Result<Vec<u8>> {
+        let version = self.read_version()?;
 
         // Get the data mask for the format used in this QR Code. This will exclude
         // some bits from reading as we wind through the bit matrix.
-        let dataMask: DataMask = self.readFormatInformation()?.get_data_mask().try_into()?;
-        let dimension = self.bitMatrix.getHeight();
-        dataMask.unmaskBitMatrix(&mut self.bitMatrix, dimension);
+        let data_mask: DataMask = self.read_format_information()?.get_data_mask().try_into()?;
+        let dimension = self.bit_matrix.get_height();
+        data_mask.unmask_bit_matrix(&mut self.bit_matrix, dimension);
 
-        let functionPattern = version.buildFunctionPattern()?;
+        let function_pattern = version.build_function_pattern()?;
 
-        let mut readingUp = true;
-        let mut result = vec![0u8; version.getTotalCodewords() as usize];
-        let mut resultOffset = 0;
-        let mut currentByte = 0;
-        let mut bitsRead = 0;
+        let mut reading_up = true;
+        let mut result = vec![0u8; version.get_total_codewords() as usize];
+        let mut result_offset = 0;
+        let mut current_byte = 0;
+        let mut bits_read = 0;
         // Read columns in pairs, from right to left
         let mut j = dimension as i32 - 1;
         while j > 0 {
@@ -196,36 +196,36 @@ impl BitMatrixParser {
             }
             // Read alternatingly from bottom to top then top to bottom
             for count in 0..dimension {
-                let i = if readingUp {
+                let i = if reading_up {
                     dimension - 1 - count
                 } else {
                     count
                 };
                 for col in 0..2 {
                     // Ignore bits covered by the function pattern
-                    if !functionPattern.get(j as u32 - col, i) {
+                    if !function_pattern.get(j as u32 - col, i) {
                         // Read a bit
-                        bitsRead += 1;
-                        currentByte <<= 1;
-                        if self.bitMatrix.get(j as u32 - col, i) {
-                            currentByte |= 1;
+                        bits_read += 1;
+                        current_byte <<= 1;
+                        if self.bit_matrix.get(j as u32 - col, i) {
+                            current_byte |= 1;
                         }
                         // If we've made a whole byte, save it off
-                        if bitsRead == 8 {
-                            result[resultOffset] = currentByte;
-                            resultOffset += 1;
-                            bitsRead = 0;
-                            currentByte = 0;
+                        if bits_read == 8 {
+                            result[result_offset] = current_byte;
+                            result_offset += 1;
+                            bits_read = 0;
+                            current_byte = 0;
                         }
                     }
                 }
             }
-            readingUp ^= true; // readingUp = !readingUp; // switch directions
+            reading_up ^= true; // reading_up = !reading_up; // switch directions
 
             j -= 2;
         }
 
-        if resultOffset != version.getTotalCodewords() as usize {
+        if result_offset != version.get_total_codewords() as usize {
             return Err(Exceptions::FORMAT);
         }
         Ok(result)
@@ -235,10 +235,10 @@ impl BitMatrixParser {
      * Revert the mask removal done while reading the code words. The bit matrix should revert to its original state.
      */
     pub fn remask(&mut self) -> Result<()> {
-        if let Some(pfi) = &self.parsedFormatInfo {
-            let dataMask: DataMask = pfi.get_data_mask().try_into()?;
-            let dimension = self.bitMatrix.getHeight();
-            dataMask.unmaskBitMatrix(&mut self.bitMatrix, dimension);
+        if let Some(pfi) = &self.parsed_format_info {
+            let data_mask: DataMask = pfi.get_data_mask().try_into()?;
+            let dimension = self.bit_matrix.get_height();
+            data_mask.unmask_bit_matrix(&mut self.bit_matrix, dimension);
         } else {
             // We have no format information, and have no data mask
         }
@@ -247,25 +247,25 @@ impl BitMatrixParser {
 
     /**
      * Prepare the parser for a mirrored operation.
-     * This flag has effect only on the {@link #readFormatInformation()} and the
-     * {@link #readVersion()}. Before proceeding with {@link #readCodewords()} the
+     * This flag has effect only on the {@link #read_format_information()} and the
+     * {@link #read_version()}. Before proceeding with {@link #read_codewords()} the
      * {@link #mirror()} method should be called.
      *
      * @param mirror Whether to read version and format information mirrored.
      */
-    pub fn setMirror(&mut self, mirror: bool) {
-        self.parsedVersion = None;
-        self.parsedFormatInfo = None;
+    pub fn set_mirror(&mut self, mirror: bool) {
+        self.parsed_version = None;
+        self.parsed_format_info = None;
         self.mirror = mirror;
     }
 
     /** Mirror the bit matrix in order to attempt a second reading. */
     pub fn mirror(&mut self) {
-        for x in 0..self.bitMatrix.getWidth() {
-            for y in (x + 1)..self.bitMatrix.getHeight() {
-                if self.bitMatrix.get(x, y) != self.bitMatrix.get(y, x) {
-                    self.bitMatrix.flip_coords(y, x);
-                    self.bitMatrix.flip_coords(x, y);
+        for x in 0..self.bit_matrix.get_width() {
+            for y in (x + 1)..self.bit_matrix.get_height() {
+                if self.bit_matrix.get(x, y) != self.bit_matrix.get(y, x) {
+                    self.bit_matrix.flip_coords(y, x);
+                    self.bit_matrix.flip_coords(x, y);
                 }
             }
         }

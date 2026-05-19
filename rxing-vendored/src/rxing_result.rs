@@ -31,25 +31,25 @@ pub type RXingResultMetaDataDictionary = HashMap<RXingResultMetadataType, RXingR
 #[derive(Clone, Debug, PartialEq)]
 pub struct RXingResult {
     text: String,
-    rawBytes: Vec<u8>,
-    numBits: usize,
-    resultPoints: Vec<Point>,
+    raw_bytes: Vec<u8>,
+    num_bits: usize,
+    result_points: Vec<Point>,
     format: BarcodeFormat,
-    resultMetadata: RXingResultMetaDataDictionary,
+    result_metadata: RXingResultMetaDataDictionary,
     timestamp: u128,
     line_count: usize,
 }
 impl RXingResult {
     pub fn new(
         text: &str,
-        rawBytes: Vec<u8>,
-        resultPoints: Vec<Point>,
+        raw_bytes: Vec<u8>,
+        result_points: Vec<Point>,
         format: BarcodeFormat,
     ) -> Self {
         Self::new_timestamp(
             text,
-            rawBytes,
-            resultPoints,
+            raw_bytes,
+            result_points,
             format,
             chrono::Utc::now().timestamp_millis() as u128,
         )
@@ -57,30 +57,30 @@ impl RXingResult {
 
     pub fn new_timestamp(
         text: &str,
-        rawBytes: Vec<u8>,
-        resultPoints: Vec<Point>,
+        raw_bytes: Vec<u8>,
+        result_points: Vec<Point>,
         format: BarcodeFormat,
         timestamp: u128,
     ) -> Self {
-        let l = rawBytes.len();
-        Self::new_complex(text, rawBytes, 8 * l, resultPoints, format, timestamp)
+        let l = raw_bytes.len();
+        Self::new_complex(text, raw_bytes, 8 * l, result_points, format, timestamp)
     }
 
     pub fn new_complex(
         text: &str,
-        rawBytes: Vec<u8>,
-        numBits: usize,
-        resultPoints: Vec<Point>,
+        raw_bytes: Vec<u8>,
+        num_bits: usize,
+        result_points: Vec<Point>,
         format: BarcodeFormat,
         timestamp: u128,
     ) -> Self {
         Self {
             text: text.to_owned(),
-            rawBytes,
-            numBits,
-            resultPoints,
+            raw_bytes,
+            num_bits,
+            result_points,
             format,
-            resultMetadata: HashMap::new(),
+            result_metadata: HashMap::new(),
             timestamp,
             line_count: 0,
         }
@@ -89,11 +89,11 @@ impl RXingResult {
     pub fn with_point(self, points: Vec<Point>) -> Self {
         Self {
             text: self.text,
-            rawBytes: self.rawBytes,
-            numBits: self.numBits,
-            resultPoints: points,
+            raw_bytes: self.raw_bytes,
+            num_bits: self.num_bits,
+            result_points: points,
             format: self.format,
-            resultMetadata: self.resultMetadata,
+            result_metadata: self.result_metadata,
             timestamp: self.timestamp,
             line_count: self.line_count,
         }
@@ -101,7 +101,7 @@ impl RXingResult {
 
     pub fn with_decoder_result<T>(
         res: DecoderResult<T>,
-        resultPoints: &[Point],
+        result_points: &[Point],
         format: BarcodeFormat,
     ) -> Self
     where
@@ -110,39 +110,39 @@ impl RXingResult {
         let mut new_res = Self::new(
             &res.text(),
             res.content().bytes().to_vec(),
-            resultPoints.to_vec(),
+            result_points.to_vec(),
             format,
         );
 
         let mut meta_data = MetadataDictionary::new();
         meta_data.insert(
-            RXingResultMetadataType::ERROR_CORRECTION_LEVEL,
-            RXingResultMetadataValue::ErrorCorrectionLevel(res.ecLevel().to_owned()),
+            RXingResultMetadataType::ErrorCorrectionLevel,
+            RXingResultMetadataValue::ErrorCorrectionLevel(res.ec_level().to_owned()),
         );
         meta_data.insert(
-            RXingResultMetadataType::STRUCTURED_APPEND_PARITY,
-            RXingResultMetadataValue::StructuredAppendParity(res.structuredAppend().count),
+            RXingResultMetadataType::StructuredAppendParity,
+            RXingResultMetadataValue::StructuredAppendParity(res.structured_append().count),
         );
         meta_data.insert(
-            RXingResultMetadataType::STRUCTURED_APPEND_SEQUENCE,
-            RXingResultMetadataValue::StructuredAppendSequence(res.structuredAppend().index),
+            RXingResultMetadataType::StructuredAppendSequence,
+            RXingResultMetadataValue::StructuredAppendSequence(res.structured_append().index),
         );
         meta_data.insert(
-            RXingResultMetadataType::SYMBOLOGY_IDENTIFIER,
-            RXingResultMetadataValue::SymbologyIdentifier(res.symbologyIdentifier()),
+            RXingResultMetadataType::SymbologyIdentifier,
+            RXingResultMetadataValue::SymbologyIdentifier(res.symbology_identifier()),
         );
 
-        new_res.putAllMetadata(meta_data);
+        new_res.put_all_metadata(meta_data);
 
         new_res
     }
 
     /// Like [`with_decoder_result`] but skips the `res.text()` UTF-8 build.
-    /// Use when the caller only consumes `getRawBytes()` — saves an
+    /// Use when the caller only consumes `get_raw_bytes()` — saves an
     /// `ECIStringBuilder::to_string()` per frame.
     pub fn with_decoder_result_bytes_only<T>(
         res: DecoderResult<T>,
-        resultPoints: &[Point],
+        result_points: &[Point],
         format: BarcodeFormat,
     ) -> Self
     where
@@ -151,29 +151,29 @@ impl RXingResult {
         let mut new_res = Self::new(
             "",
             res.content().bytes().to_vec(),
-            resultPoints.to_vec(),
+            result_points.to_vec(),
             format,
         );
 
         let mut meta_data = MetadataDictionary::new();
         meta_data.insert(
-            RXingResultMetadataType::ERROR_CORRECTION_LEVEL,
-            RXingResultMetadataValue::ErrorCorrectionLevel(res.ecLevel().to_owned()),
+            RXingResultMetadataType::ErrorCorrectionLevel,
+            RXingResultMetadataValue::ErrorCorrectionLevel(res.ec_level().to_owned()),
         );
         meta_data.insert(
-            RXingResultMetadataType::STRUCTURED_APPEND_PARITY,
-            RXingResultMetadataValue::StructuredAppendParity(res.structuredAppend().count),
+            RXingResultMetadataType::StructuredAppendParity,
+            RXingResultMetadataValue::StructuredAppendParity(res.structured_append().count),
         );
         meta_data.insert(
-            RXingResultMetadataType::STRUCTURED_APPEND_SEQUENCE,
-            RXingResultMetadataValue::StructuredAppendSequence(res.structuredAppend().index),
+            RXingResultMetadataType::StructuredAppendSequence,
+            RXingResultMetadataValue::StructuredAppendSequence(res.structured_append().index),
         );
         meta_data.insert(
-            RXingResultMetadataType::SYMBOLOGY_IDENTIFIER,
-            RXingResultMetadataValue::SymbologyIdentifier(res.symbologyIdentifier()),
+            RXingResultMetadataType::SymbologyIdentifier,
+            RXingResultMetadataValue::SymbologyIdentifier(res.symbology_identifier()),
         );
 
-        new_res.putAllMetadata(meta_data);
+        new_res.put_all_metadata(meta_data);
 
         new_res
     }
@@ -181,23 +181,23 @@ impl RXingResult {
     /**
      * @return raw text encoded by the barcode
      */
-    pub fn getText(&self) -> &str {
+    pub fn get_text(&self) -> &str {
         &self.text
     }
 
     /**
      * @return raw bytes encoded by the barcode, if applicable, otherwise {@code null}
      */
-    pub fn getRawBytes(&self) -> &[u8] {
-        &self.rawBytes
+    pub fn get_raw_bytes(&self) -> &[u8] {
+        &self.raw_bytes
     }
 
     /**
-     * @return how many bits of {@link #getRawBytes()} are valid; typically 8 times its length
+     * @return how many bits of {@link #get_raw_bytes()} are valid; typically 8 times its length
      * @since 3.3.0
      */
-    pub fn getNumBits(&self) -> usize {
-        self.numBits
+    pub fn get_num_bits(&self) -> usize {
+        self.num_bits
     }
 
     /**
@@ -205,28 +205,28 @@ impl RXingResult {
      *         identifying finder patterns or the corners of the barcode. The exact meaning is
      *         specific to the type of barcode that was decoded.
      */
-    pub fn getPoints(&self) -> &[Point] {
-        &self.resultPoints
+    pub fn get_points(&self) -> &[Point] {
+        &self.result_points
     }
 
-    pub fn getPointsMut(&mut self) -> &mut [Point] {
-        &mut self.resultPoints
-    }
-
-    /** Currently necessary because the external OneDReader proc macro uses it. */
-    pub fn getRXingResultPoints(&self) -> &[Point] {
-        &self.resultPoints
+    pub fn get_points_mut(&mut self) -> &mut [Point] {
+        &mut self.result_points
     }
 
     /** Currently necessary because the external OneDReader proc macro uses it. */
-    pub fn getRXingResultPointsMut(&mut self) -> &mut [Point] {
-        &mut self.resultPoints
+    pub fn get_rxing_result_points(&self) -> &[Point] {
+        &self.result_points
+    }
+
+    /** Currently necessary because the external OneDReader proc macro uses it. */
+    pub fn get_rxing_result_points_mut(&mut self) -> &mut [Point] {
+        &mut self.result_points
     }
 
     /**
      * @return {@link BarcodeFormat} representing the format of the barcode that was decoded
      */
-    pub fn getBarcodeFormat(&self) -> &BarcodeFormat {
+    pub fn get_barcode_format(&self) -> &BarcodeFormat {
         &self.format
     }
 
@@ -235,35 +235,35 @@ impl RXingResult {
      *   {@code null}. This contains optional metadata about what was detected about the barcode,
      *   like orientation.
      */
-    pub fn getRXingResultMetadata(&self) -> &RXingResultMetaDataDictionary {
-        &self.resultMetadata
+    pub fn get_rxing_result_metadata(&self) -> &RXingResultMetaDataDictionary {
+        &self.result_metadata
     }
 
-    pub fn putMetadata(
+    pub fn put_metadata(
         &mut self,
         md_type: RXingResultMetadataType,
         value: RXingResultMetadataValue,
     ) {
-        self.resultMetadata.insert(md_type, value);
+        self.result_metadata.insert(md_type, value);
     }
 
-    pub fn putAllMetadata(&mut self, metadata: RXingResultMetaDataDictionary) {
-        if self.resultMetadata.is_empty() {
-            let _ = std::mem::replace(&mut self.resultMetadata, metadata);
+    pub fn put_all_metadata(&mut self, metadata: RXingResultMetaDataDictionary) {
+        if self.result_metadata.is_empty() {
+            let _ = std::mem::replace(&mut self.result_metadata, metadata);
         } else {
             for (key, value) in metadata.into_iter() {
-                self.resultMetadata.insert(key, value);
+                self.result_metadata.insert(key, value);
             }
         }
     }
 
-    pub fn addPoints(&mut self, newPoints: &mut Vec<Point>) {
-        if !newPoints.is_empty() {
-            self.resultPoints.append(newPoints);
+    pub fn add_points(&mut self, new_points: &mut Vec<Point>) {
+        if !new_points.is_empty() {
+            self.result_points.append(new_points);
         }
     }
 
-    pub fn getTimestamp(&self) -> u128 {
+    pub fn get_timestamp(&self) -> u128 {
         self.timestamp
     }
 
@@ -276,7 +276,7 @@ impl RXingResult {
     }
 
     pub fn replace_points(&mut self, points: Vec<Point>) {
-        self.resultPoints = points
+        self.result_points = points
     }
 }
 

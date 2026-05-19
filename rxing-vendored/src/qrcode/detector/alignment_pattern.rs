@@ -24,7 +24,7 @@ use crate::{Point, point};
  */
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlignmentPattern {
-    estimatedModuleSize: f32,
+    estimated_module_size: f32,
     point: Point,
 }
 
@@ -41,10 +41,10 @@ impl From<AlignmentPattern> for Point {
 }
 
 impl AlignmentPattern {
-    pub fn new(posX: f32, posY: f32, estimatedModuleSize: f32) -> Self {
+    pub fn new(pos_x: f32, pos_y: f32, estimated_module_size: f32) -> Self {
         Self {
-            estimatedModuleSize,
-            point: point(posX, posY),
+            estimated_module_size,
+            point: point(pos_x, pos_y),
         }
     }
 
@@ -52,10 +52,10 @@ impl AlignmentPattern {
      * <p>Determines if this alignment pattern "about equals" an alignment pattern at the stated
      * position and size -- meaning, it is at nearly the same center with nearly the same size.</p>
      */
-    pub fn aboutEquals(&self, moduleSize: f32, i: f32, j: f32) -> bool {
-        if (i - self.point.y).abs() <= moduleSize && (j - self.point.x).abs() <= moduleSize {
-            let moduleSizeDiff = (moduleSize - self.estimatedModuleSize).abs();
-            return moduleSizeDiff <= 1.0 || moduleSizeDiff <= self.estimatedModuleSize;
+    pub fn about_equals(&self, module_size: f32, i: f32, j: f32) -> bool {
+        if (i - self.point.y).abs() <= module_size && (j - self.point.x).abs() <= module_size {
+            let module_size_diff = (module_size - self.estimated_module_size).abs();
+            return module_size_diff <= 1.0 || module_size_diff <= self.estimated_module_size;
         }
         false
     }
@@ -64,10 +64,10 @@ impl AlignmentPattern {
      * Combines this object's current estimate of an alignment pattern position and module size
      * with a new estimate. It returns a new {@code AlignmentPattern} containing an average of the two.
      */
-    pub fn combineEstimate(&self, i: f32, j: f32, newModuleSize: f32) -> AlignmentPattern {
-        let combinedX = (self.point.x + j) / 2.0;
-        let combinedY = (self.point.y + i) / 2.0;
-        let combinedModuleSize = (self.estimatedModuleSize + newModuleSize) / 2.0;
-        AlignmentPattern::new(combinedX, combinedY, combinedModuleSize)
+    pub fn combine_estimate(&self, i: f32, j: f32, new_module_size: f32) -> AlignmentPattern {
+        let combined_x = (self.point.x + j) / 2.0;
+        let combined_y = (self.point.y + i) / 2.0;
+        let combined_module_size = (self.estimated_module_size + new_module_size) / 2.0;
+        AlignmentPattern::new(combined_x, combined_y, combined_module_size)
     }
 }

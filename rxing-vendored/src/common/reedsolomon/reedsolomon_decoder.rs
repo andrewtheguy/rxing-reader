@@ -57,37 +57,37 @@ impl ReedSolomonDecoder {
      * in the input.</p>
      *
      * @param received data and error-correction codewords
-     * @param twoS number of error-correction codewords available
+     * @param two_s number of error-correction codewords available
      * @throws ReedSolomonException if decoding fails for any reason
      */
-    pub fn decode(&self, received: &mut [i32], twoS: i32) -> Result<usize> {
+    pub fn decode(&self, received: &mut [i32], two_s: i32) -> Result<usize> {
         let poly = GenericGFPoly::new(self.field, received)?;
-        let mut syndromeCoefficients = vec![0; twoS as usize];
-        let mut noError = true;
-        for i in 0..twoS {
-            let eval = poly.evaluateAt(self.field.exp(i + self.field.getGeneratorBase()) as usize);
-            let len = syndromeCoefficients.len();
-            syndromeCoefficients[len - 1 - i as usize] = eval;
+        let mut syndrome_coefficients = vec![0; two_s as usize];
+        let mut no_error = true;
+        for i in 0..two_s {
+            let eval = poly.evaluate_at(self.field.exp(i + self.field.get_generator_base()) as usize);
+            let len = syndrome_coefficients.len();
+            syndrome_coefficients[len - 1 - i as usize] = eval;
             if eval != 0 {
-                noError = false;
+                no_error = false;
             }
         }
-        if noError {
+        if no_error {
             return Ok(0);
         }
-        let Ok(syndrome) = GenericGFPoly::new(self.field, &syndromeCoefficients) else {
+        let Ok(syndrome) = GenericGFPoly::new(self.field, &syndrome_coefficients) else {
             return Err(Exceptions::REED_SOLOMON);
         };
-        let sigmaOmega = self.runEuclideanAlgorithm(
-            &GenericGF::buildMonomial(self.field, twoS as usize, 1),
+        let sigma_omega = self.run_euclidean_algorithm(
+            &GenericGF::build_monomial(self.field, two_s as usize, 1),
             &syndrome,
-            twoS as usize,
+            two_s as usize,
         )?;
-        let sigma = &sigmaOmega[0];
-        let omega = &sigmaOmega[1];
-        let errorLocations = self.findErrorLocations(sigma)?;
-        let errorMagnitudes = self.findErrorMagnitudes(omega, &errorLocations)?;
-        for (error_location, error_magnitude) in errorLocations.iter().zip(errorMagnitudes) {
+        let sigma = &sigma_omega[0];
+        let omega = &sigma_omega[1];
+        let error_locations = self.find_error_locations(sigma)?;
+        let error_magnitudes = self.find_error_magnitudes(omega, &error_locations)?;
+        for (error_location, error_magnitude) in error_locations.iter().zip(error_magnitudes) {
             let log_value = self.field.log(*error_location as i32)?;
             if log_value > received.len() as i32 - 1 {
                 return Err(Exceptions::reed_solomon_with("Bad error location"));
@@ -97,69 +97,69 @@ impl ReedSolomonDecoder {
                 return Err(Exceptions::reed_solomon_with("Bad error location"));
             }
             received[position as usize] =
-                GenericGF::addOrSubtract(received[position as usize], error_magnitude);
+                GenericGF::add_or_subtract(received[position as usize], error_magnitude);
         }
-        Ok(errorLocations.len())
+        Ok(error_locations.len())
     }
 
-    fn runEuclideanAlgorithm(
+    fn run_euclidean_algorithm(
         &self,
         a: &GenericGFPoly,
         b: &GenericGFPoly,
-        R: usize,
+        degree_limit: usize,
     ) -> Result<Vec<GenericGFPoly>> {
         // Assume a's degree is >= b's
         let mut a = a.clone();
         let mut b = b.clone();
-        if a.getDegree() < b.getDegree() {
+        if a.get_degree() < b.get_degree() {
             std::mem::swap(&mut a, &mut b);
         }
 
-        let mut rLast = a;
+        let mut r_last = a;
         let mut r = b;
-        let mut tLast = rLast.getZero();
-        let mut t = rLast.getOne();
+        let mut t_last = r_last.get_zero();
+        let mut t = r_last.get_one();
 
-        // Run Euclidean algorithm until r's degree is less than R/2
-        while 2 * r.getDegree() >= R {
-            let rLastLast = rLast;
-            let tLastLast = tLast;
-            rLast = r;
-            tLast = t;
+        // Run Euclidean algorithm until r's degree is less than r/2
+        while 2 * r.get_degree() >= degree_limit {
+            let r_last_last = r_last;
+            let t_last_last = t_last;
+            r_last = r;
+            t_last = t;
 
-            // Divide rLastLast by rLast, with quotient in q and remainder in r
-            if rLast.isZero() {
+            // Divide r_last_last by r_last, with quotient in q and remainder in r
+            if r_last.is_zero() {
                 // Oops, Euclidean algorithm already terminated?
                 return Err(Exceptions::reed_solomon_with("r_{i-1} was zero"));
             }
-            r = rLastLast;
-            let mut q = r.getZero();
-            let denominatorLeadingTerm = rLast.getCoefficient(rLast.getDegree());
-            let dltInverse = self.field.inverse(denominatorLeadingTerm)?;
-            while r.getDegree() >= rLast.getDegree() && !r.isZero() {
-                let degreeDiff = r.getDegree() - rLast.getDegree();
+            r = r_last_last;
+            let mut q = r.get_zero();
+            let denominator_leading_term = r_last.get_coefficient(r_last.get_degree());
+            let dlt_inverse = self.field.inverse(denominator_leading_term)?;
+            while r.get_degree() >= r_last.get_degree() && !r.is_zero() {
+                let degree_diff = r.get_degree() - r_last.get_degree();
                 let scale = self
                     .field
-                    .multiply(r.getCoefficient(r.getDegree()), dltInverse);
-                q = q.addOrSubtract(&GenericGF::buildMonomial(self.field, degreeDiff, scale))?;
-                r = r.addOrSubtract(&rLast.multiply_by_monomial(degreeDiff, scale)?)?;
+                    .multiply(r.get_coefficient(r.get_degree()), dlt_inverse);
+                q = q.add_or_subtract(&GenericGF::build_monomial(self.field, degree_diff, scale))?;
+                r = r.add_or_subtract(&r_last.multiply_by_monomial(degree_diff, scale)?)?;
             }
 
-            t = (q.multiply(&tLast)?).addOrSubtract(&tLastLast)?;
+            t = (q.multiply(&t_last)?).add_or_subtract(&t_last_last)?;
 
-            if r.getDegree() >= rLast.getDegree() {
+            if r.get_degree() >= r_last.get_degree() {
                 return Err(Exceptions::reed_solomon_with(format!(
-                    "Division algorithm failed to reduce polynomial? r: {r}, rLast: {rLast}"
+                    "Division algorithm failed to reduce polynomial? r: {r}, r_last: {r_last}"
                 )));
             }
         }
 
-        let sigmaTildeAtZero = t.getCoefficient(0);
-        if sigmaTildeAtZero == 0 {
+        let sigma_tilde_at_zero = t.get_coefficient(0);
+        if sigma_tilde_at_zero == 0 {
             return Err(Exceptions::reed_solomon_with("sigmaTilde(0) was zero"));
         }
 
-        let Ok(inverse) = self.field.inverse(sigmaTildeAtZero) else {
+        let Ok(inverse) = self.field.inverse(sigma_tilde_at_zero) else {
             return Err(Exceptions::reed_solomon_with("ArithmetricException"));
         };
         let sigma = t.multiply_with_scalar(inverse);
@@ -167,26 +167,26 @@ impl ReedSolomonDecoder {
         Ok(vec![sigma, omega])
     }
 
-    fn findErrorLocations(&self, errorLocator: &GenericGFPoly) -> Result<Vec<usize>> {
+    fn find_error_locations(&self, error_locator: &GenericGFPoly) -> Result<Vec<usize>> {
         // This is a direct application of Chien's search
-        let numErrors = errorLocator.getDegree();
-        if numErrors == 1 {
+        let num_errors = error_locator.get_degree();
+        if num_errors == 1 {
             // shortcut
-            return Ok(vec![errorLocator.getCoefficient(1) as usize]);
+            return Ok(vec![error_locator.get_coefficient(1) as usize]);
         }
 
-        let mut result: Vec<usize> = vec![0; numErrors];
+        let mut result: Vec<usize> = vec![0; num_errors];
         let mut e = 0;
-        for i in 1..self.field.getSize() {
-            if e >= numErrors {
+        for i in 1..self.field.get_size() {
+            if e >= num_errors {
                 break;
             }
-            if errorLocator.evaluateAt(i) == 0 {
+            if error_locator.evaluate_at(i) == 0 {
                 result[e] = self.field.inverse(i as i32)? as usize;
                 e += 1;
             }
         }
-        if e != numErrors {
+        if e != num_errors {
             return Err(Exceptions::reed_solomon_with(
                 "Error locator degree does not match number of roots",
             ));
@@ -194,36 +194,36 @@ impl ReedSolomonDecoder {
         Ok(result)
     }
 
-    fn findErrorMagnitudes(
+    fn find_error_magnitudes(
         &self,
-        errorEvaluator: &GenericGFPoly,
-        errorLocations: &[usize],
+        error_evaluator: &GenericGFPoly,
+        error_locations: &[usize],
     ) -> Result<Vec<i32>> {
         // This is directly applying Forney's Formula
-        let s = errorLocations.len();
+        let s = error_locations.len();
         let mut result = vec![0; s];
         for i in 0..s {
-            let xiInverse = self.field.inverse(errorLocations[i] as i32)?;
+            let xi_inverse = self.field.inverse(error_locations[i] as i32)?;
             let mut denominator = 1;
-            for (j, loc) in errorLocations.iter().enumerate().take(s) {
+            for (j, loc) in error_locations.iter().enumerate().take(s) {
                 if i != j {
                     // The naive multiplication fails on some Apple and Linux JDKs due to a Hotspot bug.
                     // Below is a funny-looking workaround from Steven Parkes.
-                    let term = self.field.multiply(*loc as i32, xiInverse);
-                    let termPlus1 = if (term & 0x1) == 0 {
+                    let term = self.field.multiply(*loc as i32, xi_inverse);
+                    let term_plus1 = if (term & 0x1) == 0 {
                         term | 1
                     } else {
                         term & !1
                     };
-                    denominator = self.field.multiply(denominator, termPlus1);
+                    denominator = self.field.multiply(denominator, term_plus1);
                 }
             }
             result[i] = self.field.multiply(
-                errorEvaluator.evaluateAt(xiInverse as usize),
+                error_evaluator.evaluate_at(xi_inverse as usize),
                 self.field.inverse(denominator)?,
             );
-            if self.field.getGeneratorBase() != 0 {
-                result[i] = self.field.multiply(result[i], xiInverse);
+            if self.field.get_generator_base() != 0 {
+                result[i] = self.field.multiply(result[i], xi_inverse);
             }
         }
         Ok(result)

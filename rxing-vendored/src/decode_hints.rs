@@ -38,49 +38,49 @@ pub enum DecodeHintType {
      * Image is known to be of one of a few possible formats.
      * Maps to a {@link List} of {@link BarcodeFormat}s.
      */
-    POSSIBLE_FORMATS,
+    PossibleFormats,
 
     /**
      * Spend more time to try to find a barcode; optimize for accuracy, not speed.
      * Doesn't matter what it maps to; use {@link Boolean#TRUE}.
      */
-    TRY_HARDER,
+    TryHarder,
 
     /**
      * Specifies what character encoding to use when decoding, where applicable (type String)
      */
-    CHARACTER_SET,
+    CharacterSet,
 
     /**
      * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
      */
-    ALLOWED_LENGTHS,
+    AllowedLengths,
 
     /**
      * Assume Code 39 codes employ a check digit. Doesn't matter what it maps to;
      * use {@link Boolean#TRUE}.
      */
-    ASSUME_CODE_39_CHECK_DIGIT,
+    AssumeCode39CheckDigit,
 
     /**
      * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
      * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn't matter what it maps to;
      * use {@link Boolean#TRUE}.
      */
-    ASSUME_GS1,
+    AssumeGs1,
 
     /**
      * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
      * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
      * to not be. Doesn't matter what it maps to; use {@link Boolean#TRUE}.
      */
-    RETURN_CODABAR_START_END,
+    ReturnCodabarStartEnd,
 
     /**
      * The caller needs to be notified via callback when a possible {@link Point}
      * is found. Maps to a {@link PointCallback}.
      */
-    NEED_RESULT_POINT_CALLBACK,
+    NeedResultPointCallback,
 
     /**
      * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
@@ -89,12 +89,12 @@ pub enum DecodeHintType {
      * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
      * at all.
      */
-    ALLOWED_EAN_EXTENSIONS,
+    AllowedEanExtensions,
 
     /*
      * Will translate the ASCII values parsed by the Telepen reader into the Telepen Numeric form.
      */
-    TELEPEN_AS_NUMERIC,
+    TelepenAsNumeric,
     /*
      * Data type the hint is expecting.
      * Among the possible values the {@link Void} stands out as being used for
@@ -293,64 +293,64 @@ impl From<DecodeHints> for super::DecodingHintDictionary {
 
         if let Some(v) = value.possible_formats {
             new_self.insert(
-                DecodeHintType::POSSIBLE_FORMATS,
+                DecodeHintType::PossibleFormats,
                 DecodeHintValue::PossibleFormats(v),
             );
         }
 
         if let Some(v) = value.try_harder {
-            new_self.insert(DecodeHintType::TRY_HARDER, DecodeHintValue::TryHarder(v));
+            new_self.insert(DecodeHintType::TryHarder, DecodeHintValue::TryHarder(v));
         }
 
         if let Some(v) = value.character_set {
             new_self.insert(
-                DecodeHintType::CHARACTER_SET,
+                DecodeHintType::CharacterSet,
                 DecodeHintValue::CharacterSet(v),
             );
         }
 
         if let Some(v) = value.allowed_lengths {
             new_self.insert(
-                DecodeHintType::ALLOWED_LENGTHS,
+                DecodeHintType::AllowedLengths,
                 DecodeHintValue::AllowedLengths(v),
             );
         }
 
         if let Some(v) = value.assume_code_39_check_digit {
             new_self.insert(
-                DecodeHintType::ASSUME_CODE_39_CHECK_DIGIT,
+                DecodeHintType::AssumeCode39CheckDigit,
                 DecodeHintValue::AssumeCode39CheckDigit(v),
             );
         }
 
         if let Some(v) = value.assume_gs1 {
-            new_self.insert(DecodeHintType::ASSUME_GS1, DecodeHintValue::AssumeGs1(v));
+            new_self.insert(DecodeHintType::AssumeGs1, DecodeHintValue::AssumeGs1(v));
         }
 
         if let Some(v) = value.return_codabar_start_end {
             new_self.insert(
-                DecodeHintType::RETURN_CODABAR_START_END,
+                DecodeHintType::ReturnCodabarStartEnd,
                 DecodeHintValue::ReturnCodabarStartEnd(v),
             );
         }
 
         if let Some(v) = value.need_result_point_callback {
             new_self.insert(
-                DecodeHintType::NEED_RESULT_POINT_CALLBACK,
+                DecodeHintType::NeedResultPointCallback,
                 DecodeHintValue::NeedResultPointCallback(v),
             );
         }
 
         if let Some(v) = value.allowed_ean_extensions {
             new_self.insert(
-                DecodeHintType::ALLOWED_EAN_EXTENSIONS,
+                DecodeHintType::AllowedEanExtensions,
                 DecodeHintValue::AllowedEanExtensions(v),
             );
         }
 
         if let Some(v) = value.telepen_as_numeric {
             new_self.insert(
-                DecodeHintType::TELEPEN_AS_NUMERIC,
+                DecodeHintType::TelepenAsNumeric,
                 DecodeHintValue::TelepenAsNumeric(v),
             );
         }

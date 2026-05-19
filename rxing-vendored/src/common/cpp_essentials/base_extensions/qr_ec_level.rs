@@ -1,9 +1,9 @@
 use crate::qrcode::common::ErrorCorrectionLevel;
 
 impl ErrorCorrectionLevel {
-    pub fn ECLevelFromBitsSigned(bits: i8, isMicro: bool) -> Self {
-        if isMicro {
-            let LEVEL_FOR_BITS: [ErrorCorrectionLevel; 8] = [
+    pub fn eclevel_from_bits_signed(bits: i8, is_micro: bool) -> Self {
+        if is_micro {
+            let level_for_bits: [ErrorCorrectionLevel; 8] = [
                 ErrorCorrectionLevel::L,
                 ErrorCorrectionLevel::L,
                 ErrorCorrectionLevel::M,
@@ -13,18 +13,18 @@ impl ErrorCorrectionLevel {
                 ErrorCorrectionLevel::M,
                 ErrorCorrectionLevel::Q,
             ];
-            return LEVEL_FOR_BITS[(bits as u8 & 0x07) as usize];
+            return level_for_bits[(bits as u8 & 0x07) as usize];
         }
-        let LEVEL_FOR_BITS: [ErrorCorrectionLevel; 4] = [
+        let level_for_bits: [ErrorCorrectionLevel; 4] = [
             ErrorCorrectionLevel::M,
             ErrorCorrectionLevel::L,
             ErrorCorrectionLevel::H,
             ErrorCorrectionLevel::Q,
         ];
-        LEVEL_FOR_BITS[(bits as u8 & 0x03) as usize]
+        level_for_bits[(bits as u8 & 0x03) as usize]
     }
 
-    pub fn ECLevelFromBits(bits: u8, isMicro: bool) -> Self {
-        Self::ECLevelFromBitsSigned(bits as i8, isMicro)
+    pub fn eclevel_from_bits(bits: u8, is_micro: bool) -> Self {
+        Self::eclevel_from_bits_signed(bits as i8, is_micro)
     }
 }

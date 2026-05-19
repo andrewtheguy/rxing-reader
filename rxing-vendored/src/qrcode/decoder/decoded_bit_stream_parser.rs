@@ -46,19 +46,19 @@ static CACHED_ALPHANUMERIC_CHARS: Lazy<Vec<char>> =
 pub fn decode(
     bytes: &[u8],
     version: VersionRef,
-    ecLevel: ErrorCorrectionLevel,
+    ec_level: ErrorCorrectionLevel,
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
     let mut bits = BitSource::new(bytes);
     let mut result = ECIStringBuilder::with_capacity(50); //String::with_capacity(50);
-    let mut byteSegments: std::vec::Vec<std::vec::Vec<u8>> = vec![];
-    let mut symbolSequence = -1;
-    let mut parityData = -1;
+    let mut byte_segments: std::vec::Vec<std::vec::Vec<u8>> = vec![];
+    let mut symbol_sequence = -1;
+    let mut parity_data = -1;
 
-    let mut currentCharacterSetECI = None;
-    let mut fc1InEffect = false;
-    let mut hasFNC1first = false;
-    let mut hasFNC1second = false;
+    let mut current_character_set_eci = None;
+    let mut fc1_in_effect = false;
+    let mut has_fnc1first = false;
+    let mut has_fnc1second = false;
     let mut mode;
     loop {
         // While still another segment to read...
@@ -66,21 +66,21 @@ pub fn decode(
             // OK, assume we're done. Really, a TERMINATOR mode should have been recorded here
             mode = Mode::TERMINATOR;
         } else {
-            mode = Mode::forBits(bits.readBits(4)? as u8)?; // mode is encoded by 4 bits
+            mode = Mode::for_bits(bits.read_bits(4)? as u8)?; // mode is encoded by 4 bits
         }
         match mode {
             Mode::TERMINATOR => {}
-            Mode::FNC1_FIRST_POSITION => {
-                hasFNC1first = true; // symbology detection
+            Mode::Fnc1FirstPosition => {
+                has_fnc1first = true; // symbology detection
                 // We do little with FNC1 except alter the parsed result a bit according to the spec
-                fc1InEffect = true;
+                fc1_in_effect = true;
             }
-            Mode::FNC1_SECOND_POSITION => {
-                hasFNC1second = true; // symbology detection
+            Mode::Fnc1SecondPosition => {
+                has_fnc1second = true; // symbology detection
                 // We do little with FNC1 except alter the parsed result a bit according to the spec
-                fc1InEffect = true;
+                fc1_in_effect = true;
             }
-            Mode::STRUCTURED_APPEND => {
+            Mode::StructuredAppend => {
                 if bits.available() < 16 {
                     return Err(Exceptions::format_with(format!(
                         "Mode::Structured append expected bits.available() < 16, found bits of {}",
@@ -89,14 +89,14 @@ pub fn decode(
                 }
                 // sequence number and parity is added later to the result metadata
                 // Read next 8 bits (symbol sequence #) and 8 bits (parity data), then continue
-                symbolSequence = bits.readBits(8)? as i32;
-                parityData = bits.readBits(8)? as i32;
+                symbol_sequence = bits.read_bits(8)? as i32;
+                parity_data = bits.read_bits(8)? as i32;
             }
             Mode::ECI => {
                 // Count doesn't apply to ECI
-                let value = parseECIValue(&mut bits)?;
-                currentCharacterSetECI = CharacterSet::from(value).into(); //CharacterSet::get_character_set_by_eci(value).ok();
-                if currentCharacterSetECI.is_none() {
+                let value = parse_ecivalue(&mut bits)?;
+                current_character_set_eci = CharacterSet::from(value).into(); //CharacterSet::get_character_set_by_eci(value).ok();
+                if current_character_set_eci.is_none() {
                     return Err(Exceptions::format_with(format!(
                         "Value of {value} not valid"
                     )));
@@ -105,31 +105,31 @@ pub fn decode(
             Mode::HANZI => {
                 // First handle Hanzi mode which does not start with character count
                 // Chinese mode contains a sub set indicator right after mode indicator
-                let subset = bits.readBits(4)?;
-                let countHanzi =
-                    bits.readBits(mode.getCharacterCountBits(version) as usize)? as usize;
+                let subset = bits.read_bits(4)?;
+                let count_hanzi =
+                    bits.read_bits(mode.get_character_count_bits(version) as usize)? as usize;
                 if subset == GB2312_SUBSET {
-                    decodeHanziSegment(&mut bits, &mut result, countHanzi)?;
+                    decode_hanzi_segment(&mut bits, &mut result, count_hanzi)?;
                 }
             }
             _ => {
                 // "Normal" QR code modes:
                 // How many characters will follow, encoded in this mode?
-                let count = bits.readBits(mode.getCharacterCountBits(version) as usize)? as usize;
+                let count = bits.read_bits(mode.get_character_count_bits(version) as usize)? as usize;
                 match mode {
-                    Mode::NUMERIC => decodeNumericSegment(&mut bits, &mut result, count)?,
+                    Mode::NUMERIC => decode_numeric_segment(&mut bits, &mut result, count)?,
                     Mode::ALPHANUMERIC => {
-                        decodeAlphanumericSegment(&mut bits, &mut result, count, fc1InEffect)?
+                        decode_alphanumeric_segment(&mut bits, &mut result, count, fc1_in_effect)?
                     }
-                    Mode::BYTE => decodeByteSegment(
+                    Mode::BYTE => decode_byte_segment(
                         &mut bits,
                         &mut result,
                         count,
-                        currentCharacterSetECI,
-                        &mut byteSegments,
+                        current_character_set_eci,
+                        &mut byte_segments,
                         hints,
                     )?,
-                    Mode::KANJI => decodeKanjiSegment(&mut bits, &mut result, count)?,
+                    Mode::KANJI => decode_kanji_segment(&mut bits, &mut result, count)?,
                     _ => return Err(Exceptions::FORMAT),
                 }
             }
@@ -140,37 +140,37 @@ pub fn decode(
         }
     }
 
-    let symbologyModifier = get_symbology_identifier(
-        currentCharacterSetECI.is_some(),
-        hasFNC1first,
-        hasFNC1second,
+    let symbology_modifier = get_symbology_identifier(
+        current_character_set_eci.is_some(),
+        has_fnc1first,
+        has_fnc1second,
     );
 
     Ok(DecoderRXingResult::with_all(
         bytes.to_owned(),
         result.build_result().to_string(),
-        byteSegments.to_vec(),
-        format!("{}", u8::from(ecLevel)),
-        symbolSequence,
-        parityData,
-        symbologyModifier,
+        byte_segments.to_vec(),
+        format!("{}", u8::from(ec_level)),
+        symbol_sequence,
+        parity_data,
+        symbology_modifier,
         String::default(),
         false,
     ))
 }
 
-fn get_symbology_identifier(has_charset: bool, hasFNC1first: bool, hasFNC1second: bool) -> u32 {
+fn get_symbology_identifier(has_charset: bool, has_fnc1first: bool, has_fnc1second: bool) -> u32 {
     if has_charset {
-        if hasFNC1first {
+        if has_fnc1first {
             4
-        } else if hasFNC1second {
+        } else if has_fnc1second {
             6
         } else {
             2
         }
-    } else if hasFNC1first {
+    } else if has_fnc1first {
         3
-    } else if hasFNC1second {
+    } else if has_fnc1second {
         5
     } else {
         1
@@ -180,7 +180,7 @@ fn get_symbology_identifier(has_charset: bool, hasFNC1first: bool, hasFNC1second
 /**
  * See specification GBT 18284-2000
  */
-fn decodeHanziSegment(
+fn decode_hanzi_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,
     count: usize,
@@ -197,18 +197,18 @@ fn decodeHanziSegment(
     let mut count = count;
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let twoBytes = bits.readBits(13)?;
-        let mut assembledTwoBytes = ((twoBytes / 0x060) << 8) | (twoBytes % 0x060);
-        if assembledTwoBytes < 0x00A00 {
+        let two_bytes = bits.read_bits(13)?;
+        let mut assembled_two_bytes = ((two_bytes / 0x060) << 8) | (two_bytes % 0x060);
+        if assembled_two_bytes < 0x00A00 {
             // In the 0xA1A1 to 0xAAFE range
-            assembledTwoBytes += 0x0A1A1;
+            assembled_two_bytes += 0x0A1A1;
         } else {
             // In the 0xB0A1 to 0xFAFE range
-            assembledTwoBytes += 0x0A6A1;
+            assembled_two_bytes += 0x0A6A1;
         }
 
-        buffer[offset] = (assembledTwoBytes >> 8) as u8;
-        buffer[offset + 1] = assembledTwoBytes as u8;
+        buffer[offset] = (assembled_two_bytes >> 8) as u8;
+        buffer[offset + 1] = assembled_two_bytes as u8;
         offset += 2;
         count -= 1;
     }
@@ -219,7 +219,7 @@ fn decodeHanziSegment(
     Ok(())
 }
 
-fn decodeKanjiSegment(
+fn decode_kanji_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,
     count: usize,
@@ -230,28 +230,28 @@ fn decodeKanjiSegment(
     }
 
     // Each character will require 2 bytes. Read the characters as 2-byte pairs
-    // and decode as Shift_JIS afterwards
+    // and decode as ShiftJis afterwards
     let mut buffer = vec![0u8; 2 * count];
     let mut offset = 0;
     let mut count = count;
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let twoBytes = bits.readBits(13)?;
-        let mut assembledTwoBytes = ((twoBytes / 0x0C0) << 8) | (twoBytes % 0x0C0);
-        if assembledTwoBytes < 0x01F00 {
+        let two_bytes = bits.read_bits(13)?;
+        let mut assembled_two_bytes = ((two_bytes / 0x0C0) << 8) | (two_bytes % 0x0C0);
+        if assembled_two_bytes < 0x01F00 {
             // In the 0x8140 to 0x9FFC range
-            assembledTwoBytes += 0x08140;
+            assembled_two_bytes += 0x08140;
         } else {
             // In the 0xE040 to 0xEBBF range
-            assembledTwoBytes += 0x0C140;
+            assembled_two_bytes += 0x0C140;
         }
-        buffer[offset] = (assembledTwoBytes >> 8) as u8;
-        buffer[offset + 1] = assembledTwoBytes as u8;
+        buffer[offset] = (assembled_two_bytes >> 8) as u8;
+        buffer[offset + 1] = assembled_two_bytes as u8;
         offset += 2;
         count -= 1;
     }
 
-    let encoder = CharacterSet::Shift_JIS;
+    let encoder = CharacterSet::ShiftJis;
 
     result.append_eci(Eci::from(encoder));
     result.append_bytes(&buffer);
@@ -259,12 +259,12 @@ fn decodeKanjiSegment(
     Ok(())
 }
 
-fn decodeByteSegment(
+fn decode_byte_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,
     count: usize,
-    currentCharacterSetECI: Option<CharacterSet>,
-    byteSegments: &mut Vec<Vec<u8>>,
+    current_character_set_eci: Option<CharacterSet>,
+    byte_segments: &mut Vec<Vec<u8>>,
     hints: &DecodeHints,
 ) -> Result<()> {
     // Don't crash trying to read more bits than we have available.
@@ -272,31 +272,31 @@ fn decodeByteSegment(
         return Err(Exceptions::FORMAT);
     }
 
-    let mut readBytes = vec![0u8; count];
+    let mut read_bytes = vec![0u8; count];
 
-    for byte in readBytes.iter_mut().take(count) {
-        *byte = bits.readBits(8)? as u8;
+    for byte in read_bytes.iter_mut().take(count) {
+        *byte = bits.read_bits(8)? as u8;
     }
-    let encoding = if currentCharacterSetECI.is_none() {
+    let encoding = if current_character_set_eci.is_none() {
         // The spec isn't clear on this mode; see
         // section 6.4.5: t does not say which encoding to assuming
         // upon decoding. I have seen ISO-8859-1 used as well as
-        // Shift_JIS -- without anything like an ECI designator to
+        // ShiftJis -- without anything like an ECI designator to
         // give a hint.
-        string_utils::guessCharset(&readBytes, hints).ok_or(Exceptions::ILLEGAL_STATE)?
+        string_utils::guess_charset(&read_bytes, hints).ok_or(Exceptions::ILLEGAL_STATE)?
     } else {
-        currentCharacterSetECI.ok_or(Exceptions::ILLEGAL_STATE)?
+        current_character_set_eci.ok_or(Exceptions::ILLEGAL_STATE)?
     };
 
     result.append_eci(Eci::from(encoding));
-    result.append_bytes(&readBytes);
+    result.append_bytes(&read_bytes);
 
-    byteSegments.push(readBytes);
+    byte_segments.push(read_bytes);
 
     Ok(())
 }
 
-fn toAlphaNumericChar(value: u32) -> Result<char> {
+fn to_alpha_numeric_char(value: u32) -> Result<char> {
     if value as usize >= ALPHANUMERIC_CHARS.len() {
         return Err(Exceptions::FORMAT);
     }
@@ -304,11 +304,11 @@ fn toAlphaNumericChar(value: u32) -> Result<char> {
     Ok(CACHED_ALPHANUMERIC_CHARS[value as usize])
 }
 
-fn decodeAlphanumericSegment(
+fn decode_alphanumeric_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,
     count: usize,
-    fc1InEffect: bool,
+    fc1_in_effect: bool,
 ) -> Result<()> {
     let mut r_hld = Vec::with_capacity(count);
     // Read two characters at a time
@@ -318,9 +318,9 @@ fn decodeAlphanumericSegment(
         if bits.available() < 11 {
             return Err(Exceptions::FORMAT);
         }
-        let nextTwoCharsBits = bits.readBits(11)?;
-        r_hld.push(toAlphaNumericChar(nextTwoCharsBits / 45)?);
-        r_hld.push(toAlphaNumericChar(nextTwoCharsBits % 45)?);
+        let next_two_chars_bits = bits.read_bits(11)?;
+        r_hld.push(to_alpha_numeric_char(next_two_chars_bits / 45)?);
+        r_hld.push(to_alpha_numeric_char(next_two_chars_bits % 45)?);
         count -= 2;
     }
     if count == 1 {
@@ -328,10 +328,10 @@ fn decodeAlphanumericSegment(
         if bits.available() < 6 {
             return Err(Exceptions::FORMAT);
         }
-        r_hld.push(toAlphaNumericChar(bits.readBits(6)?)?);
+        r_hld.push(to_alpha_numeric_char(bits.read_bits(6)?)?);
     }
     // See section 6.4.8.1, 6.4.8.2
-    if fc1InEffect {
+    if fc1_in_effect {
         // We need to massage the result a bit if in an FNC1 mode.
         // Walk forward with explicit index management because remove(i+1)
         // shrinks the buffer underneath us.
@@ -356,7 +356,7 @@ fn decodeAlphanumericSegment(
     Ok(())
 }
 
-fn decodeNumericSegment(
+fn decode_numeric_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,
     count: usize,
@@ -369,13 +369,13 @@ fn decodeNumericSegment(
         if bits.available() < 10 {
             return Err(Exceptions::FORMAT);
         }
-        let threeDigitsBits = bits.readBits(10)?;
-        if threeDigitsBits >= 1000 {
+        let three_digits_bits = bits.read_bits(10)?;
+        if three_digits_bits >= 1000 {
             return Err(Exceptions::FORMAT);
         }
-        result.append_char(toAlphaNumericChar(threeDigitsBits / 100)?);
-        result.append_char(toAlphaNumericChar((threeDigitsBits / 10) % 10)?);
-        result.append_char(toAlphaNumericChar(threeDigitsBits % 10)?);
+        result.append_char(to_alpha_numeric_char(three_digits_bits / 100)?);
+        result.append_char(to_alpha_numeric_char((three_digits_bits / 10) % 10)?);
+        result.append_char(to_alpha_numeric_char(three_digits_bits % 10)?);
         count -= 3;
     }
     if count == 2 {
@@ -383,42 +383,42 @@ fn decodeNumericSegment(
         if bits.available() < 7 {
             return Err(Exceptions::FORMAT);
         }
-        let twoDigitsBits = bits.readBits(7)?;
-        if twoDigitsBits >= 100 {
+        let two_digits_bits = bits.read_bits(7)?;
+        if two_digits_bits >= 100 {
             return Err(Exceptions::FORMAT);
         }
-        result.append_char(toAlphaNumericChar(twoDigitsBits / 10)?);
-        result.append_char(toAlphaNumericChar(twoDigitsBits % 10)?);
+        result.append_char(to_alpha_numeric_char(two_digits_bits / 10)?);
+        result.append_char(to_alpha_numeric_char(two_digits_bits % 10)?);
     } else if count == 1 {
         // One digit left over to read
         if bits.available() < 4 {
             return Err(Exceptions::FORMAT);
         }
-        let digitBits = bits.readBits(4)?;
-        if digitBits >= 10 {
+        let digit_bits = bits.read_bits(4)?;
+        if digit_bits >= 10 {
             return Err(Exceptions::FORMAT);
         }
-        result.append_char(toAlphaNumericChar(digitBits)?);
+        result.append_char(to_alpha_numeric_char(digit_bits)?);
     }
 
     Ok(())
 }
 
-fn parseECIValue(bits: &mut BitSource) -> Result<Eci> {
-    let firstByte = bits.readBits(8)?;
-    if (firstByte & 0x80) == 0 {
+fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
+    let first_byte = bits.read_bits(8)?;
+    if (first_byte & 0x80) == 0 {
         // just one byte
-        return Eci::try_from(firstByte & 0x7F);
+        return Eci::try_from(first_byte & 0x7F);
     }
-    if (firstByte & 0xC0) == 0x80 {
+    if (first_byte & 0xC0) == 0x80 {
         // two bytes
-        let secondByte = bits.readBits(8)?;
-        return Eci::try_from(((firstByte & 0x3F) << 8) | secondByte);
+        let second_byte = bits.read_bits(8)?;
+        return Eci::try_from(((first_byte & 0x3F) << 8) | second_byte);
     }
-    if (firstByte & 0xE0) == 0xC0 {
+    if (first_byte & 0xE0) == 0xC0 {
         // three bytes
-        let secondThirdBytes = bits.readBits(16)?;
-        return Eci::try_from(((firstByte & 0x1F) << 16) | secondThirdBytes);
+        let second_third_bytes = bits.read_bits(16)?;
+        return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
 
     Err(Exceptions::FORMAT)

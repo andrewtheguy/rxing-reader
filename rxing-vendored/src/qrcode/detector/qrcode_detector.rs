@@ -37,23 +37,23 @@ use super::{
  */
 pub struct Detector<'a> {
     image: &'a BitMatrix,
-    resultPointCallback: Option<PointCallback>,
+    result_point_callback: Option<PointCallback>,
 }
 
 impl<'a> Detector<'a> {
     pub fn new(image: &'a BitMatrix) -> Detector<'a> {
         Detector {
             image,
-            resultPointCallback: None,
+            result_point_callback: None,
         }
     }
 
-    pub fn getImage(&self) -> &BitMatrix {
+    pub fn get_image(&self) -> &BitMatrix {
         self.image
     }
 
-    pub fn getPointCallback(&self) -> &Option<PointCallback> {
-        &self.resultPointCallback
+    pub fn get_point_callback(&self) -> &Option<PointCallback> {
+        &self.result_point_callback
     }
 
     /**
@@ -76,53 +76,53 @@ impl<'a> Detector<'a> {
      * @throws FormatException if a QR Code cannot be decoded
      */
     pub fn detect_with_hints(&mut self, hints: &DecodeHints) -> Result<QRCodeDetectorResult> {
-        self.resultPointCallback = hints.need_result_point_callback.clone();
+        self.result_point_callback = hints.need_result_point_callback.clone();
 
         let mut finder =
-            FinderPatternFinder::with_callback(self.image, self.resultPointCallback.clone());
+            FinderPatternFinder::with_callback(self.image, self.result_point_callback.clone());
         let info = finder.find(hints)?;
 
-        self.processFinderPatternInfo(info)
+        self.process_finder_pattern_info(info)
     }
 
-    pub fn processFinderPatternInfo(
+    pub fn process_finder_pattern_info(
         &self,
         info: FinderPatternInfo,
     ) -> Result<QRCodeDetectorResult> {
-        let topLeft = info.getTopLeft();
-        let topRight = info.getTopRight();
-        let bottomLeft = info.getBottomLeft();
+        let top_left = info.get_top_left();
+        let top_right = info.get_top_right();
+        let bottom_left = info.get_bottom_left();
 
-        let moduleSize = self.calculateModuleSize(topLeft, topRight, bottomLeft);
-        if moduleSize < 1.0 {
+        let module_size = self.calculate_module_size(top_left, top_right, bottom_left);
+        if module_size < 1.0 {
             return Err(Exceptions::NOT_FOUND);
         }
-        let dimension = Self::computeDimension(topLeft, topRight, bottomLeft, moduleSize)?;
-        let provisionalVersion = Version::getProvisionalVersionForDimension(dimension)?;
-        let modulesBetweenFPCenters = provisionalVersion.getDimensionForVersion() - 7;
+        let dimension = Self::compute_dimension(top_left, top_right, bottom_left, module_size)?;
+        let provisional_version = Version::get_provisional_version_for_dimension(dimension)?;
+        let modules_between_fpcenters = provisional_version.get_dimension_for_version() - 7;
 
-        let mut alignmentPattern = None;
+        let mut alignment_pattern = None;
         // Anything above version 1 has an alignment pattern
-        if !provisionalVersion.getAlignmentPatternCenters().is_empty() {
+        if !provisional_version.get_alignment_pattern_centers().is_empty() {
             // Guess where a "bottom right" finder pattern would have been
-            let bottomRightX = topRight.point.x - topLeft.point.x + bottomLeft.point.x;
-            let bottomRightY = topRight.point.y - topLeft.point.y + bottomLeft.point.y;
+            let bottom_right_x = top_right.point.x - top_left.point.x + bottom_left.point.x;
+            let bottom_right_y = top_right.point.y - top_left.point.y + bottom_left.point.y;
 
             // Estimate that alignment pattern is closer by 3 modules
             // from "bottom right" to known top left location
-            let correctionToTopLeft = 1.0 - (3.0 / modulesBetweenFPCenters as f32);
-            let estAlignmentX =
-                (topLeft.point.x + correctionToTopLeft * (bottomRightX - topLeft.point.x)) as u32;
-            let estAlignmentY =
-                (topLeft.point.y + correctionToTopLeft * (bottomRightY - topLeft.point.y)) as u32;
+            let correction_to_top_left = 1.0 - (3.0 / modules_between_fpcenters as f32);
+            let est_alignment_x =
+                (top_left.point.x + correction_to_top_left * (bottom_right_x - top_left.point.x)) as u32;
+            let est_alignment_y =
+                (top_left.point.y + correction_to_top_left * (bottom_right_y - top_left.point.y)) as u32;
 
             // Kind of arbitrary -- expand search radius before giving up
             let mut i = 4;
             while i <= 16 {
                 if let Ok(ap) =
-                    self.findAlignmentInRegion(moduleSize, estAlignmentX, estAlignmentY, i as f32)
+                    self.find_alignment_in_region(module_size, est_alignment_x, est_alignment_y, i as f32)
                 {
-                    alignmentPattern = Some(ap);
+                    alignment_pattern = Some(ap);
                     break;
                 }
                 i <<= 1;
@@ -130,78 +130,78 @@ impl<'a> Detector<'a> {
             // If we didn't find alignment pattern... well try anyway without it
         }
 
-        let transform = Self::createTransform(
-            topLeft,
-            topRight,
-            bottomLeft,
-            alignmentPattern.as_ref(),
+        let transform = Self::create_transform(
+            top_left,
+            top_right,
+            bottom_left,
+            alignment_pattern.as_ref(),
             dimension,
         )
         .ok_or(Exceptions::NOT_FOUND)?;
 
-        let bits = Detector::sampleGrid(self.image, transform, dimension)?;
+        let bits = Detector::sample_grid(self.image, transform, dimension)?;
 
         let mut points = vec![
-            Point::from(bottomLeft),
-            Point::from(topLeft),
-            Point::from(topRight),
+            Point::from(bottom_left),
+            Point::from(top_left),
+            Point::from(top_right),
         ];
 
-        if alignmentPattern.is_some() {
-            points.push(alignmentPattern.ok_or(Exceptions::NOT_FOUND)?.into())
+        if alignment_pattern.is_some() {
+            points.push(alignment_pattern.ok_or(Exceptions::NOT_FOUND)?.into())
         }
 
         Ok(QRCodeDetectorResult::new(bits, points))
     }
 
-    fn createTransform<T: Into<Point>, X: Into<Point>>(
-        topLeft: T,
-        topRight: T,
-        bottomLeft: T,
-        alignmentPattern: Option<X>,
+    fn create_transform<T: Into<Point>, X: Into<Point>>(
+        top_left: T,
+        top_right: T,
+        bottom_left: T,
+        alignment_pattern: Option<X>,
         dimension: u32,
     ) -> Option<PerspectiveTransform> {
-        let topLeft: Point = topLeft.into();
-        let topRight: Point = topRight.into();
-        let bottomLeft: Point = bottomLeft.into();
-        let alignmentPattern: Option<Point> = alignmentPattern.map(Into::into);
+        let top_left: Point = top_left.into();
+        let top_right: Point = top_right.into();
+        let bottom_left: Point = bottom_left.into();
+        let alignment_pattern: Option<Point> = alignment_pattern.map(Into::into);
 
-        let dimMinusThree = dimension as f32 - 3.5;
-        let bottomRightX: f32;
-        let bottomRightY: f32;
-        let sourceBottomRightX: f32;
-        let sourceBottomRightY: f32;
-        if alignmentPattern.is_some() {
-            let alignmentPattern = alignmentPattern?;
-            bottomRightX = alignmentPattern.x;
-            bottomRightY = alignmentPattern.y;
-            sourceBottomRightX = dimMinusThree - 3.0;
-            sourceBottomRightY = sourceBottomRightX;
+        let dim_minus_three = dimension as f32 - 3.5;
+        let bottom_right_x: f32;
+        let bottom_right_y: f32;
+        let source_bottom_right_x: f32;
+        let source_bottom_right_y: f32;
+        if alignment_pattern.is_some() {
+            let alignment_pattern = alignment_pattern?;
+            bottom_right_x = alignment_pattern.x;
+            bottom_right_y = alignment_pattern.y;
+            source_bottom_right_x = dim_minus_three - 3.0;
+            source_bottom_right_y = source_bottom_right_x;
         } else {
             // Don't have an alignment pattern, just make up the bottom-right point
-            bottomRightX = (topRight.x - topLeft.x) + bottomLeft.x;
-            bottomRightY = (topRight.y - topLeft.y) + bottomLeft.y;
-            sourceBottomRightX = dimMinusThree;
-            sourceBottomRightY = dimMinusThree;
+            bottom_right_x = (top_right.x - top_left.x) + bottom_left.x;
+            bottom_right_y = (top_right.y - top_left.y) + bottom_left.y;
+            source_bottom_right_x = dim_minus_three;
+            source_bottom_right_y = dim_minus_three;
         }
 
         let dst = Quadrilateral::new(
             point(3.5, 3.5),
-            point(dimMinusThree, 3.5),
-            point(sourceBottomRightX, sourceBottomRightY),
-            point(3.5, dimMinusThree),
+            point(dim_minus_three, 3.5),
+            point(source_bottom_right_x, source_bottom_right_y),
+            point(3.5, dim_minus_three),
         );
         let src = Quadrilateral::new(
-            topLeft,
-            topRight,
-            point(bottomRightX, bottomRightY),
-            bottomLeft,
+            top_left,
+            top_right,
+            point(bottom_right_x, bottom_right_y),
+            bottom_left,
         );
 
-        PerspectiveTransform::quadrilateralToQuadrilateral(dst, src).ok()
+        PerspectiveTransform::quadrilateral_to_quadrilateral(dst, src).ok()
     }
 
-    fn sampleGrid(
+    fn sample_grid(
         image: &BitMatrix,
         transform: PerspectiveTransform,
         dimension: u32,
@@ -220,17 +220,17 @@ impl<'a> Detector<'a> {
      * <p>Computes the dimension (number of modules on a size) of the QR Code based on the position
      * of the finder patterns and estimated module size.</p>
      */
-    fn computeDimension<T: Into<Point> + Copy>(
-        topLeft: T,
-        topRight: T,
-        bottomLeft: T,
-        moduleSize: f32,
+    fn compute_dimension<T: Into<Point> + Copy>(
+        top_left: T,
+        top_right: T,
+        bottom_left: T,
+        module_size: f32,
     ) -> Result<u32> {
-        let tltrCentersDimension =
-            (Point::distance(topLeft.into(), topRight.into()) / moduleSize).round() as i32;
-        let tlblCentersDimension =
-            (Point::distance(topLeft.into(), bottomLeft.into()) / moduleSize).round() as i32;
-        let mut dimension = ((tltrCentersDimension + tlblCentersDimension) / 2) + 7;
+        let tltr_centers_dimension =
+            (Point::distance(top_left.into(), top_right.into()) / module_size).round() as i32;
+        let tlbl_centers_dimension =
+            (Point::distance(top_left.into(), bottom_left.into()) / module_size).round() as i32;
+        let mut dimension = ((tltr_centers_dimension + tlbl_centers_dimension) / 2) + 7;
         match dimension & 0x03 {
             0 => dimension += 1,
             2 => dimension -= 1,
@@ -244,88 +244,88 @@ impl<'a> Detector<'a> {
      * <p>Computes an average estimated module size based on estimated derived from the positions
      * of the three finder patterns.</p>
      *
-     * @param topLeft detected top-left finder pattern center
-     * @param topRight detected top-right finder pattern center
-     * @param bottomLeft detected bottom-left finder pattern center
+     * @param top_left detected top-left finder pattern center
+     * @param top_right detected top-right finder pattern center
+     * @param bottom_left detected bottom-left finder pattern center
      * @return estimated module size
      */
-    pub fn calculateModuleSize<T: Into<Point> + Copy>(
+    pub fn calculate_module_size<T: Into<Point> + Copy>(
         &self,
-        topLeft: T,
-        topRight: T,
-        bottomLeft: T,
+        top_left: T,
+        top_right: T,
+        bottom_left: T,
     ) -> f32 {
         // Take the average
-        (self.calculateModuleSizeOneWay(topLeft, topRight)
-            + self.calculateModuleSizeOneWay(topLeft, bottomLeft))
+        (self.calculate_module_size_one_way(top_left, top_right)
+            + self.calculate_module_size_one_way(top_left, bottom_left))
             / 2.0
     }
 
     /**
      * <p>Estimates module size based on two finder patterns -- it uses
-     * {@link #sizeOfBlackWhiteBlackRunBothWays(int, int, int, int)} to figure the
+     * {@link #size_of_black_white_black_run_both_ways(int, int, int, int)} to figure the
      * width of each, measuring along the axis between their centers.</p>
      */
-    fn calculateModuleSizeOneWay<T: Into<Point>>(&self, pattern: T, otherPattern: T) -> f32 {
+    fn calculate_module_size_one_way<T: Into<Point>>(&self, pattern: T, other_pattern: T) -> f32 {
         let pattern: Point = pattern.into();
-        let otherPattern: Point = otherPattern.into();
+        let other_pattern: Point = other_pattern.into();
 
-        let moduleSizeEst1 = self.sizeOfBlackWhiteBlackRunBothWays(
+        let module_size_est1 = self.size_of_black_white_black_run_both_ways(
             pattern.x.floor() as u32,
             pattern.y.floor() as u32,
-            otherPattern.x.floor() as u32,
-            otherPattern.y.floor() as u32,
+            other_pattern.x.floor() as u32,
+            other_pattern.y.floor() as u32,
         );
-        let moduleSizeEst2 = self.sizeOfBlackWhiteBlackRunBothWays(
-            otherPattern.x.floor() as u32,
-            otherPattern.y.floor() as u32,
+        let module_size_est2 = self.size_of_black_white_black_run_both_ways(
+            other_pattern.x.floor() as u32,
+            other_pattern.y.floor() as u32,
             pattern.x.floor() as u32,
             pattern.y.floor() as u32,
         );
-        if moduleSizeEst1.is_nan() {
-            return moduleSizeEst2 / 7.0;
+        if module_size_est1.is_nan() {
+            return module_size_est2 / 7.0;
         }
-        if moduleSizeEst2.is_nan() {
-            return moduleSizeEst1 / 7.0;
+        if module_size_est2.is_nan() {
+            return module_size_est1 / 7.0;
         }
         // Average them, and divide by 7 since we've counted the width of 3 black modules,
         // and 1 white and 1 black module on either side. Ergo, divide sum by 14.
-        (moduleSizeEst1 + moduleSizeEst2) / 14.0
+        (module_size_est1 + module_size_est2) / 14.0
     }
 
     /**
-     * See {@link #sizeOfBlackWhiteBlackRun(int, int, int, int)}; computes the total width of
+     * See {@link #size_of_black_white_black_run(int, int, int, int)}; computes the total width of
      * a finder pattern by looking for a black-white-black run from the center in the direction
      * of another point (another finder pattern center), and in the opposite direction too.
      */
-    fn sizeOfBlackWhiteBlackRunBothWays(&self, fromX: u32, fromY: u32, toX: u32, toY: u32) -> f32 {
-        let mut result = self.sizeOfBlackWhiteBlackRun(fromX, fromY, toX, toY);
+    fn size_of_black_white_black_run_both_ways(&self, from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> f32 {
+        let mut result = self.size_of_black_white_black_run(from_x, from_y, to_x, to_y);
 
         // Now count other way -- don't run off image though of course
         let mut scale = 1.0;
-        let mut otherToX = fromX as i32 - (toX as i32 - fromX as i32);
-        if otherToX < 0 {
-            scale = fromX as f32 / (fromX as i32 - otherToX) as f32;
-            otherToX = 0;
-        } else if otherToX as u32 >= self.image.getWidth() {
-            scale = (self.image.getWidth() as i32 - 1 - fromX as i32) as f32
-                / (otherToX - fromX as i32) as f32;
-            otherToX = self.image.getWidth() as i32 - 1;
+        let mut other_to_x = from_x as i32 - (to_x as i32 - from_x as i32);
+        if other_to_x < 0 {
+            scale = from_x as f32 / (from_x as i32 - other_to_x) as f32;
+            other_to_x = 0;
+        } else if other_to_x as u32 >= self.image.get_width() {
+            scale = (self.image.get_width() as i32 - 1 - from_x as i32) as f32
+                / (other_to_x - from_x as i32) as f32;
+            other_to_x = self.image.get_width() as i32 - 1;
         }
-        let mut otherToY = (fromY as f32 - (toY as f32 - fromY as f32) * scale).floor() as i32;
+        let mut other_to_y = (from_y as f32 - (to_y as f32 - from_y as f32) * scale).floor() as i32;
 
         scale = 1.0;
-        if otherToY < 0 {
-            scale = fromY as f32 / (fromY as i32 - otherToY) as f32;
-            otherToY = 0;
-        } else if otherToY as u32 >= self.image.getHeight() {
-            scale = (self.image.getHeight() as i32 - 1 - fromY as i32) as f32
-                / (otherToY - fromY as i32) as f32;
-            otherToY = self.image.getHeight() as i32 - 1;
+        if other_to_y < 0 {
+            scale = from_y as f32 / (from_y as i32 - other_to_y) as f32;
+            other_to_y = 0;
+        } else if other_to_y as u32 >= self.image.get_height() {
+            scale = (self.image.get_height() as i32 - 1 - from_y as i32) as f32
+                / (other_to_y - from_y as i32) as f32;
+            other_to_y = self.image.get_height() as i32 - 1;
         }
-        otherToX = (fromX as f32 + (otherToX as f32 - fromX as f32) * scale).floor() as i32;
+        other_to_x = (from_x as f32 + (other_to_x as f32 - from_x as f32) * scale).floor() as i32;
 
-        result += self.sizeOfBlackWhiteBlackRun(fromX, fromY, otherToX as u32, otherToY as u32);
+        result += self.size_of_black_white_black_run(from_x, from_y, other_to_x as u32, other_to_y as u32);
 
         // Middle pixel is double-counted this way; subtract 1
         result - 1.0
@@ -339,44 +339,44 @@ impl<'a> Detector<'a> {
      * <p>This is used when figuring out how wide a finder pattern is, when the finder pattern
      * may be skewed or rotated.</p>
      */
-    fn sizeOfBlackWhiteBlackRun(&self, fromX: u32, fromY: u32, toX: u32, toY: u32) -> f32 {
-        let mut fromX = fromX;
-        let mut fromY = fromY;
-        let mut toX = toX;
-        let mut toY = toY;
+    fn size_of_black_white_black_run(&self, from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> f32 {
+        let mut from_x = from_x;
+        let mut from_y = from_y;
+        let mut to_x = to_x;
+        let mut to_y = to_y;
         // Mild variant of Bresenham's algorithm;
         // see http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
-        let steep = (toY as i64 - fromY as i64).abs() > (toX as i64 - fromX as i64).abs();
+        let steep = (to_y as i64 - from_y as i64).abs() > (to_x as i64 - from_x as i64).abs();
         if steep {
-            std::mem::swap(&mut fromX, &mut fromY);
-            std::mem::swap(&mut toX, &mut toY);
+            std::mem::swap(&mut from_x, &mut from_y);
+            std::mem::swap(&mut to_x, &mut to_y);
         }
 
-        let dx: i32 = (toX as i64 - fromX as i64).abs() as i32;
-        let dy: i32 = (toY as i64 - fromY as i64).abs() as i32;
+        let dx: i32 = (to_x as i64 - from_x as i64).abs() as i32;
+        let dy: i32 = (to_y as i64 - from_y as i64).abs() as i32;
         let mut error = -dx / 2;
-        let xstep: i32 = if fromX < toX { 1 } else { -1 };
-        let ystep: i32 = if fromY < toY { 1 } else { -1 };
+        let xstep: i32 = if from_x < to_x { 1 } else { -1 };
+        let ystep: i32 = if from_y < to_y { 1 } else { -1 };
 
         // In black pixels, looking for white, first or second time.
         let mut state = 0;
-        // Loop up until x == toX, but not beyond
-        let xLimit = toX as i32 + xstep;
+        // Loop up until x == to_x, but not beyond
+        let x_limit = to_x as i32 + xstep;
 
-        let mut x: i32 = fromX as i32;
-        let mut y: i32 = fromY as i32;
-        while x != xLimit {
-            let realX = if steep { y } else { x };
-            let realY = if steep { x } else { y };
+        let mut x: i32 = from_x as i32;
+        let mut y: i32 = from_y as i32;
+        while x != x_limit {
+            let real_x = if steep { y } else { x };
+            let real_y = if steep { x } else { y };
 
             // Does current pixel mean we have moved white to black or vice versa?
             // Scanning black in state 0,2 and white in state 1, so if we find the wrong
             // color, advance to next state or end if we are in state 2 already
-            if (state == 1) == self.image.get(realX as u32, realY as u32) {
+            if (state == 1) == self.image.get(real_x as u32, real_y as u32) {
                 if state == 2 {
                     return Point::distance(
                         point(x as f32, y as f32),
-                        point(fromX as f32, fromY as f32),
+                        point(from_x as f32, from_y as f32),
                     );
                 }
                 state += 1;
@@ -384,7 +384,7 @@ impl<'a> Detector<'a> {
 
             error += dy;
             if error > 0 {
-                if y == toY as i32 {
+                if y == to_y as i32 {
                     break;
                 }
                 y += ystep;
@@ -394,12 +394,12 @@ impl<'a> Detector<'a> {
             x += xstep;
         }
         // Found black-white-black; give the benefit of the doubt that the next pixel outside the image
-        // is "white" so this last point at (toX+xStep,toY) is the right ending. This is really a
-        // small approximation; (toX+xStep,toY+yStep) might be really correct. Ignore this.
+        // is "white" so this last point at (to_x+xStep,to_y) is the right ending. This is really a
+        // small approximation; (to_x+xStep,to_y+yStep) might be really correct. Ignore this.
         if state == 2 {
             return Point::distance(
-                point((toX as i32 + xstep) as f32, toY as f32),
-                point(fromX as f32, fromY as f32),
+                point((to_x as i32 + xstep) as f32, to_y as f32),
+                point(from_x as f32, from_y as f32),
             );
         }
         // else we didn't find even black-white-black; no estimate is really possible
@@ -410,52 +410,52 @@ impl<'a> Detector<'a> {
      * <p>Attempts to locate an alignment pattern in a limited region of the image, which is
      * guessed to contain it. This method uses {@link AlignmentPattern}.</p>
      *
-     * @param overallEstModuleSize estimated module size so far
-     * @param estAlignmentX x coordinate of center of area probably containing alignment pattern
-     * @param estAlignmentY y coordinate of above
-     * @param allowanceFactor number of pixels in all directions to search from the center
+     * @param overall_est_module_size estimated module size so far
+     * @param est_alignment_x x coordinate of center of area probably containing alignment pattern
+     * @param est_alignment_y y coordinate of above
+     * @param allowance_factor number of pixels in all directions to search from the center
      * @return {@link AlignmentPattern} if found, or null otherwise
      * @throws NotFoundException if an unexpected error occurs during detection
      */
-    pub fn findAlignmentInRegion(
+    pub fn find_alignment_in_region(
         &self,
-        overallEstModuleSize: f32,
-        estAlignmentX: u32,
-        estAlignmentY: u32,
-        allowanceFactor: f32,
+        overall_est_module_size: f32,
+        est_alignment_x: u32,
+        est_alignment_y: u32,
+        allowance_factor: f32,
     ) -> Result<AlignmentPattern> {
         // Look for an alignment pattern (3 modules in size) around where it
         // should be
-        let allowance = (allowanceFactor * overallEstModuleSize) as u32;
-        let alignmentAreaLeftX = 0.max(estAlignmentX as i32 - allowance as i32) as u32;
-        let alignmentAreaRightX = (self.image.getWidth() - 1).min(estAlignmentX + allowance);
-        let alignmentAreaWidth = alignmentAreaRightX
-            .checked_sub(alignmentAreaLeftX)
+        let allowance = (allowance_factor * overall_est_module_size) as u32;
+        let alignment_area_left_x = 0.max(est_alignment_x as i32 - allowance as i32) as u32;
+        let alignment_area_right_x = (self.image.get_width() - 1).min(est_alignment_x + allowance);
+        let alignment_area_width = alignment_area_right_x
+            .checked_sub(alignment_area_left_x)
             .ok_or(Exceptions::NOT_FOUND)?;
 
-        if (alignmentAreaWidth as f32) < overallEstModuleSize * 3.0 {
+        if (alignment_area_width as f32) < overall_est_module_size * 3.0 {
             return Err(Exceptions::NOT_FOUND);
         }
 
-        let alignmentAreaTopY = 0.max(estAlignmentY as i32 - allowance as i32) as u32;
-        let alignmentAreaBottomY = (self.image.getHeight() - 1).min(estAlignmentY + allowance);
-        let alignmentAreaHeight = alignmentAreaBottomY
-            .checked_sub(alignmentAreaTopY)
+        let alignment_area_top_y = 0.max(est_alignment_y as i32 - allowance as i32) as u32;
+        let alignment_area_bottom_y = (self.image.get_height() - 1).min(est_alignment_y + allowance);
+        let alignment_area_height = alignment_area_bottom_y
+            .checked_sub(alignment_area_top_y)
             .ok_or(Exceptions::NOT_FOUND)?;
 
-        if alignmentAreaHeight < overallEstModuleSize as u32 * 3 {
+        if alignment_area_height < overall_est_module_size as u32 * 3 {
             return Err(Exceptions::NOT_FOUND);
         }
 
-        let mut alignmentFinder = AlignmentPatternFinder::new(
+        let mut alignment_finder = AlignmentPatternFinder::new(
             self.image,
-            alignmentAreaLeftX,
-            alignmentAreaTopY,
-            alignmentAreaWidth,
-            alignmentAreaHeight,
-            overallEstModuleSize,
-            self.resultPointCallback.clone(),
+            alignment_area_left_x,
+            alignment_area_top_y,
+            alignment_area_width,
+            alignment_area_height,
+            overall_est_module_size,
+            self.result_point_callback.clone(),
         );
-        alignmentFinder.find()
+        alignment_finder.find()
     }
 }

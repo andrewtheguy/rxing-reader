@@ -31,12 +31,12 @@ pub enum Mode {
     TERMINATOR,
     NUMERIC,
     ALPHANUMERIC,
-    STRUCTURED_APPEND,
+    StructuredAppend,
     BYTE,
     ECI,
     KANJI,
-    FNC1_FIRST_POSITION,
-    FNC1_SECOND_POSITION,
+    Fnc1FirstPosition,
+    Fnc1SecondPosition,
     /** See GBT 18284-2000; "Hanzi" is a transliteration of this mode name. */
     HANZI,
 }
@@ -47,17 +47,17 @@ impl Mode {
      * @return Mode encoded by these bits
      * @throws IllegalArgumentException if bits do not correspond to a known mode
      */
-    pub fn forBits(bits: u8) -> Result<Self> {
+    pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
             0x0 => Ok(Self::TERMINATOR),
             0x1 => Ok(Self::NUMERIC),
             0x2 => Ok(Self::ALPHANUMERIC),
-            0x3 => Ok(Self::STRUCTURED_APPEND),
+            0x3 => Ok(Self::StructuredAppend),
             0x4 => Ok(Self::BYTE),
-            0x5 => Ok(Self::FNC1_FIRST_POSITION),
+            0x5 => Ok(Self::Fnc1FirstPosition),
             0x7 => Ok(Self::ECI),
             0x8 => Ok(Self::KANJI),
-            0x9 => Ok(Self::FNC1_SECOND_POSITION),
+            0x9 => Ok(Self::Fnc1SecondPosition),
             0xD =>
             // 0xD is defined in GBT 18284-2000, may not be supported in foreign country
             {
@@ -74,8 +74,8 @@ impl Mode {
      * @return number of bits used, in this QR Code symbol {@link Version}, to encode the
      *         count of characters that will follow encoded in this Mode
      */
-    pub fn getCharacterCountBits(&self, version: &Version) -> u8 {
-        let number = version.getVersionNumber();
+    pub fn get_character_count_bits(&self, version: &Version) -> u8 {
+        let number = version.get_version_number();
 
         let offset = if number <= 9 {
             0
@@ -92,53 +92,53 @@ impl Mode {
             Mode::TERMINATOR => &[0, 0, 0],
             Mode::NUMERIC => &[10, 12, 14],
             Mode::ALPHANUMERIC => &[9, 11, 13],
-            Mode::STRUCTURED_APPEND => &[0, 0, 0],
+            Mode::StructuredAppend => &[0, 0, 0],
             Mode::BYTE => &[8, 16, 16],
             Mode::ECI => &[0, 0, 0],
             Mode::KANJI => &[8, 10, 12],
-            Mode::FNC1_FIRST_POSITION => &[0, 0, 0],
-            Mode::FNC1_SECOND_POSITION => &[0, 0, 0],
+            Mode::Fnc1FirstPosition => &[0, 0, 0],
+            Mode::Fnc1SecondPosition => &[0, 0, 0],
             Mode::HANZI => &[8, 10, 12],
         }
     }
 
-    pub fn getBits(&self) -> u8 {
+    pub fn get_bits(&self) -> u8 {
         match self {
             Mode::TERMINATOR => 0x00,
             Mode::NUMERIC => 0x01,
             Mode::ALPHANUMERIC => 0x02,
-            Mode::STRUCTURED_APPEND => 0x03,
+            Mode::StructuredAppend => 0x03,
             Mode::BYTE => 0x04,
             Mode::ECI => 0x07,
             Mode::KANJI => 0x08,
-            Mode::FNC1_FIRST_POSITION => 0x05,
-            Mode::FNC1_SECOND_POSITION => 0x09,
+            Mode::Fnc1FirstPosition => 0x05,
+            Mode::Fnc1SecondPosition => 0x09,
             Mode::HANZI => 0x0D,
         }
     }
 
     pub fn get_terminator_bit_length(version: &Version) -> u8 {
-        (if version.isMicro() {
-            version.getVersionNumber() * 2 + 1
+        (if version.is_micro() {
+            version.get_version_number() * 2 + 1
         } else {
-            4 - u32::from(version.isRMQR())
+            4 - u32::from(version.is_rmqr())
         }) as u8
     }
 
     pub fn get_codec_mode_bits_length(version: &Version) -> u8 {
-        (if version.isMicro() {
-            version.getVersionNumber() - 1
+        (if version.is_micro() {
+            version.get_version_number() - 1
         } else {
-            4 - u32::from(version.isRMQR())
+            4 - u32::from(version.is_rmqr())
         }) as u8
     }
     /**
      * @param bits variable number of bits encoding a QR Code data mode
-     * @param isMicro is this a MicroQRCode
+     * @param is_micro is this a MicroQRCode
      * @return Mode encoded by these bits
      * @throws FormatError if bits do not correspond to a known mode
      */
-    pub fn CodecModeForBits(bits: u32, qr_type: Option<Type>) -> Result<Self> {
+    pub fn codec_mode_for_bits(bits: u32, qr_type: Option<Type>) -> Result<Self> {
         let qr_type = qr_type.unwrap_or(Type::Model2);
         let bits = bits as usize;
 
@@ -155,8 +155,8 @@ impl Mode {
                 Mode::ALPHANUMERIC,
                 Mode::BYTE,
                 Mode::KANJI,
-                Mode::FNC1_FIRST_POSITION,
-                Mode::FNC1_SECOND_POSITION,
+                Mode::Fnc1FirstPosition,
+                Mode::Fnc1SecondPosition,
                 Mode::ECI,
             ];
             if bits < (BITS2MODE.len()) {
@@ -174,9 +174,9 @@ impl Mode {
      * @return number of bits used, in this QR Code symbol {@link Version}, to encode the
      *         count of characters that will follow encoded in this Mode
      */
-    pub fn CharacterCountBits(&self, version: &Version) -> u32 {
-        let number = version.getVersionNumber() as usize;
-        if version.isMicro() {
+    pub fn character_count_bits(&self, version: &Version) -> u32 {
+        let number = version.get_version_number() as usize;
+        if version.is_micro() {
             return match self {
                 Mode::NUMERIC => [3, 4, 5, 6]
                     .get(number.wrapping_sub(1))
@@ -194,8 +194,8 @@ impl Mode {
             };
         }
 
-        if version.isRMQR() {
-            // See ISO/IEC 23941:2022 7.4.1, Table 3 - Number of bits of character count indicator
+        if version.is_rmqr() {
+            // See ISO/IEC 23941:2022 7.4.1, Table 3 - number of bits of character count indicator
             const NUMERIC: [u32; 32] = [
                 4, 5, 6, 7, 7, 5, 6, 7, 7, 8, 4, 6, 7, 7, 8, 8, 5, 6, 7, 7, 8, 8, 7, 7, 8, 8, 9, 7,
                 8, 8, 8, 9,
@@ -243,7 +243,7 @@ impl Mode {
 
 impl From<Mode> for u8 {
     fn from(value: Mode) -> Self {
-        value.getBits()
+        value.get_bits()
     }
 }
 
@@ -251,7 +251,7 @@ impl TryFrom<u8> for Mode {
     type Error = Exceptions;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Self::forBits(value)
+        Self::for_bits(value)
     }
 }
 
@@ -264,6 +264,6 @@ impl TryFrom<u32> for Mode {
                 "{value} is not valid"
             )));
         }
-        Self::forBits(value as u8)
+        Self::for_bits(value as u8)
     }
 }

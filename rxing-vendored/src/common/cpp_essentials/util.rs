@@ -31,18 +31,18 @@ pub fn opposite(dir: Direction) -> Direction {
 }
 
 #[inline(always)]
-pub fn UpdateMinMax<T: Ord + Copy>(min: &mut T, max: &mut T, val: T) {
+pub fn update_min_max<T: Ord + Copy>(min: &mut T, max: &mut T, val: T) {
     *min = std::cmp::min(*min, val);
     *max = std::cmp::max(*max, val);
 }
 
 #[inline(always)]
-pub fn UpdateMinMaxFloat(min: &mut f64, max: &mut f64, val: f64) {
+pub fn update_min_max_float(min: &mut f64, max: &mut f64, val: f64) {
     *min = f64::min(*min, val);
     *max = f64::max(*max, val);
 }
 
-pub fn ToString<T: Into<usize>>(val: T, len: usize) -> Result<String> {
+pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     let mut val: usize = val.into();
     let mut result = vec!['0'; len];
     let mut idx = len;
@@ -58,7 +58,7 @@ pub fn ToString<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     Ok(result.iter().collect())
 }
 
-pub fn ToInt(a: &[u32]) -> Option<u32> {
+pub fn to_int(a: &[u32]) -> Option<u32> {
     let total_bits = a.iter().map(|&v| u64::from(v)).sum::<u64>();
     if total_bits > 32 {
         return None;
@@ -72,17 +72,17 @@ pub fn ToInt(a: &[u32]) -> Option<u32> {
     Some(pattern)
 }
 
-pub fn AppendBit(val: &mut i32, bit: bool) {
+pub fn append_bit(val: &mut i32, bit: bool) {
     *val <<= 1;
 
     *val |= i32::from(bit)
 }
 
-pub fn ToIntPos(bits: &[u8], pos: usize, count: usize) -> Option<u32> {
+pub fn to_int_pos(bits: &[u8], pos: usize, count: usize) -> Option<u32> {
     let count = std::cmp::min(count, bits.len().saturating_sub(pos));
     let mut res = 0;
     for bit in bits.iter().skip(pos).take(count) {
-        AppendBit(&mut res, *bit != 0);
+        append_bit(&mut res, *bit != 0);
     }
 
     Some(res as u32)

@@ -132,7 +132,7 @@ impl RegressionLineTrait for DMRegressionLine {
             max.y = f32::max(max.y, p.y);
         }
         let diff = max - min;
-        let len = diff.maxAbsComponent();
+        let len = diff.max_abs_component();
         let steps = f32::min(diff.x.abs(), diff.y.abs());
         // due to aliasing we get bad extrapolations if the line is short and too close to vertical/horizontal
         steps > 2.0 || len > 50.0
@@ -144,23 +144,23 @@ impl RegressionLineTrait for DMRegressionLine {
         }
         let mean = points.iter().sum::<Point>() / points.len() as f32;
 
-        let mut sumXX = 0.0;
-        let mut sumYY = 0.0;
-        let mut sumXY = 0.0;
+        let mut sum_xx = 0.0;
+        let mut sum_yy = 0.0;
+        let mut sum_xy = 0.0;
         for p in points {
             let d = *p - mean;
-            sumXX += d.x * d.x;
-            sumYY += d.y * d.y;
-            sumXY += d.x * d.y;
+            sum_xx += d.x * d.x;
+            sum_yy += d.y * d.y;
+            sum_xy += d.x * d.y;
         }
-        if sumYY >= sumXX {
-            let l = (sumYY * sumYY + sumXY * sumXY).sqrt();
-            self.a = sumYY / l;
-            self.b = -sumXY / l;
+        if sum_yy >= sum_xx {
+            let l = (sum_yy * sum_yy + sum_xy * sum_xy).sqrt();
+            self.a = sum_yy / l;
+            self.b = -sum_xy / l;
         } else {
-            let l = (sumXX * sumXX + sumXY * sumXY).sqrt();
-            self.a = sumXY / l;
-            self.b = -sumXX / l;
+            let l = (sum_xx * sum_xx + sum_xy * sum_xy).sqrt();
+            self.a = sum_xy / l;
+            self.b = -sum_xx / l;
         }
         if Point::dot(self.direction_inward, self.normal()) < 0.0 {
             self.a = -self.a;
@@ -226,24 +226,24 @@ impl DMRegressionLine {
             return Err(Exceptions::ILLEGAL_STATE);
         }
 
-        // re-evaluate and filter out all points too far away. required for the gapSizes calculation.
+        // re-evaluate and filter out all points too far away. required for the gap_sizes calculation.
         self.evaluate_max_distance(Some(1.0), Some(true));
 
-        let mut gapSizes: Vec<f64> = Vec::new();
-        let mut modSizes = Vec::new();
+        let mut gap_sizes: Vec<f64> = Vec::new();
+        let mut mod_sizes = Vec::new();
 
-        gapSizes.reserve(self.points.len());
+        gap_sizes.reserve(self.points.len());
 
         // calculate the distance between the points projected onto the regression line
         for i in 1..self.points.len() {
-            gapSizes.push(Point::distance(
+            gap_sizes.push(Point::distance(
                 self.project(self.points[i]),
                 self.project(self.points[i - 1]),
             ) as f64);
         }
 
         // calculate the (expected average) distance of two adjacent pixels
-        let unitPixelDist = Point::length(Point::bresenhamDirection(
+        let unit_pixel_dist = Point::length(Point::bresenham_direction(
             self.points
                 .last()
                 .copied()
@@ -256,22 +256,22 @@ impl DMRegressionLine {
         )) as f64;
 
         // calculate the width of 2 modules (first black pixel to first black pixel)
-        let mut sumFront: f64 =
-            Point::distance(beg, self.project(self.points[0])) as f64 - unitPixelDist;
-        let mut sumBack: f64 = 0.0; // (last black pixel to last black pixel)
-        for dist in gapSizes {
-            if dist > 1.9 * unitPixelDist {
-                modSizes.push(std::mem::take(&mut sumBack));
+        let mut sum_front: f64 =
+            Point::distance(beg, self.project(self.points[0])) as f64 - unit_pixel_dist;
+        let mut sum_back: f64 = 0.0; // (last black pixel to last black pixel)
+        for dist in gap_sizes {
+            if dist > 1.9 * unit_pixel_dist {
+                mod_sizes.push(std::mem::take(&mut sum_back));
             }
-            sumFront += dist;
-            sumBack += dist;
-            if dist > 1.9 * unitPixelDist {
-                modSizes.push(std::mem::take(&mut sumFront));
+            sum_front += dist;
+            sum_back += dist;
+            if dist > 1.9 * unit_pixel_dist {
+                mod_sizes.push(std::mem::take(&mut sum_front));
             }
         }
 
-        modSizes.push(
-            sumFront
+        mod_sizes.push(
+            sum_front
                 + Point::distance(
                     end,
                     self.project(
@@ -282,17 +282,17 @@ impl DMRegressionLine {
                     ),
                 ) as f64,
         );
-        modSizes[0] = 0.0; // the first element is an invalid sumBack value, would be pop_front() if vector supported this
-        let lineLength = Point::distance(beg, end) as f64 - unitPixelDist;
-        let mut meanModSize =
-            Self::average(&modSizes, |_: f64| true).ok_or(Exceptions::ILLEGAL_STATE)?;
+        mod_sizes[0] = 0.0; // the first element is an invalid sum_back value, would be pop_front() if vector supported this
+        let line_length = Point::distance(beg, end) as f64 - unit_pixel_dist;
+        let mut mean_mod_size =
+            Self::average(&mod_sizes, |_: f64| true).ok_or(Exceptions::ILLEGAL_STATE)?;
         for i in 0..2 {
-            if let Some(next) = Self::average(&modSizes, |dist: f64| {
-                (dist - meanModSize).abs() < meanModSize / (2 + i) as f64
+            if let Some(next) = Self::average(&mod_sizes, |dist: f64| {
+                (dist - mean_mod_size).abs() < mean_mod_size / (2 + i) as f64
             }) {
-                meanModSize = next;
+                mean_mod_size = next;
             }
         }
-        Ok(lineLength / meanModSize)
+        Ok(line_length / mean_mod_size)
     }
 }

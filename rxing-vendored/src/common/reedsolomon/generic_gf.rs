@@ -18,11 +18,11 @@ use super::{GenericGFPoly, GenericGFRef};
  */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericGF {
-    expTable: Vec<i32>,
-    logTable: Vec<i32>,
+    exp_table: Vec<i32>,
+    log_table: Vec<i32>,
     size: usize,
     primitive: i32,
-    generatorBase: i32,
+    generator_base: i32,
 }
 
 impl GenericGF {
@@ -38,11 +38,11 @@ impl GenericGF {
      *  In most cases it should be 1, but for QR code it is 0.
      */
     pub fn new(primitive: i32, size: usize, b: i32) -> Self {
-        let mut expTable = vec![0; size];
-        let mut logTable = vec![0; size];
+        let mut exp_table = vec![0; size];
+        let mut log_table = vec![0; size];
         let mut x = 1;
-        for expTableEntry in expTable.iter_mut().take(size) {
-            *expTableEntry = x;
+        for exp_table_entry in exp_table.iter_mut().take(size) {
+            *exp_table_entry = x;
             x *= 2; // we're assuming the generator alpha is 2
             if x >= size as i32 {
                 x ^= primitive;
@@ -50,24 +50,24 @@ impl GenericGF {
                 x &= sz_m_1;
             }
         }
-        for (i, loc) in expTable.iter().enumerate().take(size - 1) {
-            logTable[*loc as usize] = i as i32;
+        for (i, loc) in exp_table.iter().enumerate().take(size - 1) {
+            log_table[*loc as usize] = i as i32;
         }
-        logTable[0] = 0;
+        log_table[0] = 0;
 
         Self {
-            expTable,
-            logTable,
+            exp_table,
+            log_table,
             size,
             primitive,
-            generatorBase: b,
+            generator_base: b,
         }
     }
 
     /**
      * @return the monomial representing coefficient * x^degree
      */
-    pub fn buildMonomial(source: GenericGFRef, degree: usize, coefficient: i32) -> GenericGFPoly {
+    pub fn build_monomial(source: GenericGFRef, degree: usize, coefficient: i32) -> GenericGFPoly {
         if coefficient == 0 {
             return GenericGFPoly::new(source, &[0]).unwrap();
         }
@@ -81,7 +81,7 @@ impl GenericGF {
      *
      * @return sum/difference of a and b
      */
-    pub const fn addOrSubtract(a: i32, b: i32) -> i32 {
+    pub const fn add_or_subtract(a: i32, b: i32) -> i32 {
         a ^ b
     }
 
@@ -90,7 +90,7 @@ impl GenericGF {
      */
     pub fn exp(&self, a: i32) -> i32 {
         let idx = a.rem_euclid(self.size as i32 - 1) as usize;
-        self.expTable[idx]
+        self.exp_table[idx]
     }
 
     /**
@@ -100,7 +100,7 @@ impl GenericGF {
         if a <= 0 || a >= self.size as i32 {
             return Err(Exceptions::ILLEGAL_ARGUMENT);
         }
-        Ok(self.logTable[a as usize])
+        Ok(self.log_table[a as usize])
     }
 
     /**
@@ -111,8 +111,8 @@ impl GenericGF {
             return Err(Exceptions::ARITHMETIC);
         }
         let log_t_loc: usize = a as usize;
-        let loc: usize = ((self.size as i32) - self.logTable[log_t_loc] - 1) as usize;
-        Ok(self.expTable[loc])
+        let loc: usize = ((self.size as i32) - self.log_table[log_t_loc] - 1) as usize;
+        Ok(self.exp_table[loc])
     }
 
     /**
@@ -124,16 +124,16 @@ impl GenericGF {
         }
         let a_loc: usize = a as usize; //.try_into().unwrap();
         let b_loc: usize = b as usize; //.try_into().unwrap();
-        let comb_loc: usize = (self.logTable[a_loc] + self.logTable[b_loc]) as usize;
-        self.expTable[comb_loc % (self.size - 1)]
+        let comb_loc: usize = (self.log_table[a_loc] + self.log_table[b_loc]) as usize;
+        self.exp_table[comb_loc % (self.size - 1)]
     }
 
-    pub const fn getSize(&self) -> usize {
+    pub const fn get_size(&self) -> usize {
         self.size
     }
 
-    pub const fn getGeneratorBase(&self) -> i32 {
-        self.generatorBase
+    pub const fn get_generator_base(&self) -> i32 {
+        self.generator_base
     }
 }
 

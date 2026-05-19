@@ -49,44 +49,44 @@ impl<'a> BitSource<'a> {
     }
 
     /**
-     * @return index of next bit in current byte which would be read by the next call to {@link #readBits(int)}.
+     * @return index of next bit in current byte which would be read by the next call to {@link #read_bits(int)}.
      */
-    pub const fn getBitOffset(&self) -> usize {
+    pub const fn get_bit_offset(&self) -> usize {
         self.bit_offset
     }
 
     /**
-     * @return index of next byte in input byte array which would be read by the next call to {@link #readBits(int)}.
+     * @return index of next byte in input byte array which would be read by the next call to {@link #read_bits(int)}.
      */
-    pub const fn getByteOffset(&self) -> usize {
+    pub const fn get_byte_offset(&self) -> usize {
         self.byte_offset
     }
 
     /**
-     * @param numBits number of bits to read
+     * @param num_bits number of bits to read
      * @return int representing the bits read. The bits will appear as the least-significant
      *         bits of the int
-     * @throws IllegalArgumentException if numBits isn't in [1,32] or more than is available
+     * @throws IllegalArgumentException if num_bits isn't in [1,32] or more than is available
      */
-    pub fn readBits(&mut self, numBits: usize) -> Result<u32> {
-        if !(1..=32).contains(&numBits) || numBits > self.available() {
-            return Err(Exceptions::illegal_argument_with(numBits.to_string()));
+    pub fn read_bits(&mut self, num_bits: usize) -> Result<u32> {
+        if !(1..=32).contains(&num_bits) || num_bits > self.available() {
+            return Err(Exceptions::illegal_argument_with(num_bits.to_string()));
         }
 
         let mut result: u32 = 0;
 
-        let mut num_bits = numBits;
+        let mut num_bits = num_bits;
 
         // First, read remainder from current byte
         if self.bit_offset > 0 {
-            let bitsLeft = 8 - self.bit_offset;
-            let toRead = cmp::min(num_bits, bitsLeft);
-            let bitsToNotRead = bitsLeft - toRead;
-            let mask = (0xFF >> (8 - toRead)) << bitsToNotRead;
+            let bits_left = 8 - self.bit_offset;
+            let to_read = cmp::min(num_bits, bits_left);
+            let bits_to_not_read = bits_left - to_read;
+            let mask = (0xFF >> (8 - to_read)) << bits_to_not_read;
 
-            result = (self.bytes[self.byte_offset] & mask) as u32 >> bitsToNotRead;
-            num_bits -= toRead;
-            self.bit_offset += toRead;
+            result = (self.bytes[self.byte_offset] & mask) as u32 >> bits_to_not_read;
+            num_bits -= to_read;
+            self.bit_offset += to_read;
             if self.bit_offset == 8 {
                 self.bit_offset = 0;
                 self.byte_offset += 1;
@@ -114,9 +114,9 @@ impl<'a> BitSource<'a> {
         Ok(result)
     }
 
-    pub fn peek_bits(&self, numBits: usize) -> Result<u32> {
-        if !(1..=32).contains(&numBits) || numBits > self.available() {
-            return Err(Exceptions::illegal_argument_with(numBits.to_string()));
+    pub fn peek_bits(&self, num_bits: usize) -> Result<u32> {
+        if !(1..=32).contains(&num_bits) || num_bits > self.available() {
+            return Err(Exceptions::illegal_argument_with(num_bits.to_string()));
         }
 
         let mut bit_offset = self.bit_offset;
@@ -124,18 +124,18 @@ impl<'a> BitSource<'a> {
 
         let mut result: u32 = 0;
 
-        let mut num_bits = numBits;
+        let mut num_bits = num_bits;
 
         // First, read remainder from current byte
         if self.bit_offset > 0 {
-            let bitsLeft = 8 - self.bit_offset;
-            let toRead = cmp::min(num_bits, bitsLeft);
-            let bitsToNotRead = bitsLeft - toRead;
-            let mask = (0xFF >> (8 - toRead)) << bitsToNotRead;
+            let bits_left = 8 - self.bit_offset;
+            let to_read = cmp::min(num_bits, bits_left);
+            let bits_to_not_read = bits_left - to_read;
+            let mask = (0xFF >> (8 - to_read)) << bits_to_not_read;
 
-            result = (self.bytes[self.byte_offset] & mask) as u32 >> bitsToNotRead;
-            num_bits -= toRead;
-            bit_offset += toRead;
+            result = (self.bytes[self.byte_offset] & mask) as u32 >> bits_to_not_read;
+            num_bits -= to_read;
+            bit_offset += to_read;
             if bit_offset == 8 {
                 byte_offset += 1;
             }
@@ -181,7 +181,7 @@ impl Read for BitSource<'_> {
         };
 
         for byte in buf.iter_mut().take(to_read) {
-            let Ok(bits) = self.readBits(8) else {
+            let Ok(bits) = self.read_bits(8) else {
                 return Err(std::io::Error::new(
                     ErrorKind::Unsupported,
                     "unable to read bits",
