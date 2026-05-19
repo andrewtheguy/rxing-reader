@@ -376,13 +376,8 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
         return Err(Exceptions::format_with("Invalid format information"));
     };
 
-    let Ok(pversion) = read_version(bits, format_info.qr_type()) else {
+    let Ok(version) = read_version(bits, format_info.qr_type()) else {
         return Err(Exceptions::format_with("Invalid version"));
-    };
-    let version = pversion;
-
-    let Ok(format_info) = read_format_information(bits) else {
-        return Err(Exceptions::format_with("Invalid format information"));
     };
 
     // Read codewords
