@@ -1,0 +1,5 @@
+- no backward compatibility at all for any changes
+- run `npm run clippy` and `npm test` after Rust code changes
+- run `npm run build:wasm` after changes that affect the published wasm package
+- no cargo fmt
+- always invoke wasm-pack through npm/npx so it resolves to the version pinned in `package.json` / `package-lock.json`; never use a system-wide cargo-installed wasm-pack binary
