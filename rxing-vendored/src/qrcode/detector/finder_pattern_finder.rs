@@ -724,10 +724,6 @@ impl<'a> FinderPatternFinder<'_> {
             return Err(Exceptions::NOT_FOUND);
         }
 
-        if bestPatterns[0].is_none() {
-            return Err(Exceptions::NOT_FOUND);
-        }
-
         let p1 = bestPatterns[0].ok_or(Exceptions::NOT_FOUND)?;
         let p2 = bestPatterns[1].ok_or(Exceptions::NOT_FOUND)?;
         let p3 = bestPatterns[2].ok_or(Exceptions::NOT_FOUND)?;

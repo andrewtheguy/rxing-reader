@@ -106,9 +106,7 @@ pub trait LuminanceSource {
      * @return a wrapper of this {@code LuminanceSource} which inverts the luminances it returns -- black becomes
      *  white and vice versa, and each value becomes (255-value).
      */
-    fn invert(&mut self); /* {
-    return InvertedLuminanceSource::new_with_delegate(self);
-    }*/
+    fn invert(&mut self);
 
     /**
      * Returns a new object with rotated image data by 90 degrees counterclockwise.
@@ -144,37 +142,10 @@ pub trait LuminanceSource {
     fn invert_block_of_bytes(&self, vec_to_invert: Vec<u8>) -> Vec<u8> {
         let mut iv = vec_to_invert;
         for itm in iv.iter_mut() {
-            let z = *itm;
-            *itm = 255 - z;
+            *itm = 255 - *itm;
         }
         iv
     }
 
     fn get_luma8_point(&self, x: usize, y: usize) -> u8;
-
-    /*
-    @Override
-    public final String toString() {
-      byte[] row = new byte[width];
-      StringBuilder result = new StringBuilder(height * (width + 1));
-      for (int y = 0; y < height; y++) {
-        row = getRow(y, row);
-        for (int x = 0; x < width; x++) {
-          int luminance = row[x] & 0xFF;
-          char c;
-          if (luminance < 0x40) {
-            c = '#';
-          } else if (luminance < 0x80) {
-            c = '+';
-          } else if (luminance < 0xC0) {
-            c = '.';
-          } else {
-            c = ' ';
-          }
-          result.append(c);
-        }
-        result.append('\n');
-      }
-      return result.toString();
-    }*/
 }

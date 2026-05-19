@@ -3,141 +3,11 @@ use std::path::PathBuf;
 
 use image::ImageReader;
 use rxing::{
-    BarcodeFormat, Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
-    common::{GlobalHistogramBinarizer, HybridBinarizer},
-    downscale_luma_buffer,
+    BarcodeFormat, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
+    common::HybridBinarizer,
+    decode::{decode_inner, rgba_to_luma},
     qrcode::cpp_port::QrReader,
 };
-
-// Mirror rxing-wasm's pyramid + close thresholds (`tryHarder` capability).
-const PYRAMID_DOWNSCALE_THRESHOLD: u32 = 500;
-const PYRAMID_DOWNSCALE_FACTOR: u32 = 3;
-
-fn rgba_to_luma(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|n| n.checked_mul(4))
-        .ok_or_else(|| "Image dimensions overflow".to_string())?;
-    if rgba.len() != expected {
-        return Err(format!(
-            "rgba length {} != width*height*4 ({})",
-            rgba.len(),
-            expected
-        ));
-    }
-    Ok(rgba
-        .chunks_exact(4)
-        .map(|p| {
-            // ITU-R BT.601 luma weights (rounded).
-            let r = p[0] as u32;
-            let g = p[1] as u32;
-            let b = p[2] as u32;
-            ((r * 299 + g * 587 + b * 114 + 500) / 1000) as u8
-        })
-        .collect())
-}
-
-/// Decode once on `bitmap`; on miss, when `try_invert`, flip the BitMatrix
-/// in place and decode again. Mirrors `rxing_wasm::read_inner`'s inversion
-/// path.
-fn decode_with_optional_invert<B: Binarizer>(
-    bitmap: &mut BinaryBitmap<B>,
-    hints: &DecodeHints,
-    try_invert: bool,
-) -> Option<Vec<u8>> {
-    if let Ok(mut r) = QrReader.decode_set_number_with_hints(bitmap, hints, 1)
-        && let Some(first) = r.pop()
-    {
-        return Some(first.getRawBytes().to_vec());
-    }
-    if try_invert
-        && let Ok(matrix) = bitmap.get_black_matrix_mut()
-    {
-        matrix.flip_self();
-        if let Ok(mut r) = QrReader.decode_set_number_with_hints(bitmap, hints, 1)
-            && let Some(first) = r.pop()
-        {
-            return Some(first.getRawBytes().to_vec());
-        }
-    }
-    None
-}
-
-/// One resolution × close pass: build a fresh BinaryBitmap from `source`
-/// (consumed), apply optional morphological close, then decode with optional
-/// invert retry. Returns the decoded payload or `None`.
-fn decode_one_layer(
-    source: Luma8LuminanceSource,
-    hints: &DecodeHints,
-    use_hybrid_binarizer: bool,
-    try_invert: bool,
-    close: bool,
-) -> Option<Vec<u8>> {
-    if use_hybrid_binarizer {
-        let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
-        if close && bitmap.close().is_err() {
-            return None;
-        }
-        decode_with_optional_invert(&mut bitmap, hints, try_invert)
-    } else {
-        let mut bitmap = BinaryBitmap::new(GlobalHistogramBinarizer::new(source));
-        if close && bitmap.close().is_err() {
-            return None;
-        }
-        decode_with_optional_invert(&mut bitmap, hints, try_invert)
-    }
-}
-
-/// Single-symbol decode that mirrors `rxing_wasm::read_inner` exactly:
-/// `QrReader::decode_set_number_with_hints` plus the manual BitMatrix flip
-/// for `try_invert` and the pyramid + morphological-close pre-pass for
-/// `try_harder`.
-fn decode_inner(
-    luma: Vec<u8>,
-    width: u32,
-    height: u32,
-    try_harder: bool,
-    try_invert: bool,
-    use_hybrid_binarizer: bool,
-) -> Option<Vec<u8>> {
-    let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
-        try_harder: Some(try_harder),
-        ..DecodeHints::default()
-    };
-
-    // Fast path (no try_harder): original resolution only, no close pass.
-    if !try_harder {
-        let source = Luma8LuminanceSource::new(luma, width, height);
-        return decode_one_layer(source, &hints, use_hybrid_binarizer, try_invert, false);
-    }
-
-    // try_harder path: original resolution, then close, then downscale +
-    // repeat. Matches the rxing-wasm wrapper.
-    let mut cur_luma = luma;
-    let mut cur_w = width;
-    let mut cur_h = height;
-    loop {
-        for &close in &[false, true] {
-            let source = Luma8LuminanceSource::new(cur_luma.clone(), cur_w, cur_h);
-            if let Some(bytes) =
-                decode_one_layer(source, &hints, use_hybrid_binarizer, try_invert, close)
-            {
-                return Some(bytes);
-            }
-        }
-        if cur_w.max(cur_h) <= PYRAMID_DOWNSCALE_THRESHOLD
-            || cur_w.min(cur_h) < PYRAMID_DOWNSCALE_FACTOR
-        {
-            return None;
-        }
-        let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(&cur_luma, cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR);
-        cur_luma = next_luma;
-        cur_w = next_w;
-        cur_h = next_h;
-    }
-}
 
 fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, u32, u32) {
     let mut full = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -175,7 +45,9 @@ fn decode_combo(
     (try_harder, try_invert, use_hybrid_binarizer): (bool, bool, bool),
 ) -> Option<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
-    decode_inner(luma, w, h, try_harder, try_invert, use_hybrid_binarizer)
+    decode_inner(&luma, w, h, try_harder, try_invert, use_hybrid_binarizer, 1)
+        .into_iter()
+        .next()
 }
 
 #[test]

@@ -1,181 +1,5 @@
-use std::collections::HashSet;
-
-use rxing::{
-    BarcodeFormat, Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource, RXingResult,
-    common::{GlobalHistogramBinarizer, HybridBinarizer, Result as RxingResult},
-    downscale_luma_buffer,
-    qrcode::cpp_port::QrReader,
-};
+use rxing::decode::{decode_inner, rgba_to_luma};
 use wasm_bindgen::prelude::*;
-
-/// Pyramid downscale threshold and factor — mirror zxing-cpp's
-/// `tryDownscale` defaults (and what the old `FilteredImageReader` used).
-/// Stop downscaling once the smaller side falls below `THRESHOLD`.
-const PYRAMID_DOWNSCALE_THRESHOLD: u32 = 500;
-const PYRAMID_DOWNSCALE_FACTOR: u32 = 3;
-
-fn rgba_to_luma(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
-    let expected = (width as usize)
-        .checked_mul(height as usize)
-        .and_then(|n| n.checked_mul(4))
-        .ok_or_else(|| "Image dimensions overflow".to_string())?;
-    if rgba.len() != expected {
-        return Err(format!(
-            "rgba length {} != width*height*4 ({})",
-            rgba.len(),
-            expected
-        ));
-    }
-    Ok(rgba
-        .chunks_exact(4)
-        .map(|p| {
-            // ITU-R BT.601 luma weights (rounded).
-            let r = p[0] as u32;
-            let g = p[1] as u32;
-            let b = p[2] as u32;
-            ((r * 299 + g * 587 + b * 114 + 500) / 1000) as u8
-        })
-        .collect())
-}
-
-fn collect_bytes(results: RxingResult<Vec<RXingResult>>) -> Vec<Vec<u8>> {
-    results
-        .unwrap_or_default()
-        .into_iter()
-        .map(|r| r.getRawBytes().to_vec())
-        .collect()
-}
-
-/// Decode on `bitmap` once, then (when `try_invert`) flip the BitMatrix in
-/// place and decode again. No clones — the bitmap is consumed once per
-/// `read_inner` orientation. `QrReader::decode_set_number_with_hints` does not
-/// honor `AlsoInverted` (that path was in the removed `MultiFormatReader`),
-/// so the inverted retry has to be driven externally.
-fn decode_with_optional_invert<B: Binarizer>(
-    bitmap: &mut BinaryBitmap<B>,
-    hints: &DecodeHints,
-    max_number_of_symbols: u32,
-    try_invert: bool,
-) -> Vec<Vec<u8>> {
-    let results = collect_bytes(QrReader.decode_set_number_with_hints(
-        bitmap,
-        hints,
-        max_number_of_symbols,
-    ));
-    if !results.is_empty() {
-        return results;
-    }
-    if try_invert
-        && let Ok(matrix) = bitmap.get_black_matrix_mut()
-    {
-        matrix.flip_self();
-        return collect_bytes(QrReader.decode_set_number_with_hints(
-            bitmap,
-            hints,
-            max_number_of_symbols,
-        ));
-    }
-    Vec::new()
-}
-
-/// Try one resolution × close pass: build a fresh BinaryBitmap from
-/// `source` (consumed), apply optional morphological close, then decode
-/// with optional invert retry. Returns results or empty vec.
-fn decode_one_layer(
-    source: Luma8LuminanceSource,
-    hints: &DecodeHints,
-    use_hybrid_binarizer: bool,
-    max_number_of_symbols: u32,
-    try_invert: bool,
-    close: bool,
-) -> Vec<Vec<u8>> {
-    if use_hybrid_binarizer {
-        let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
-        if close && bitmap.close().is_err() {
-            return Vec::new();
-        }
-        decode_with_optional_invert(&mut bitmap, hints, max_number_of_symbols, try_invert)
-    } else {
-        let mut bitmap = BinaryBitmap::new(GlobalHistogramBinarizer::new(source));
-        if close && bitmap.close().is_err() {
-            return Vec::new();
-        }
-        decode_with_optional_invert(&mut bitmap, hints, max_number_of_symbols, try_invert)
-    }
-}
-
-fn read_inner_one_binarizer(
-    luma: &[u8],
-    width: u32,
-    height: u32,
-    try_harder: bool,
-    try_invert: bool,
-    use_hybrid_binarizer: bool,
-    max_number_of_symbols: u32,
-) -> Vec<Vec<u8>> {
-    // `AlsoInverted` and `PureBarcode` are intentionally omitted from
-    // `hints` — neither has a consumer left in `rxing-vendored` after the
-    // legacy-path removal. Inversion is handled by the in-place `flip_self`
-    // retry inside `decode_with_optional_invert`.
-    let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QR_CODE])),
-        try_harder: Some(try_harder),
-        ..DecodeHints::default()
-    };
-
-    // Fast path (no try_harder): original resolution only, no close pass,
-    // no pyramid. The source is moved straight into the binarizer with
-    // zero clones — matches zxing-wasm's tryHarder=false cost.
-    if !try_harder {
-        let source = Luma8LuminanceSource::new(luma.to_vec(), width, height);
-        return decode_one_layer(
-            source,
-            &hints,
-            use_hybrid_binarizer,
-            max_number_of_symbols,
-            try_invert,
-            false,
-        );
-    }
-
-    // try_harder path: original resolution, then morphological close, then
-    // downscale by `PYRAMID_DOWNSCALE_FACTOR` and repeat until the smaller
-    // side falls below `PYRAMID_DOWNSCALE_THRESHOLD`. Each layer tries
-    // both close=false and close=true. Mirrors zxing-cpp's `tryDownscale`
-    // + `tryDenoise` pipeline (and the removed `FilteredImageReader`).
-    let mut cur_luma = luma.to_vec();
-    let mut cur_w = width;
-    let mut cur_h = height;
-    loop {
-        for &close in &[false, true] {
-            let source = Luma8LuminanceSource::new(cur_luma.clone(), cur_w, cur_h);
-            let results = decode_one_layer(
-                source,
-                &hints,
-                use_hybrid_binarizer,
-                max_number_of_symbols,
-                try_invert,
-                close,
-            );
-            if !results.is_empty() {
-                return results;
-            }
-        }
-        // Can we downscale further?
-        if cur_w.max(cur_h) <= PYRAMID_DOWNSCALE_THRESHOLD
-            || cur_w.min(cur_h) < PYRAMID_DOWNSCALE_FACTOR
-        {
-            break;
-        }
-        let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(&cur_luma, cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR);
-        cur_luma = next_luma;
-        cur_w = next_w;
-        cur_h = next_h;
-    }
-
-    Vec::new()
-}
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
 /// `binarizer_fallback` is set and the first pass produced nothing — once
@@ -196,7 +20,7 @@ fn read_inner(
     binarizer_fallback: bool,
     max_number_of_symbols: u32,
 ) -> Vec<Vec<u8>> {
-    let primary = read_inner_one_binarizer(
+    let primary = decode_inner(
         &luma,
         width,
         height,
@@ -208,7 +32,7 @@ fn read_inner(
     if !primary.is_empty() || !binarizer_fallback {
         return primary;
     }
-    read_inner_one_binarizer(
+    decode_inner(
         &luma,
         width,
         height,
