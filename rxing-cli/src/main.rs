@@ -1,5 +1,6 @@
 use std::io::{self, Cursor, Read, Write};
 use std::process::ExitCode;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -71,7 +72,13 @@ fn load_bytes(source: &str) -> Result<Vec<u8>> {
 }
 
 fn fetch_url(url: &str) -> Result<Vec<u8>> {
-    let response = ureq::get(url)
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(10))
+        .timeout_read(Duration::from_secs(30))
+        .timeout(Duration::from_secs(60))
+        .build();
+    let response = agent
+        .get(url)
         .call()
         .with_context(|| format!("HTTP request failed for {url}"))?;
     let mut buf = Vec::new();
