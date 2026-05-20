@@ -40,7 +40,7 @@ impl BitMatrixParser {
         let dimension = bit_matrix.get_height();
         if dimension < 21 || (dimension & 0x03) != 1 {
             Err(
-                Error::invalid_format(format!("{dimension} < 21 || ({dimension} & 0x03) != 1"))
+                Error::InvalidFormat { message: format!("{dimension} < 21 || ({dimension} & 0x03) != 1") }
                     .into(),
             )
         } else {
@@ -65,7 +65,7 @@ impl BitMatrixParser {
             return self
                 .parsed_format_info
                 .as_ref()
-                .ok_or_else(|| Error::Parse(None).into());
+                .ok_or_else(|| Error::Parse { message: "required parsed value was missing".to_owned() }.into());
         }
 
         // Read top-left format info bits
@@ -98,7 +98,7 @@ impl BitMatrixParser {
 
         self.parsed_format_info
             .as_ref()
-            .ok_or_else(|| Error::InvalidFormat(None).into())
+            .ok_or_else(|| Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into())
     }
 
     /**
@@ -150,7 +150,7 @@ impl BitMatrixParser {
             self.parsed_version = Some(the_parsed_version);
             return Ok(the_parsed_version);
         }
-        Err(Error::InvalidFormat(None).into())
+        Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into())
     }
 
     fn copy_bit(&self, i: u32, j: u32, version_bits: u32) -> u32 {
@@ -231,7 +231,7 @@ impl BitMatrixParser {
         }
 
         if result_offset != version.get_total_codewords() as usize {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         Ok(result)
     }

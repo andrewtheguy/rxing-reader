@@ -129,11 +129,11 @@ impl Version {
         self.ec_blocks
             .get(ec_level.get_ordinal() as usize)
             .ok_or_else(|| {
-                Error::invalid_argument(format!(
+                Error::InvalidArgument { message: format!(
                     "ErrorCorrectionLevel ordinal {} out of range for {} EC blocks",
                     ec_level.get_ordinal(),
                     self.ec_blocks.len()
-                ))
+                ) }
                 .into()
             })
     }
@@ -147,14 +147,14 @@ impl Version {
      */
     pub fn get_provisional_version_for_dimension(dimension: u32) -> Result<VersionRef> {
         if dimension % 4 != 1 || dimension < 21 {
-            return Err(Error::invalid_format("dimension incorrect").into());
+            return Err(Error::InvalidFormat { message: "dimension incorrect".to_owned() }.into());
         }
         Self::get_version_for_number((dimension - 17) / 4)
     }
 
     pub fn get_version_for_number(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
-            return Err(Error::invalid_argument("version out of spec").into());
+            return Err(Error::InvalidArgument { message: "version out of spec".to_owned() }.into());
         }
         Ok(&VERSIONS[version_number as usize - 1])
     }
@@ -183,7 +183,7 @@ impl Version {
             return Self::get_version_for_number(best_version);
         }
         // If we didn't find a close enough match, fail
-        Err(Error::NotFound(None).into())
+        Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into())
     }
 
     /**

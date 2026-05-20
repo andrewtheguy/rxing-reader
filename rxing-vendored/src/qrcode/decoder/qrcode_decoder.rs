@@ -116,7 +116,7 @@ pub fn decode_bitmatrix_with_hints(
             if let Some(fe) = fe {
                 Err(fe)
             } else {
-                Err(ce.unwrap_or_else(|| Error::Checksum(None).into()))
+                Err(ce.unwrap_or_else(|| Error::Checksum { message: "error correction failed".to_owned() }.into()))
             }
         }
         Err(er) => Err(er),
@@ -126,13 +126,13 @@ pub fn decode_bitmatrix_with_hints(
 fn is_invalid_format(error: &anyhow::Error) -> bool {
     error
         .downcast_ref::<Error>()
-        .is_some_and(Error::is_invalid_format)
+        .is_some_and(|error| matches!(error, Error::InvalidFormat { .. }))
 }
 
 fn is_checksum(error: &anyhow::Error) -> bool {
     error
         .downcast_ref::<Error>()
-        .is_some_and(Error::is_checksum)
+        .is_some_and(|error| matches!(error, Error::Checksum { .. }))
 }
 
 fn is_retryable_decode_error(error: &anyhow::Error) -> bool {
@@ -188,7 +188,7 @@ pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usiz
     let ecc_len = codeword_bytes.len() - num_data_codewords;
     let buf = reed_solomon::Decoder::new(ecc_len)
         .correct(codeword_bytes, None)
-        .map_err(|e| Error::checksum(format!("{e:?}")))?;
+        .map_err(|e| Error::Checksum { message: format!("{e:?}") })?;
     codeword_bytes[..num_data_codewords].copy_from_slice(buf.data());
     Ok(())
 }

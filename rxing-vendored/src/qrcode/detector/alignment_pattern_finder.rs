@@ -160,7 +160,7 @@ impl<'a> AlignmentPatternFinder<'a> {
         if !self.possible_centers.is_empty() {
             Ok(self.possible_centers[0])
         } else {
-            Err(Error::NotFound(None).into())
+            Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into())
         }
     }
 

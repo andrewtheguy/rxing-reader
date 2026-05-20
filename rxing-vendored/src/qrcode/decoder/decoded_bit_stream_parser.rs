@@ -82,10 +82,10 @@ pub fn decode(
             }
             Mode::StructuredAppend => {
                 if bits.available() < 16 {
-                    return Err(Error::invalid_format(format!(
+                    return Err(Error::InvalidFormat { message: format!(
                         "Mode::Structured append expected bits.available() < 16, found bits of {}",
                         bits.available()
-                    ))
+                    ) }
                     .into());
                 }
                 // sequence number and parity is added later to the result metadata
@@ -98,7 +98,7 @@ pub fn decode(
                 let value = parse_ecivalue(&mut bits)?;
                 current_character_set_eci = CharacterSet::from(value).into(); //CharacterSet::get_character_set_by_eci(value).ok();
                 if current_character_set_eci.is_none() {
-                    return Err(Error::invalid_format(format!("Value of {value} not valid")).into());
+                    return Err(Error::InvalidFormat { message: format!("Value of {value} not valid") }.into());
                 }
             }
             Mode::Hanzi => {
@@ -130,7 +130,7 @@ pub fn decode(
                         hints,
                     )?,
                     Mode::Kanji => decode_kanji_segment(&mut bits, &mut result, count)?,
-                    _ => return Err(Error::InvalidFormat(None).into()),
+                    _ => return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into()),
                 }
             }
         }
@@ -187,7 +187,7 @@ fn decode_hanzi_segment(
 ) -> Result<()> {
     // Don't crash trying to read more bits than we have available.
     if count * 13 > bits.available() {
-        return Err(Error::InvalidFormat(None).into());
+        return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
     }
 
     // Each character will require 2 bytes. Read the characters as 2-byte pairs
@@ -226,7 +226,7 @@ fn decode_kanji_segment(
 ) -> Result<()> {
     // Don't crash trying to read more bits than we have available.
     if count * 13 > bits.available() {
-        return Err(Error::InvalidFormat(None).into());
+        return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
     }
 
     // Each character will require 2 bytes. Read the characters as 2-byte pairs
@@ -269,7 +269,7 @@ fn decode_byte_segment(
 ) -> Result<()> {
     // Don't crash trying to read more bits than we have available.
     if 8 * count > bits.available() {
-        return Err(Error::InvalidFormat(None).into());
+        return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
     }
 
     let mut read_bytes = vec![0u8; count];
@@ -283,9 +283,9 @@ fn decode_byte_segment(
         // upon decoding. I have seen ISO-8859-1 used as well as
         // ShiftJis -- without anything like an ECI designator to
         // give a hint.
-        string_utils::guess_charset(&read_bytes, hints).ok_or(Error::InvalidState(None))?
+        string_utils::guess_charset(&read_bytes, hints).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?
     } else {
-        current_character_set_eci.ok_or(Error::InvalidState(None))?
+        current_character_set_eci.ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?
     };
 
     result.append_eci(Eci::from(encoding));
@@ -298,7 +298,7 @@ fn decode_byte_segment(
 
 fn to_alpha_numeric_char(value: u32) -> Result<char> {
     if value as usize >= ALPHANUMERIC_CHARS.len() {
-        return Err(Error::InvalidFormat(None).into());
+        return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
     }
 
     Ok(CACHED_ALPHANUMERIC_CHARS[value as usize])
@@ -316,7 +316,7 @@ fn decode_alphanumeric_segment(
     let mut count = count;
     while count > 1 {
         if bits.available() < 11 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         let next_two_chars_bits = bits.read_bits(11)?;
         r_hld.push(to_alpha_numeric_char(next_two_chars_bits / 45)?);
@@ -326,7 +326,7 @@ fn decode_alphanumeric_segment(
     if count == 1 {
         // special case: one character left
         if bits.available() < 6 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         r_hld.push(to_alpha_numeric_char(bits.read_bits(6)?)?);
     }
@@ -367,11 +367,11 @@ fn decode_numeric_segment(
     while count >= 3 {
         // Each 10 bits encodes three digits
         if bits.available() < 10 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         let three_digits_bits = bits.read_bits(10)?;
         if three_digits_bits >= 1000 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         result.append_char(to_alpha_numeric_char(three_digits_bits / 100)?);
         result.append_char(to_alpha_numeric_char((three_digits_bits / 10) % 10)?);
@@ -381,22 +381,22 @@ fn decode_numeric_segment(
     if count == 2 {
         // Two digits left over to read, encoded in 7 bits
         if bits.available() < 7 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         let two_digits_bits = bits.read_bits(7)?;
         if two_digits_bits >= 100 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         result.append_char(to_alpha_numeric_char(two_digits_bits / 10)?);
         result.append_char(to_alpha_numeric_char(two_digits_bits % 10)?);
     } else if count == 1 {
         // One digit left over to read
         if bits.available() < 4 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         let digit_bits = bits.read_bits(4)?;
         if digit_bits >= 10 {
-            return Err(Error::InvalidFormat(None).into());
+            return Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into());
         }
         result.append_char(to_alpha_numeric_char(digit_bits)?);
     }
@@ -421,5 +421,5 @@ fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
         return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
 
-    Err(Error::InvalidFormat(None).into())
+    Err(Error::InvalidFormat { message: "QR data is malformed".to_owned() }.into())
 }

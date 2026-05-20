@@ -63,7 +63,7 @@ impl Mode {
             {
                 Ok(Self::Hanzi)
             }
-            _ => Err(Error::invalid_argument(format!("{bits} is not valid")).into()),
+            _ => Err(Error::InvalidArgument { message: format!("{bits} is not valid") }.into()),
         }
     }
 
@@ -164,7 +164,7 @@ impl Mode {
             return Mode::try_from(bits as u32);
         }
 
-        Err(Error::invalid_format("Invalid codec mode").into())
+        Err(Error::InvalidFormat { message: "Invalid codec mode".to_owned() }.into())
     }
 
     /**
@@ -255,7 +255,7 @@ impl TryFrom<u32> for Mode {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value > u32::from(u8::MAX) {
-            return Err(Error::invalid_argument(format!("{value} is not valid")).into());
+            return Err(Error::InvalidArgument { message: format!("{value} is not valid") }.into());
         }
         Self::for_bits(value as u8)
     }

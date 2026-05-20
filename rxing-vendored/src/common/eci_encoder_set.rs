@@ -159,10 +159,10 @@ impl ECIEncoderSet {
             .get(index)
             .copied()
             .ok_or_else(|| {
-                Error::invalid_argument(format!(
+                Error::InvalidArgument { message: format!(
                     "encoder index {index} out of range for {} encoders",
                     self.encoders.len()
-                ))
+                ) }
                 .into()
             })
     }
@@ -170,9 +170,9 @@ impl ECIEncoderSet {
     pub fn get_eci(&self, encoder_index: usize) -> Result<Eci> {
         let eci = Eci::from(self.get_charset(encoder_index)?);
         if eci == Eci::Unknown {
-            return Err(Error::invalid_state(format!(
+            return Err(Error::InvalidState { message: format!(
                 "no ECI assignment for encoder index {encoder_index}"
-            ))
+            ) }
             .into());
         }
         Ok(eci)

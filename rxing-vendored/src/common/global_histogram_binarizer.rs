@@ -70,9 +70,9 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
             let local_luminances = source
                 .get_row(y)
                 .ok_or_else(|| {
-                    Error::invalid_state(format!(
+                    Error::InvalidState { message: format!(
                         "luminance source returned no data for row {y}"
-                    ))
+                    ) }
                 })?;
             let mut local_buckets = [0; LUMINANCE_BUCKETS];
             for x in 0..width {
@@ -207,9 +207,9 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
             let local_luminances = source
                 .get_row(row)
                 .ok_or_else(|| {
-                    Error::invalid_state(format!(
+                    Error::InvalidState { message: format!(
                         "luminance source returned no data for sampled row {row}"
-                    ))
+                    ) }
                 })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
@@ -273,7 +273,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
-            return Err(Error::not_found("second_peak - first_peak <= numBuckets / 16 ").into());
+            return Err(Error::NotFound { message: "second_peak - first_peak <= numBuckets / 16 ".to_owned() }.into());
         }
 
         // Find a valley between them that is low and closer to the white peak.

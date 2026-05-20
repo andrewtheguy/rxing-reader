@@ -90,7 +90,7 @@ pub trait GridSampler {
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Error::NotFound(None).into());
+            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
         }
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
         let mut points = vec![Point::default(); dimension_x as usize];
@@ -111,9 +111,7 @@ pub trait GridSampler {
             for (x, point) in points.iter().enumerate() {
                 if image
                     .try_get(point.x as u32, point.y as u32)
-                    .ok_or(Error::not_found(
-                        "index out of bounds, see documentation in file for explanation",
-                    ))?
+                    .ok_or(Error::NotFound { message: "index out of bounds, see documentation in file for explanation".to_owned() })?
                 {
                     // Black(-ish) pixel
                     bits.set(x as u32, y);
@@ -170,7 +168,7 @@ pub trait GridSampler {
         for point in points.iter_mut().take(max_offset) {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Error::NotFound(None).into());
+                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
             }
             nudged = false;
             if x == -1 {
@@ -195,7 +193,7 @@ pub trait GridSampler {
         for point in points.iter_mut().rev().take(max_offset).rev() {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Error::NotFound(None).into());
+                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
             }
             nudged = false;
             if x == -1 {

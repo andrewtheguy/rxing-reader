@@ -201,7 +201,7 @@ impl<'a> EdgeTracer<'_> {
                         if self.white_at(p_edge) {
                             // if we are not making any progress, we still have another endless loop bug
                             if self.p == p_edge.centered() {
-                                return Err(Error::InvalidState(None).into());
+                                return Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into());
                             }
                             self.p = p_edge.centered();
 
@@ -211,7 +211,7 @@ impl<'a> EdgeTracer<'_> {
                                 if history
                                     .read()
                                     .map_err(|_| {
-                                        Error::invalid_state("Failed to acquire read lock")
+                                        Error::InvalidState { message: "Failed to acquire read lock".to_owned() }
                                     })?
                                     .get(self.p.x as u32, self.p.y as u32)
                                     == self.state as u8
@@ -221,7 +221,7 @@ impl<'a> EdgeTracer<'_> {
                                 history
                                     .write()
                                     .map_err(|_| {
-                                        Error::invalid_state("Failed to acquire write lock")
+                                        Error::InvalidState { message: "Failed to acquire write lock".to_owned() }
                                     })?
                                     .set(self.p.x as u32, self.p.y as u32, self.state as u8);
                             }
@@ -274,7 +274,7 @@ impl<'a> EdgeTracer<'_> {
                     return Ok(false);
                 }
                 let first_point = line.points().first().copied().ok_or_else(|| {
-                    Error::invalid_state("trace line has no anchor point")
+                    Error::InvalidState { message: "trace line has no anchor point".to_owned() }
                 })?;
                 if !self.update_direction_from_origin(
                     self.p - line.project(self.p) + first_point,
@@ -349,7 +349,7 @@ impl<'a> EdgeTracer<'_> {
                 // np can actually be behind the projection of the last line point and we need 2 steps in d
                 // to prevent a dead lock. see #245.png
                 let mut last_point = line.points().last().copied().ok_or_else(|| {
-                    Error::invalid_state("trace line lost its trailing point")
+                    Error::InvalidState { message: "trace line lost its trailing point".to_owned() }
                 })?;
                 while Point::distance(
                     np,
@@ -358,7 +358,7 @@ impl<'a> EdgeTracer<'_> {
                 {
                     np += self.d;
                     last_point = line.points().last().copied().ok_or_else(|| {
-                        Error::invalid_state("trace line lost its trailing point")
+                        Error::InvalidState { message: "trace line lost its trailing point".to_owned() }
                     })?;
                 }
                 self.p = Point::centered(np);
@@ -370,7 +370,7 @@ impl<'a> EdgeTracer<'_> {
                         Point::main_direction(self.d),
                         self.p
                             - line.points().last().copied().ok_or_else(|| {
-                                Error::invalid_state("trace line lost its trailing point")
+                                Error::InvalidState { message: "trace line lost its trailing point".to_owned() }
                             })?,
                     )
                 };
@@ -383,7 +383,7 @@ impl<'a> EdgeTracer<'_> {
                             return Ok(false);
                         }
                         let first_point = line.points().first().copied().ok_or_else(|| {
-                            Error::invalid_state("trace line has no anchor point")
+                            Error::InvalidState { message: "trace line has no anchor point".to_owned() }
                         })?;
                         if !self.update_direction_from_origin(
                             self.p - line.project(self.p) + first_point,

@@ -71,7 +71,7 @@ impl RegressionLineTrait for DMRegressionLine {
 
     fn add(&mut self, p: Point) -> Result<()> {
         if self.direction_inward == Point::default() {
-            return Err(Error::InvalidState(None).into());
+            return Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into());
         }
         self.points.push(p);
         if self.points.len() == 1 {
@@ -224,7 +224,7 @@ impl DMRegressionLine {
 
     pub fn modules(&mut self, beg: Point, end: Point) -> Result<f64> {
         if self.points.len() <= 3 {
-            return Err(Error::InvalidState(None).into());
+            return Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into());
         }
 
         // re-evaluate and filter out all points too far away. required for the gap_sizes calculation.
@@ -273,7 +273,7 @@ impl DMRegressionLine {
         mod_sizes[0] = 0.0; // the first element is an invalid sum_back value, would be pop_front() if vector supported this
         let line_length = Point::distance(beg, end) as f64 - unit_pixel_dist;
         let mut mean_mod_size =
-            Self::average(&mod_sizes, |_: f64| true).ok_or(Error::InvalidState(None))?;
+            Self::average(&mod_sizes, |_: f64| true).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?;
         for i in 0..2 {
             if let Some(next) = Self::average(&mod_sizes, |dist: f64| {
                 (dist - mean_mod_size).abs() < mean_mod_size / (2 + i) as f64

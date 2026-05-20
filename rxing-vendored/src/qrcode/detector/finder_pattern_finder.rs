@@ -689,7 +689,7 @@ impl<'a> FinderPatternFinder<'_> {
         let start_size = self.possible_centers.len();
         if start_size < 3 {
             // Couldn't find enough finder patterns
-            return Err(Error::NotFound(None).into());
+            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
         }
 
         self.possible_centers
@@ -745,12 +745,12 @@ impl<'a> FinderPatternFinder<'_> {
         }
 
         if distortion == f64::MAX {
-            return Err(Error::NotFound(None).into());
+            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
         }
 
-        let p1 = best_patterns[0].ok_or(Error::NotFound(None))?;
-        let p2 = best_patterns[1].ok_or(Error::NotFound(None))?;
-        let p3 = best_patterns[2].ok_or(Error::NotFound(None))?;
+        let p1 = best_patterns[0].ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+        let p2 = best_patterns[1].ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+        let p3 = best_patterns[2].ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
 
         Ok([p1, p2, p3])
     }
