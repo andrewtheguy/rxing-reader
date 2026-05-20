@@ -20,30 +20,25 @@ use std::str::FromStr;
 use crate::Error;
 use anyhow::Result;
 
-/**
- * <p>See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
- * defined by the QR code standard.</p>
- *
- * @author Sean Owen
- */
+/// See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
+/// defined by the QR code standard.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ErrorCorrectionLevel {
-    /** L = ~7% correction */
+    /// L = ~7% correction
     L, //0x01
-    /** M = ~15% correction */
+    /// M = ~15% correction
     M, //0x00
-    /** Q = ~25% correction */
+    /// Q = ~25% correction
     Q, //0x03
-    /** H = ~30% correction */
+    /// H = ~30% correction
     H, //0x02
     Invalid,
 }
 
 impl ErrorCorrectionLevel {
-    /**
-     * @param bits int containing the two bits encoding a QR Code's error correction level
-     * @return ErrorCorrectionLevel representing the encoded error correction level
-     */
+    /// - `bits`: int containing the two bits encoding a QR Code's error correction level
+    ///
+    /// Returns ErrorCorrectionLevel representing the encoded error correction level.
     pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
             0 => Ok(Self::M),
@@ -63,7 +58,7 @@ impl ErrorCorrectionLevel {
             ErrorCorrectionLevel::M => 0x00,
             ErrorCorrectionLevel::Q => 0x03,
             ErrorCorrectionLevel::H => 0x02,
-            ErrorCorrectionLevel::Invalid => 0x00,
+            ErrorCorrectionLevel::Invalid => 0xFF,
         }
     }
 
@@ -131,5 +126,23 @@ impl Display for ErrorCorrectionLevel {
             ErrorCorrectionLevel::H => "H",
             ErrorCorrectionLevel::Invalid => "_",
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrorCorrectionLevel;
+
+    #[test]
+    fn invalid_value_uses_distinct_sentinel() {
+        assert_eq!(ErrorCorrectionLevel::Invalid.get_value(), 0xFF);
+        assert_ne!(
+            ErrorCorrectionLevel::Invalid.get_value(),
+            ErrorCorrectionLevel::M.get_value()
+        );
+        assert_eq!(
+            u8::from(ErrorCorrectionLevel::Invalid),
+            ErrorCorrectionLevel::Invalid.get_value()
+        );
     }
 }

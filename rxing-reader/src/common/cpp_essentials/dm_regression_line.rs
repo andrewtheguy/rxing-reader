@@ -25,19 +25,6 @@ impl Default for DMRegressionLine {
 }
 
 impl RegressionLineTrait for DMRegressionLine {
-    fn points(&self) -> &[Point] {
-        &self.points
-    }
-
-    fn length(&self) -> u32 {
-        match (self.points.first(), self.points.last()) {
-            (Some(first), Some(last)) if self.points.len() >= 2 => {
-                Point::distance(*first, *last) as u32
-            }
-            _ => 0,
-        }
-    }
-
     fn is_valid(&self) -> bool {
         !self.a.is_nan()
     }
@@ -61,14 +48,6 @@ impl RegressionLineTrait for DMRegressionLine {
         (self.signed_distance(p)).abs()
     }
 
-    fn reset(&mut self) {
-        self.points.clear();
-        self.direction_inward = Point { x: 0.0, y: 0.0 };
-        self.a = f32::NAN;
-        self.b = f32::NAN;
-        self.c = f32::NAN;
-    }
-
     fn add(&mut self, p: Point) -> Result<()> {
         if self.direction_inward == Point::default() {
             return Err(Error::InvalidState {
@@ -81,10 +60,6 @@ impl RegressionLineTrait for DMRegressionLine {
             self.c = Point::dot(self.normal(), p);
         }
         Ok(())
-    }
-
-    fn pop_back(&mut self) {
-        self.points.pop();
     }
 
     fn set_direction_inward(&mut self, d: Point) {
@@ -101,7 +76,8 @@ impl RegressionLineTrait for DMRegressionLine {
 
         let mut ret = self.evaluate_self();
         if max_signed_dist > 0.0 {
-            let mut points = self.points.clone();
+            let mut points = Vec::with_capacity(self.points.len());
+            points.extend(self.points.iter().copied());
             loop {
                 let old_points_size = points.len();
                 // remove points that are further 'inside' than maxSignedDist or further 'outside' than 2 x maxSignedDist
@@ -200,89 +176,5 @@ impl DMRegressionLine {
         let mut new = Self::default();
         RegressionLineTrait::evaluate(&mut new, &[point_1, point_2]);
         new
-    }
-
-    fn average<T>(c: &[f64], f: T) -> Option<f64>
-    where
-        T: Fn(f64) -> bool,
-    {
-        let mut sum: f64 = 0.0;
-        let mut num = 0;
-        for v in c {
-            if f(*v) {
-                sum += *v;
-                num += 1;
-            }
-        }
-        if num == 0 {
-            None
-        } else {
-            Some(sum / num as f64)
-        }
-    }
-
-    pub fn reverse(&mut self) {
-        self.points.reverse();
-    }
-
-    pub fn modules(&mut self, beg: Point, end: Point) -> Result<f64> {
-        if self.points.len() <= 3 {
-            return Err(Error::InvalidState {
-                message: "required internal state is missing".to_owned(),
-            }
-            .into());
-        }
-
-        // re-evaluate and filter out all points too far away. required for the gap_sizes calculation.
-        self.evaluate_max_distance(Some(1.0), Some(true));
-
-        let mut gap_sizes: Vec<f64> = Vec::new();
-        let mut mod_sizes = Vec::new();
-
-        gap_sizes.reserve(self.points.len());
-
-        // calculate the distance between the points projected onto the regression line
-        for i in 1..self.points.len() {
-            gap_sizes.push(Point::distance(
-                self.project(self.points[i]),
-                self.project(self.points[i - 1]),
-            ) as f64);
-        }
-
-        // calculate the (expected average) distance of two adjacent pixels
-        let first = self.points[0];
-        let last = self.points[self.points.len() - 1];
-        let unit_pixel_dist = Point::length(Point::bresenham_direction(last - first)) as f64;
-
-        // calculate the width of 2 modules (first black pixel to first black pixel)
-        let mut sum_front: f64 =
-            Point::distance(beg, self.project(self.points[0])) as f64 - unit_pixel_dist;
-        let mut sum_back: f64 = 0.0; // (last black pixel to last black pixel)
-        for dist in gap_sizes {
-            if dist > 1.9 * unit_pixel_dist {
-                mod_sizes.push(std::mem::take(&mut sum_back));
-            }
-            sum_front += dist;
-            sum_back += dist;
-            if dist > 1.9 * unit_pixel_dist {
-                mod_sizes.push(std::mem::take(&mut sum_front));
-            }
-        }
-
-        mod_sizes.push(sum_front + Point::distance(end, self.project(last)) as f64);
-        mod_sizes[0] = 0.0; // the first element is an invalid sum_back value, would be pop_front() if vector supported this
-        let line_length = Point::distance(beg, end) as f64 - unit_pixel_dist;
-        let mut mean_mod_size =
-            Self::average(&mod_sizes, |_: f64| true).ok_or(Error::InvalidState {
-                message: "required internal state is missing".to_owned(),
-            })?;
-        for i in 0..2 {
-            if let Some(next) = Self::average(&mod_sizes, |dist: f64| {
-                (dist - mean_mod_size).abs() < mean_mod_size / (2 + i) as f64
-            }) {
-                mean_mod_size = next;
-            }
-        }
-        Ok(line_length / mean_mod_size)
     }
 }

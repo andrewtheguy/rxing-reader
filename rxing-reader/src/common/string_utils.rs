@@ -14,55 +14,17 @@
  * limitations under the License.
  */
 
-use crate::DecodeHints;
-
 use super::CharacterSet;
-
-/*
- * Common string-related functions.
- *
- * @author Sean Owen
- * @author Alex Dupre
- */
 
 const ASSUME_SHIFT_JIS: bool = false;
 
-pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::ShiftJis;
-
-/**
- * @param bytes bytes encoding a string, whose encoding should be guessed
- * @param hints decode hints if applicable
- * @return name of guessed encoding; at the moment will only guess one of:
- *  "SJIS", "UTF8", "ISO8859_1", or the platform default encoding if none
- *  of these can possibly be correct
- */
-pub fn guess_encoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> {
-    let c = guess_charset(bytes, hints)?;
-    if c == CharacterSet::ShiftJis {
-        Some("SJIS")
-    } else if c == CharacterSet::UTF8 {
-        Some("UTF8")
-    } else if c == CharacterSet::ISO8859_1 {
-        Some("ISO8859_1")
-    } else {
-        Some(c.get_charset_name())
-    }
-}
-
-/**
- * @param bytes bytes encoding a string, whose encoding should be guessed
- * @param hints decode hints if applicable
- * @return Charset of guessed encoding; at the moment will only guess one of:
- *  {@link #SHIFT_JIS_CHARSET}, {@link StandardCharsets#UTF_8},
- *  {@link StandardCharsets#ISO_8859_1}, {@link StandardCharsets#UTF_16},
- *  or the platform default encoding if
- *  none of these can possibly be correct
- */
-pub fn guess_charset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
-    if let Some(cs_name) = &hints.character_set {
-        return CharacterSet::get_character_set_by_name(cs_name);
-    }
-
+/// - `bytes`: bytes encoding a string, whose encoding should be guessed
+///
+/// Returns the guessed character set.
+///
+/// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1,
+/// and UTF-16 via byte-order mark from `bytes`. No external hints are accepted.
+pub fn guess_charset(bytes: &[u8]) -> Option<CharacterSet> {
     // First try UTF-16, assuming anything with its BOM is UTF-16
 
     if bytes.len() > 2 {

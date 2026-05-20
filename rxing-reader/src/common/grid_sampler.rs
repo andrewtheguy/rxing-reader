@@ -16,79 +16,23 @@
 
 use anyhow::Result;
 
-use crate::{Error, Point, point};
+use crate::{Error, Point};
 
-use super::{BitMatrix, PerspectiveTransform, Quadrilateral};
+use super::{BitMatrix, PerspectiveTransform};
 
-/**
- * Implementations of this class can, given locations of finder patterns for a QR code in an
- * image, sample the right points in the image to reconstruct the QR code, accounting for
- * perspective distortion. It is abstracted since it is relatively expensive and should be allowed
- * to take advantage of platform-specific optimized implementations, like Sun's Java Advanced
- * Imaging library, but which may not be available in other environments such as J2ME, and vice
- * versa.
- *
- * The implementation used can be controlled by calling {@link #setGridSampler(GridSampler)}
- * with an instance of a class which implements this interface.
- *
- * @author Sean Owen
- */
+/// Samples a perspective-corrected grid from an image.
+///
+/// Implementations use finder-pattern locations to reconstruct a QR Code's
+/// module grid while accounting for perspective distortion. The abstraction
+/// allows callers to swap in optimized sampling implementations.
 pub trait GridSampler {
-    /**
-     * Samples an image for a rectangular matrix of bits of the given dimension. The sampling
-     * transformation is determined by the coordinates of 4 points, in the original and transformed
-     * image space.
-     *
-     * @param image image to sample
-     * @param dimension_x width of {@link BitMatrix} to sample from image
-     * @param dimension_y height of {@link BitMatrix} to sample from image
-     * @param p1ToX point 1 preimage X
-     * @param p1ToY point 1 preimage Y
-     * @param p2ToX point 2 preimage X
-     * @param p2ToY point 2 preimage Y
-     * @param p3ToX point 3 preimage X
-     * @param p3ToY point 3 preimage Y
-     * @param p4ToX point 4 preimage X
-     * @param p4ToY point 4 preimage Y
-     * @param p1FromX point 1 image X
-     * @param p1FromY point 1 image Y
-     * @param p2FromX point 2 image X
-     * @param p2FromY point 2 image Y
-     * @param p3FromX point 3 image X
-     * @param p3FromY point 3 image Y
-     * @param p4FromX point 4 image X
-     * @param p4FromY point 4 image Y
-     * @return {@link BitMatrix} representing a grid of points sampled from the image within a region
-     *   defined by the "from" parameters
-     * Returns a not-found error if image can't be sampled, for example, if the transformation defined
-     *   by the given points is invalid or results in sampling outside the image boundaries
-     */
-    #[allow(clippy::too_many_arguments)]
-    fn sample_grid_detailed(
-        &self,
-        image: &BitMatrix,
-        dimension_x: u32,
-        dimension_y: u32,
-        dst: Quadrilateral,
-        src: Quadrilateral,
-    ) -> Result<(BitMatrix, [Point; 4])> {
-        let transform = PerspectiveTransform::quadrilateral_to_quadrilateral(dst, src)?;
-
-        self.sample_grid(
-            image,
-            dimension_x,
-            dimension_y,
-            &[SamplerControl::new(dimension_x, dimension_y, transform)],
-        )
-    }
-
     fn sample_grid(
         &self,
         image: &BitMatrix,
         dimension_x: u32,
         dimension_y: u32,
         controls: &[SamplerControl],
-    ) -> Result<(BitMatrix, [Point; 4])> {
+    ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
                 message: "barcode pattern was not detected".to_owned(),
@@ -124,43 +68,23 @@ pub trait GridSampler {
             }
         }
 
-        let project_corner = |p: Point| -> Point {
-            for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x
-                    && p.x <= p1.x
-                    && p0.y <= p.y
-                    && p.y <= p1.y
-                    && let Some(transformed) = transform.transform_point(p)
-                {
-                    return transformed + point(0.5, 0.5);
-                }
-            }
-            Point::default()
-        };
-
-        let top_left = project_corner(Point::default());
-        let top_right = project_corner(Point::from((dimension_x - 1, 0)));
-        let bottom_right = project_corner(Point::from((dimension_x - 1, dimension_y - 1)));
-        let bottom_left = project_corner(Point::from((0, dimension_y - 1)));
-
-        Ok((bits, [top_left, top_right, bottom_left, bottom_right]))
+        Ok(bits)
     }
 
-    /**
-     * <p>Checks a set of points that have been transformed to sample points on an image against
-     * the image's dimensions to see if the point are even within the image.</p>
-     *
-     * <p>This method will actually "nudge" the endpoints back onto the image if they are found to be
-     * barely (less than 1 pixel) off the image. This accounts for imperfect detection of finder
-     * patterns in an image where the QR Code runs all the way to the image border.</p>
-     *
-     * <p>For efficiency, the method will check points from either end of the line until one is found
-     * to be within the image. Because the set of points are assumed to be linear, this is valid.</p>
-     *
-     * @param image image into which the points should map
-     * @param points actual points in x1,y1,...,xn,yn form
-     * Returns a not-found error if an endpoint is lies outside the image boundaries
-     */
+    /// Checks a set of points that have been transformed to sample points on an image against
+    /// the image's dimensions to see if the point are even within the image.
+    ///
+    /// This method will actually "nudge" the endpoints back onto the image if they are found to be
+    /// barely (less than 1 pixel) off the image. This accounts for imperfect detection of finder
+    /// patterns in an image where the QR Code runs all the way to the image border.
+    ///
+    /// For efficiency, the method will check points from either end of the line until one is found
+    /// to be within the image. Because the set of points are assumed to be linear, this is valid.
+    ///
+    /// - `image`: image into which the points should map
+    /// - `points`: actual points in x1,y1,...,xn,yn form
+    ///
+    /// Returns a not-found error if an endpoint is lies outside the image boundaries
     fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
         let width = image.get_width();
         let height = image.get_height();
@@ -233,14 +157,4 @@ pub struct SamplerControl {
     pub p0: Point,
     pub p1: Point,
     pub transform: PerspectiveTransform,
-}
-
-impl SamplerControl {
-    pub fn new(width: u32, height: u32, transform: PerspectiveTransform) -> Self {
-        Self {
-            p0: point(0.0, 0.0),
-            p1: point(width as f32, height as f32),
-            transform,
-        }
-    }
 }

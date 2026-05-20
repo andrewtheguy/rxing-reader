@@ -1,4 +1,4 @@
-use rxing_reader::decode::{decode_inner, rgba_to_luma};
+use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
 use wasm_bindgen::prelude::*;
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 /// Default for the wasm export is `binarizer_fallback = false`, matching
 /// upstream zxing-wasm which picks a single binarizer per call.
 #[allow(clippy::too_many_arguments)] // mirrors the wasm export signature 1:1
-fn read_inner(
+fn read_luma(
     luma: Vec<u8>,
     width: u32,
     height: u32,
@@ -20,7 +20,7 @@ fn read_inner(
     binarizer_fallback: bool,
     max_number_of_symbols: u32,
 ) -> Result<Vec<Vec<u8>>, JsValue> {
-    let primary = decode_inner(
+    let primary = decode_qr_codes_luma(
         &luma,
         width,
         height,
@@ -33,7 +33,7 @@ fn read_inner(
     if !primary.is_empty() || !binarizer_fallback {
         return Ok(primary);
     }
-    decode_inner(
+    decode_qr_codes_luma(
         &luma,
         width,
         height,
@@ -98,7 +98,7 @@ pub fn read_qr_codes_rgba(
     max_number_of_symbols: u32,
 ) -> Result<js_sys::Array, JsValue> {
     let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
-    let payloads = read_inner(
+    let payloads = read_luma(
         luma,
         width,
         height,

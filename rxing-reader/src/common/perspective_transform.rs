@@ -26,13 +26,11 @@ use super::Quadrilateral;
 
 const DENOMINATOR_EPSILON: f32 = 1e-6;
 
-/**
- * <p>This class implements a perspective transform in two dimensions. Given four source and four
- * destination points, it will compute the transformation implied between them. The code is based
- * directly upon section 3.4.2 of George Wolberg's "Digital Image Warping"; see pages 54-56.</p>
- *
- * @author Sean Owen
- */
+/// Perspective transform in two dimensions.
+///
+/// Given four source and four destination points, it computes the implied
+/// transformation between them. The code is based
+/// directly upon section 3.4.2 of George Wolberg's "Digital Image Warping"; see pages 54-56.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct PerspectiveTransform {
     a11: f32,
@@ -103,28 +101,6 @@ impl PerspectiveTransform {
             *point = self.transform_point(*point).ok_or(Error::NotFound {
                 message: "barcode pattern was not detected".to_owned(),
             })?;
-        }
-        Ok(())
-    }
-
-    pub fn transform_points_double(
-        &self,
-        x_values: &mut [f32],
-        y_values: &mut [f32],
-    ) -> Result<()> {
-        let n = x_values.len();
-        for (x, y) in x_values.iter_mut().zip(y_values.iter_mut()).take(n) {
-            let ox = *x;
-            let oy = *y;
-            let d = self.a13 * ox + self.a23 * oy + self.a33;
-            if d.abs() < DENOMINATOR_EPSILON {
-                return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".to_owned(),
-                }
-                .into());
-            }
-            *x = (self.a11 * ox + self.a21 * oy + self.a31) / d;
-            *y = (self.a12 * ox + self.a22 * oy + self.a32) / d;
         }
         Ok(())
     }

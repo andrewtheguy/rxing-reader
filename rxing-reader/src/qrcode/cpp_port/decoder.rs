@@ -7,20 +7,16 @@
 use anyhow::Result;
 
 use crate::Error;
-use crate::common::cpp_essentials::{DecoderResult, StructuredAppendInfo};
+use crate::common::cpp_essentials::DecoderResult;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
 };
-use crate::qrcode::common::{ErrorCorrectionLevel, Mode, Version};
 use crate::qrcode::cpp_port::bitmatrix_parser::{
     read_codewords, read_format_information, read_version,
 };
-use crate::qrcode::decoder::DataBlock;
-use crate::qrcode::decoder::qrcode_decoder::correct_errors;
+use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
 
-/**
-* See specification GBT 18284-2000
-*/
+/// See specification GBT 18284-2000
 pub fn decode_hanzi_segment(
     bits: &mut BitSource,
     count: u32,
@@ -96,9 +92,7 @@ pub fn decode_byte_segment(
 
 pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     let value = value as usize;
-    /**
-     * See ISO 18004:2006, 6.4.4 Table 5
-     */
+    /// See ISO 18004:2006, 6.4.4 Table 5
     const ALPHANUMERIC_CHARS: [char; 45] = [
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
         'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -208,41 +202,27 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
     .into())
 }
 
-/**
- * QR codes encode mode indicators and terminator codes into a constant bit length of 4.
- * micro QR codes have terminator codes that vary in bit length but are always longer than
- * the mode indicators.
- * M1 - 0 length mode code, 3 bits terminator code
- * M2 - 1 bit mode code, 5 bits terminator code
- * M3 - 2 bit mode code, 7 bits terminator code
- * M4 - 3 bit mode code, 9 bits terminator code
- * IsTerminator peaks into the bit stream to see if the current position is at the start of
- * a terminator code.  If true, then the decoding can finish. If false, then the decoding
- * can read off the next mode code.
- *
- * See ISO 18004:2015, 7.4.1 Table 2
- *
- * @param bits the stream of bits that might have a terminator code
- * @param version the QR or micro QR code version
- */
+/// QR codes encode mode indicators and terminator codes into a constant bit length of 4.
+/// IsTerminator peaks into the bit stream to see if the current position is at the start of
+/// a terminator code.  If true, then the decoding can finish. If false, then the decoding
+/// can read off the next mode code.
+///
+/// See ISO 18004:2015, 7.4.1 Table 2
+///
+/// - `bits`: the stream of bits that might have a terminator code
+/// - `version`: the QR code version
 pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
     let bits_required = Mode::get_terminator_bit_length(version); //super::qr_codec_mode::TerminatorBitsLength(version);
     let bits_available = std::cmp::min(bits.available(), bits_required as usize);
     Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
 }
 
-/**
-* <p>QR Codes can encode text as bits in one of several modes, and can use multiple modes
-* in one QR Code. This method decodes the bits back into text.</p>
-*
-* <p>See ISO 18004:2006, 6.4.3 - 6.4.7</p>
-*/
+/// QR Codes can encode text as bits in one of several modes, and can use multiple modes
+/// in one QR Code. This method decodes the bits back into text.
+///
+/// See ISO 18004:2006, 6.4.3 - 6.4.7
 // ZXING_EXPORT_TEST_ONLY
-pub fn decode_bit_stream(
-    bytes: &[u8],
-    version: &Version,
-    ec_level: ErrorCorrectionLevel,
-) -> Result<DecoderResult<bool>> {
+pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResult> {
     let mut bits = BitSource::new(bytes);
     let mut result = ECIStringBuilder::default();
     result.symbology = SymbologyIdentifier {
@@ -251,23 +231,11 @@ pub fn decode_bit_stream(
         eci_modifier_offset: 1,
         ai_flag: AIFlag::None,
     };
-    let mut structured_append = StructuredAppendInfo::default();
     let mode_bit_length = Mode::get_codec_mode_bits_length(version);
-
-    if version.is_model1() {
-        bits.read_bits(4)?; /* Model 1 is leading with 4 0-bits -> drop them */
-    }
 
     let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
-            let mode: Mode = if mode_bit_length == 0 {
-                Mode::Numeric // MicroQRCode version 1 is always NUMERIC and mode_bit_length is 0
-            } else {
-                Mode::codec_mode_for_bits(
-                    bits.read_bits(mode_bit_length as usize)?,
-                    Some(version.qr_type),
-                )?
-            };
+            let mode = Mode::codec_mode_for_bits(bits.read_bits(mode_bit_length as usize)?)?;
 
             match mode {
                 Mode::Fnc1FirstPosition => {
@@ -296,14 +264,12 @@ pub fn decode_bit_stream(
                         }
                         .into());
                     }
-                    result.symbology.ai_flag = AIFlag::AIM;
+                    result.symbology.ai_flag = AIFlag::Aim;
                 }
                 Mode::StructuredAppend => {
-                    // sequence number and parity is added later to the result metadata
-                    // Read next 4 bits of index, 4 bits of symbol count, and 8 bits of parity data, then continue
-                    structured_append.index = bits.read_bits(4)? as i32;
-                    structured_append.count = bits.read_bits(4)? as i32 + 1;
-                    structured_append.id = (bits.read_bits(8)?).to_string();
+                    bits.read_bits(4)?;
+                    bits.read_bits(4)?;
+                    bits.read_bits(8)?;
                 }
                 Mode::Eci => {
                     // Count doesn't apply to ECI
@@ -351,22 +317,13 @@ pub fn decode_bit_stream(
         Ok(())
     })();
 
-    Ok(DecoderResult::with_eci_string_builder(result)
-        .with_error(res.err())
-        .with_ec_level(ec_level.to_string())
-        .with_version_number(version.get_version_number())
-        .with_structured_append(structured_append)
-        .with_is_model1(version.is_model1()))
+    Ok(DecoderResult::with_eci_string_builder(result).with_error(res.err()))
 }
 
-pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
+pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
     if !Version::has_valid_size(bits) {
         return Err(Error::InvalidFormat {
-            message: format!(
-                "Invalid QR symbol size: {}x{}",
-                bits.width(),
-                bits.height()
-            ),
+            message: format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()),
         }
         .into());
     }
@@ -378,12 +335,11 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
         ),
     })?;
 
-    let version = read_version(bits, format_info.qr_type()).map_err(|e| Error::InvalidFormat {
+    let version = read_version(bits).map_err(|e| Error::InvalidFormat {
         message: format!(
-            "Invalid version in {}x{} symbol (qr_type={:?}): {e}",
+            "Invalid version in {}x{} QR symbol: {e}",
             bits.width(),
-            bits.height(),
-            format_info.qr_type()
+            bits.height()
         ),
     })?;
 
@@ -436,8 +392,121 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     }
 
     // decode the contents of that stream of bytes
-    Ok(
-        decode_bit_stream(&result_bytes, version, format_info.error_correction_level)?
-            .with_is_mirrored(format_info.is_mirrored),
-    )
+    decode_bit_stream(&result_bytes, version)
+}
+
+struct DataBlock {
+    num_data_codewords: u32,
+    codewords: Vec<u8>,
+}
+
+impl DataBlock {
+    fn new(num_data_codewords: u32, codewords: Vec<u8>) -> Self {
+        Self {
+            num_data_codewords,
+            codewords,
+        }
+    }
+
+    fn get_data_blocks(
+        raw_codewords: &[u8],
+        version: VersionRef,
+        ec_level: ErrorCorrectionLevel,
+    ) -> Result<Vec<Self>> {
+        if raw_codewords.len() as u32 != version.get_total_codewords() {
+            return Err(Error::InvalidArgument {
+                message: format!(
+                    "raw codewords length {} does not match expected total codewords {}",
+                    raw_codewords.len(),
+                    version.get_total_codewords()
+                ),
+            }
+            .into());
+        }
+
+        let ec_blocks = version.get_ecblocks_for_level(ec_level)?;
+
+        let mut result = Vec::new();
+        let mut num_result_blocks = 0;
+        for ec_block in ec_blocks.get_ecblocks() {
+            for _ in 0..ec_block.get_count() {
+                let num_data_codewords = ec_block.get_data_codewords();
+                let num_block_codewords =
+                    ec_blocks.get_eccodewords_per_block() + num_data_codewords;
+                result.push(DataBlock::new(
+                    num_data_codewords,
+                    vec![0u8; num_block_codewords as usize],
+                ));
+                num_result_blocks += 1;
+            }
+        }
+
+        if result.is_empty() {
+            return Err(Error::InvalidArgument {
+                message: "result block list is empty; possible data corruption or misconfiguration"
+                    .to_owned(),
+            }
+            .into());
+        }
+
+        let shorter_blocks_total_codewords = result[0].codewords.len();
+        let mut longer_blocks_start_at = result.len() - 1;
+        while longer_blocks_start_at > 0 {
+            let num_codewords = result[longer_blocks_start_at].codewords.len();
+
+            if num_codewords == shorter_blocks_total_codewords {
+                break;
+            }
+            longer_blocks_start_at -= 1;
+        }
+        if result[longer_blocks_start_at].codewords.len() == shorter_blocks_total_codewords {
+            longer_blocks_start_at += 1;
+        }
+
+        let shorter_blocks_num_data_codewords =
+            shorter_blocks_total_codewords - ec_blocks.get_eccodewords_per_block() as usize;
+        let mut raw_codewords_offset = 0;
+        for i in 0..shorter_blocks_num_data_codewords {
+            for result_j in result.iter_mut().take(num_result_blocks) {
+                result_j.codewords[i] = raw_codewords[raw_codewords_offset];
+                raw_codewords_offset += 1;
+            }
+        }
+        for res in result
+            .iter_mut()
+            .take(num_result_blocks)
+            .skip(longer_blocks_start_at)
+        {
+            res.codewords[shorter_blocks_num_data_codewords] = raw_codewords[raw_codewords_offset];
+            raw_codewords_offset += 1;
+        }
+        let max = result[0].codewords.len();
+        for i in shorter_blocks_num_data_codewords..max {
+            for (j, res) in result.iter_mut().enumerate().take(num_result_blocks) {
+                let i_offset = if j < longer_blocks_start_at { i } else { i + 1 };
+                res.codewords[i_offset] = raw_codewords[raw_codewords_offset];
+                raw_codewords_offset += 1;
+            }
+        }
+        Ok(result)
+    }
+
+    fn get_num_data_codewords(&self) -> u32 {
+        self.num_data_codewords
+    }
+
+    fn get_codewords(&self) -> &[u8] {
+        &self.codewords
+    }
+}
+
+fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
+    let ecc_len = codeword_bytes.len() - num_data_codewords;
+    let buf = reed_solomon::Decoder::new(ecc_len)
+        .correct(codeword_bytes, None)
+        .map_err(|e| Error::Checksum {
+            message: format!("{e:?}"),
+        })?;
+    codeword_bytes[..num_data_codewords].copy_from_slice(buf.data());
+    Ok(())
 }
