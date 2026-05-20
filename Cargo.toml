@@ -2,11 +2,12 @@
 members = [
   "rxing-reader",
   "rxing-wasm",
+  "rxing-cli",
 ]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.5"
+version = "0.0.6"
 
 [profile.release]
 codegen-units = 1
