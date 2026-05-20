@@ -127,10 +127,10 @@ pub fn decode_inner(
     let mut cur_w = width;
     let mut cur_h = height;
     loop {
-        let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h)?;
         for &close in &[false, true] {
+            let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h)?;
             let results = decode_one_layer(
-                source.clone(),
+                source,
                 &hints,
                 use_hybrid_binarizer,
                 max_number_of_symbols,

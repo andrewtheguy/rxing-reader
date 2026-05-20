@@ -5,7 +5,7 @@ use anyhow::Result;
 
 /// A simple luma8 source for bytes. Supports cropping and 90° counter-clockwise
 /// rotation; 45° rotation is not supported.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Luma8LuminanceSource {
     /// image dimension in form (x,y)
     dimensions: (u32, u32),
@@ -288,11 +288,12 @@ mod tests {
     fn test_rotate() {
         let src_square = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        let src_rect = vec![0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0];
+        let src_rect_tall = vec![0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0];
+        let src_rect_wide = vec![0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0];
 
         let square = Luma8LuminanceSource::new(src_square, 3, 3).expect("source");
-        let rect_tall = Luma8LuminanceSource::new(src_rect.clone(), 3, 4).expect("source");
-        let rect_wide = Luma8LuminanceSource::new(src_rect, 4, 3).expect("source");
+        let rect_tall = Luma8LuminanceSource::new(src_rect_tall, 3, 4).expect("source");
+        let rect_wide = Luma8LuminanceSource::new(src_rect_wide, 4, 3).expect("source");
 
         let rotated_square = square.rotate_counter_clockwise().expect("rotate");
         let rotated_wide_rect = rect_wide.rotate_counter_clockwise().expect("rotate");

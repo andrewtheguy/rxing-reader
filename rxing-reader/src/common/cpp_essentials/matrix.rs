@@ -2,13 +2,13 @@ use crate::{Error, Point};
 use anyhow::Result;
 
 #[derive(Default, Clone, PartialEq, Eq)]
-pub struct Matrix<T: Default + Clone + Copy> {
+pub struct Matrix<T: Default + Copy> {
     width: usize,
     height: usize,
     data: Vec<Option<T>>,
 }
 
-impl<T: Default + Clone + Copy> Matrix<T> {
+impl<T: Default + Copy> Matrix<T> {
     pub fn with_data(width: usize, height: usize, data: Vec<Option<T>>) -> Result<Matrix<T>> {
         let expected = width
             .checked_mul(height)

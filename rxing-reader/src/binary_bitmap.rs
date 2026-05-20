@@ -17,10 +17,9 @@
 use std::{borrow::Cow, fmt};
 
 use anyhow::Result;
-use once_cell::sync::OnceCell;
 
 use crate::{
-    Binarizer, Error, LuminanceSource,
+    Binarizer, LuminanceSource,
     common::{BitArray, BitMatrix, LineOrientation},
 };
 
@@ -32,15 +31,11 @@ use crate::{
  */
 pub struct BinaryBitmap<B: Binarizer> {
     binarizer: B,
-    pub(crate) matrix: OnceCell<BitMatrix>,
 }
 
 impl<B: Binarizer> BinaryBitmap<B> {
     pub fn new(binarizer: B) -> Self {
-        Self {
-            matrix: OnceCell::new(),
-            binarizer,
-        }
+        Self { binarizer }
     }
 
     /**
@@ -87,14 +82,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * Returns a not-found error if image can't be binarized to make a matrix
      */
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
-        self.matrix
-            .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())?;
-        self.matrix.get_mut().ok_or_else(|| {
-            Error::InvalidState {
-                message: "black matrix cache was not initialized".to_owned(),
-            }
-            .into()
-        })
+        self.binarizer.get_black_matrix_mut()
     }
 
     /**
@@ -107,8 +95,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * Returns a not-found error if image can't be binarized to make a matrix
      */
     pub fn get_black_matrix(&self) -> Result<&BitMatrix> {
-        self.matrix
-            .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())
+        self.binarizer.get_black_matrix()
     }
 
     /**
@@ -224,9 +211,9 @@ fn sum_filter_3x3<F: Fn(u8) -> bool>(input: &BitMatrix, output: &mut BitMatrix, 
 
 impl<B: Binarizer> fmt::Display for BinaryBitmap<B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.matrix.get() {
-            Some(m) => write!(f, "{m:?}"),
-            None => write!(f, "<uninitialized>"),
+        match self.binarizer.get_black_matrix() {
+            Ok(matrix) => write!(f, "{matrix:?}"),
+            Err(_) => write!(f, "<unavailable>"),
         }
     }
 }

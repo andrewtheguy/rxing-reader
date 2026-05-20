@@ -122,7 +122,7 @@ pub trait BitMatrixCursorTrait {
 
     fn img(&self) -> &BitMatrix;
 
-    fn read_pattern<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
+    fn read_pattern<const LEN: usize, T: TryFrom<i32> + Default + Copy>(
         &mut self,
         range: Option<i32>,
     ) -> Option<[T; LEN]> {
@@ -137,7 +137,7 @@ pub trait BitMatrixCursorTrait {
         Some(res)
     }
 
-    fn read_pattern_from_black<const LEN: usize, T: TryFrom<i32> + Default + Copy + Clone>(
+    fn read_pattern_from_black<const LEN: usize, T: TryFrom<i32> + Default + Copy>(
         &mut self,
         max_white_prefix: i32,
         range: Option<i32>,

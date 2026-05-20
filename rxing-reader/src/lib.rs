@@ -2,7 +2,7 @@ pub mod common;
 pub mod decode;
 mod error;
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 pub use error::Error;
 
@@ -13,10 +13,7 @@ pub use barcode_format::*;
 
 /// Callback which is invoked when a possible result point (significant
 /// point in the barcode image such as a corner) is found.
-pub type PointCallback = Arc<dyn Fn(Point) + Send + Sync>;
-
-/// Temporary type to ease refactoring and keep backwards-compatibility.
-pub type RXingResultPointCallback = PointCallback;
+pub type PointCallback = Box<dyn Fn(Point) + Send + Sync>;
 
 mod dimension;
 pub use dimension::*;

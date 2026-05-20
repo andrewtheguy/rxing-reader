@@ -35,9 +35,9 @@ pub struct FinderPatternFinder<'a> {
     possible_centers: Vec<FinderPattern>,
     has_skipped: bool,
     // cross_check_state_count: [u32; 5],
-    result_point_callback: Option<PointCallback>,
+    result_point_callback: Option<&'a PointCallback>,
 }
-impl<'a> FinderPatternFinder<'_> {
+impl<'a> FinderPatternFinder<'a> {
     pub const CENTER_QUORUM: usize = 2;
     pub const MIN_SKIP: u32 = 3; // 1 pixel/module times 3 modules/center
     pub const MAX_MODULES: u32 = 97; // support up to version 20 for mobile clients
@@ -53,7 +53,7 @@ impl<'a> FinderPatternFinder<'_> {
 
     pub fn with_callback(
         image: &'a BitMatrix,
-        result_point_callback: Option<PointCallback>,
+        result_point_callback: Option<&'a PointCallback>,
     ) -> FinderPatternFinder<'a> {
         FinderPatternFinder {
             image,
@@ -527,26 +527,6 @@ impl<'a> FinderPatternFinder<'_> {
     }
 
     /**
-     * @param state_count reading state module counts from horizontal scan
-     * @param i row where finder pattern may be found
-     * @param j end of possible finder pattern in row
-     * @param pureBarcode ignored
-     * @return true if a finder pattern candidate was found this time
-     * @deprecated only exists for backwards compatibility
-     * @see #handle_possible_center(int[], int, int)
-     */
-    #[deprecated]
-    pub fn handle_possible_center_with_pure_barcode_flag(
-        &mut self,
-        state_count: &[u32],
-        i: u32,
-        j: u32,
-        _pure_barcode: bool,
-    ) -> bool {
-        self.handle_possible_center(state_count, i, j)
-    }
-
-    /**
      * <p>This is called when a horizontal scan finds a possible alignment pattern. It will
      * cross check with a vertical scan, and if successful, will, ah, cross-cross-check
      * with another horizontal scan. This is needed primarily to locate the real horizontal
@@ -598,7 +578,7 @@ impl<'a> FinderPatternFinder<'_> {
                 if !found {
                     let point = FinderPattern::new(center_j, center_i, estimated_module_size);
                     self.possible_centers.push(point);
-                    if let Some(rpc) = self.result_point_callback.clone() {
+                    if let Some(rpc) = self.result_point_callback {
                         rpc((&point).into());
                     }
                 }

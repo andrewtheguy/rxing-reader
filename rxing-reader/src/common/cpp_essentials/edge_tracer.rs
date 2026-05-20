@@ -112,10 +112,13 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
     }
 
     fn turned_back(&self) -> Self {
-        let mut res = self.clone();
-        res.d = res.back();
-
-        res
+        Self {
+            img: self.img,
+            p: self.p,
+            d: self.back(),
+            history: self.history.as_ref().map(Arc::clone),
+            state: self.state,
+        }
     }
 
     /**

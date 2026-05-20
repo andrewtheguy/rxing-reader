@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-use std::sync::Arc;
-
 use anyhow::Result;
 
 /**
@@ -49,10 +47,10 @@ pub fn decode_bool_array_with_hints(
     image: &[Vec<bool>],
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
-    decode_bitmatrix_with_hints(&BitMatrix::parse_bools(image), hints)
+    decode_bitmatrix_with_hints(BitMatrix::parse_bools(image), hints)
 }
 
-pub fn decode_bitmatrix(bits: &BitMatrix) -> Result<DecoderRXingResult> {
+pub fn decode_bitmatrix(bits: BitMatrix) -> Result<DecoderRXingResult> {
     decode_bitmatrix_with_hints(bits, &DecodeHints::default())
 }
 
@@ -66,11 +64,11 @@ pub fn decode_bitmatrix(bits: &BitMatrix) -> Result<DecoderRXingResult> {
  * Returns a checksum error if error correction fails
  */
 pub fn decode_bitmatrix_with_hints(
-    bits: &BitMatrix,
+    bits: BitMatrix,
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
     // Construct a parser and read version, error-correction level
-    let mut parser = BitMatrixParser::new(bits.clone())?;
+    let mut parser = BitMatrixParser::new(bits)?;
     let mut fe = None;
     let mut ce = None;
     match decode_bitmatrix_parser_with_hints(&mut parser, hints) {
@@ -105,7 +103,7 @@ pub fn decode_bitmatrix_with_hints(
         let mut result = decode_bitmatrix_parser_with_hints(&mut parser, hints)?;
 
         // Success! Notify the caller that the code was mirrored.
-        result.set_other(Some(Arc::new(QRCodeDecoderMetaData::new(true))));
+        result.set_other(Some(Box::new(QRCodeDecoderMetaData::new(true))));
 
         Ok(result)
     };

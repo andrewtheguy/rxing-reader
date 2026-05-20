@@ -67,6 +67,8 @@ pub trait Binarizer {
      */
     fn get_black_matrix(&self) -> Result<&BitMatrix>;
 
+    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix>;
+
     /// Get a row or column of the image
     fn get_black_line(&self, l: usize, lt: LineOrientation) -> Result<Cow<'_, BitArray>>;
 

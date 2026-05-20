@@ -18,7 +18,7 @@ use std::borrow::Cow;
 
 use once_cell::sync::OnceCell;
 
-use crate::{Binarizer, LuminanceSource};
+use crate::{Binarizer, Error, LuminanceSource};
 use anyhow::Result;
 
 use super::{BitArray, BitMatrix, GlobalHistogramBinarizer};
@@ -69,6 +69,17 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
             .black_matrix
             .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
         Ok(matrix)
+    }
+
+    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
+        self.black_matrix
+            .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
+        self.black_matrix.get_mut().ok_or_else(|| {
+            Error::InvalidState {
+                message: "black matrix cache was not initialized".to_owned(),
+            }
+            .into()
+        })
     }
 
     fn create_binarizer(&self, source: LS) -> Self {
@@ -147,8 +158,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
             Ok(new_matrix)
         } else {
             // If the image is too small, fall back to the global histogram approach.
-            let m = ghb.get_black_matrix()?;
-            Ok(m.clone())
+            GlobalHistogramBinarizer::build_black_matrix(source)
         }
     }
 

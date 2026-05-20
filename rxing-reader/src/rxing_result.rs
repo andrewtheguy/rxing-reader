@@ -105,7 +105,7 @@ impl RXingResult {
         format: BarcodeFormat,
     ) -> Self
     where
-        T: Copy + Clone + Default + Eq + PartialEq,
+        T: Copy + Default + Eq + PartialEq,
     {
         let mut new_res = Self::new(
             &res.text(),
@@ -146,7 +146,7 @@ impl RXingResult {
         format: BarcodeFormat,
     ) -> Self
     where
-        T: Copy + Clone + Default + Eq + PartialEq,
+        T: Copy + Default + Eq + PartialEq,
     {
         let mut new_res = Self::new(
             "",

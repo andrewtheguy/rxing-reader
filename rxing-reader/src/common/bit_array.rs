@@ -355,8 +355,8 @@ mod tests {
 
     #[test]
     fn vec_u8_round_trips_through_bit_array() {
-        let bytes = vec![0b1000_0001, 0b0101_1010, 0];
-        let bits = BitArray::from(bytes.clone());
+        let bytes = [0b1000_0001, 0b0101_1010, 0];
+        let bits = BitArray::from(bytes.to_vec());
 
         assert_eq!(bits.get_size(), bytes.len() * 8);
         assert_eq!(Vec::<u8>::from(bits), bytes);

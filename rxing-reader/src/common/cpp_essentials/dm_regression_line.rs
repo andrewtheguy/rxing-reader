@@ -101,7 +101,8 @@ impl RegressionLineTrait for DMRegressionLine {
 
         let mut ret = self.evaluate_self();
         if max_signed_dist > 0.0 {
-            let mut points = self.points.clone();
+            let mut points = Vec::with_capacity(self.points.len());
+            points.extend(self.points.iter().copied());
             loop {
                 let old_points_size = points.len();
                 // remove points that are further 'inside' than maxSignedDist or further 'outside' than 2 x maxSignedDist

@@ -6,10 +6,10 @@ use super::StructuredAppendInfo;
 
 const SYMBOLOGY_MODIFIER_MODEL_1: u8 = b'0';
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DecoderResult<T>
 where
-    T: Copy + Clone + Default + Eq + PartialEq,
+    T: Copy + Default + Eq + PartialEq,
 {
     content: ECIStringBuilder,
     ec_level: String,
@@ -19,12 +19,12 @@ where
     is_mirrored: bool, // = false;
     reader_init: bool, // = false;
     error: Option<Arc<anyhow::Error>>,
-    extra: Arc<T>,
+    extra: T,
 }
 
 impl<T> Default for DecoderResult<T>
 where
-    T: Copy + Clone + Default + Eq + PartialEq,
+    T: Copy + Default + Eq + PartialEq,
 {
     fn default() -> Self {
         Self {
@@ -43,7 +43,7 @@ where
 
 impl<T> DecoderResult<T>
 where
-    T: Copy + Clone + Default + Eq + PartialEq,
+    T: Copy + Default + Eq + PartialEq,
 {
     pub fn new() -> Self {
         Self::default()
@@ -66,7 +66,7 @@ where
 
 impl<T> DecoderResult<T>
 where
-    T: Copy + Clone + Default + Eq + PartialEq,
+    T: Copy + Default + Eq + PartialEq,
 {
     pub fn ec_level(&self) -> &str {
         &self.ec_level
@@ -134,13 +134,13 @@ where
         self
     }
 
-    pub fn extra(&self) -> Arc<T> {
-        self.extra.clone()
+    pub fn extra(&self) -> T {
+        self.extra
     }
-    pub fn set_extra(&mut self, extra: Arc<T>) {
+    pub fn set_extra(&mut self, extra: T) {
         self.extra = extra
     }
-    pub fn with_extra(mut self, extra: Arc<T>) -> DecoderResult<T> {
+    pub fn with_extra(mut self, extra: T) -> DecoderResult<T> {
         self.set_extra(extra);
         self
     }
@@ -166,7 +166,7 @@ where
 
 impl<T> DecoderResult<T>
 where
-    T: Copy + Clone + Default + Eq + PartialEq,
+    T: Copy + Default + Eq + PartialEq,
 {
     pub fn text(&self) -> String {
         self.content.to_string()

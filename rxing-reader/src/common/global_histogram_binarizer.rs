@@ -157,6 +157,17 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
         Ok(matrix)
     }
 
+    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
+        self.black_matrix
+            .get_or_try_init(|| Self::build_black_matrix(&self.source))?;
+        self.black_matrix.get_mut().ok_or_else(|| {
+            Error::InvalidState {
+                message: "black matrix cache was not initialized".to_owned(),
+            }
+            .into()
+        })
+    }
+
     fn create_binarizer(&self, source: LS) -> Self {
         Self::new(source)
     }
@@ -190,7 +201,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         }
     }
 
-    fn build_black_matrix(source: &LS) -> Result<BitMatrix> {
+    pub(super) fn build_black_matrix(source: &LS) -> Result<BitMatrix> {
         let width = source.get_width();
         let height = source.get_height();
         let mut matrix = BitMatrix::new(width as u32, height as u32)?;

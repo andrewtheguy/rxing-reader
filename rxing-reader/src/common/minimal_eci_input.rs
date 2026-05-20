@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use std::{fmt, sync::Arc};
+use std::fmt;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -206,33 +206,37 @@ impl MinimalECIInput {
         Ok(self.bytes[index] == FNC1)
     }
 
-    fn add_edge(
-        edges: &mut [Vec<Option<Arc<InputEdge>>>],
+    fn add_edge<'a>(
+        edges: &mut [Vec<Option<usize>>],
+        edge_arena: &mut Vec<InputEdge<'a>>,
         to: usize,
-        edge: Arc<InputEdge>,
+        edge: InputEdge<'a>,
     ) -> Result<()> {
+        let encoder_index = edge.encoder_index;
         let slot = edges
             .get_mut(to)
-            .and_then(|row| row.get_mut(edge.encoder_index))
+            .and_then(|row| row.get_mut(encoder_index))
             .ok_or_else(|| Error::InvalidState {
-                message: format!("edge graph is missing slot ({to}, {})", edge.encoder_index),
+                message: format!("edge graph is missing slot ({to}, {encoder_index})"),
             })?;
         let should_replace = match slot {
-            Some(existing) => existing.cached_total_size > edge.cached_total_size,
+            Some(existing) => edge_arena[*existing].cached_total_size > edge.cached_total_size,
             None => true,
         };
         if should_replace {
-            *slot = Some(edge);
+            edge_arena.push(edge);
+            *slot = Some(edge_arena.len() - 1);
         }
         Ok(())
     }
 
-    fn add_edges(
-        string_to_encode: &[&str],
+    fn add_edges<'a>(
+        string_to_encode: &[&'a str],
         encoder_set: &ECIEncoderSet,
-        edges: &mut [Vec<Option<Arc<InputEdge>>>],
+        edges: &mut [Vec<Option<usize>>],
+        edge_arena: &mut Vec<InputEdge<'a>>,
         from: usize,
-        previous: Option<Arc<InputEdge>>,
+        previous: Option<usize>,
         fnc1: Option<&str>,
     ) -> Result<()> {
         let ch = string_to_encode
@@ -256,8 +260,8 @@ impl MinimalECIInput {
 
         for i in start..end {
             if fnc1.is_some_and(|fnc1| ch == fnc1) || encoder_set.can_encode(ch, i)? {
-                let edge = InputEdge::new(ch, encoder_set, i, previous.clone(), fnc1)?;
-                Self::add_edge(edges, from + 1, Arc::new(edge))?;
+                let edge = InputEdge::new(ch, encoder_set, i, previous, edge_arena, fnc1)?;
+                Self::add_edge(edges, edge_arena, from + 1, edge)?;
             }
         }
         Ok(())
@@ -275,13 +279,31 @@ impl MinimalECIInput {
 
         // Array that represents vertices. There is a vertex for every character and encoding.
         let mut edges = vec![vec![None; encoder_set.len()]; input_length + 1];
-        Self::add_edges(string_to_encode, encoder_set, &mut edges, 0, None, fnc1)?;
+        let mut edge_arena = Vec::new();
+        Self::add_edges(
+            string_to_encode,
+            encoder_set,
+            &mut edges,
+            &mut edge_arena,
+            0,
+            None,
+            fnc1,
+        )?;
 
         for i in 1..=input_length {
             for j in 0..encoder_set.len() {
-                if edges[i][j].is_some() && i < input_length {
-                    let edg = edges[i][j].clone();
-                    Self::add_edges(string_to_encode, encoder_set, &mut edges, i, edg, fnc1)?;
+                if i < input_length
+                    && let Some(edge_index) = edges[i][j]
+                {
+                    Self::add_edges(
+                        string_to_encode,
+                        encoder_set,
+                        &mut edges,
+                        &mut edge_arena,
+                        i,
+                        Some(edge_index),
+                        fnc1,
+                    )?;
                 }
             }
             //optimize memory by removing edges that have been passed.
@@ -294,10 +316,10 @@ impl MinimalECIInput {
             .enumerate()
             .take(encoder_set.len())
         {
-            if let Some(edge) = slot
-                && (edge.cached_total_size as i32) < minimal_size
+            if let Some(edge_index) = slot
+                && (edge_arena[*edge_index].cached_total_size as i32) < minimal_size
             {
-                minimal_size = edge.cached_total_size as i32;
+                minimal_size = edge_arena[*edge_index].cached_total_size as i32;
                 minimal_j = j as i32;
             }
         }
@@ -311,18 +333,19 @@ impl MinimalECIInput {
             .into());
         }
         let mut ints_al: Vec<u16> = Vec::new();
-        let mut current = edges[input_length][minimal_j as usize].clone();
-        while let Some(c) = current {
+        let mut current = edges[input_length][minimal_j as usize];
+        while let Some(edge_index) = current {
+            let c = &edge_arena[edge_index];
             if c.is_fnc1() {
                 ints_al.push(1000);
             } else {
-                let encoded = encoder_set.encode_char(&c.c, c.encoder_index)?;
+                let encoded = encoder_set.encode_char(c.c, c.encoder_index)?;
                 encoded.iter().rev().for_each(|&byte| {
                     ints_al.push(byte as u16);
                 });
             }
-            let previous_encoder_index = if let Some(prev) = &c.previous {
-                prev.encoder_index
+            let previous_encoder_index = if let Some(prev) = c.previous {
+                edge_arena[prev].encoder_index
             } else {
                 0
             };
@@ -330,7 +353,7 @@ impl MinimalECIInput {
             if previous_encoder_index != c.encoder_index {
                 ints_al.push(256_u16 + encoder_set.get_eci(c.encoder_index)? as u16);
             }
-            current = c.previous.clone();
+            current = c.previous;
         }
 
         ints_al.reverse();
@@ -338,20 +361,21 @@ impl MinimalECIInput {
     }
 }
 
-struct InputEdge {
-    c: String,
+struct InputEdge<'a> {
+    c: &'a str,
     encoder_index: usize, //the encoding of this edge
-    previous: Option<Arc<InputEdge>>,
+    previous: Option<usize>,
     cached_total_size: usize,
 }
-impl InputEdge {
+impl<'a> InputEdge<'a> {
     const FNC1_UNICODE: &'static str = "\u{1000}";
 
     pub fn new(
-        c: &str,
+        c: &'a str,
         encoder_set: &ECIEncoderSet,
         encoder_index: usize,
-        previous: Option<Arc<InputEdge>>,
+        previous: Option<usize>,
+        edge_arena: &[InputEdge<'a>],
         fnc1: Option<&str>,
     ) -> Result<Self> {
         let c = if fnc1.is_some_and(|fnc1| c == fnc1) {
@@ -373,14 +397,14 @@ impl InputEdge {
         };
 
         if let Some(prev) = previous {
-            let previous_encoder_index = prev.encoder_index;
+            let previous_encoder_index = edge_arena[prev].encoder_index;
             if previous_encoder_index != encoder_index {
                 size += COST_PER_ECI;
             }
-            size += prev.cached_total_size;
+            size += edge_arena[prev].cached_total_size;
 
             Ok(Self {
-                c: String::from(c),
+                c,
                 encoder_index,
                 previous: Some(prev),
                 cached_total_size: size,
@@ -392,7 +416,7 @@ impl InputEdge {
             }
 
             Ok(Self {
-                c: String::from(c),
+                c,
                 encoder_index,
                 previous: None,
                 cached_total_size: size,

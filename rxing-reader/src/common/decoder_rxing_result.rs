@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use std::{any::Any, sync::Arc};
+use std::any::Any;
 
 /**
  * <p>Encapsulates the result of decoding a matrix of bits. This typically
@@ -31,7 +31,7 @@ pub struct DecoderRXingResult {
     ec_level: String,
     errors_corrected: usize,
     erasures: usize,
-    other: Option<Arc<dyn Any + Send + Sync>>,
+    other: Option<Box<dyn Any + Send + Sync>>,
     structured_append_parity: i32,
     structured_append_sequence_number: i32,
     symbology_modifier: u32,
@@ -199,11 +199,11 @@ impl DecoderRXingResult {
     /**
      * @return arbitrary additional metadata
      */
-    pub fn get_other(&self) -> Option<Arc<dyn Any + Send + Sync>> {
-        self.other.clone()
+    pub fn get_other(&self) -> Option<&(dyn Any + Send + Sync)> {
+        self.other.as_deref()
     }
 
-    pub fn set_other(&mut self, other: Option<Arc<dyn Any + Send + Sync>>) {
+    pub fn set_other(&mut self, other: Option<Box<dyn Any + Send + Sync>>) {
         self.other = other
     }
 

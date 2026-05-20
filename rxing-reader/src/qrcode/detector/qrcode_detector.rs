@@ -39,23 +39,17 @@ use super::{
  */
 pub struct Detector<'a> {
     image: &'a BitMatrix,
-    result_point_callback: Option<PointCallback>,
 }
 
 impl<'a> Detector<'a> {
     pub fn new(image: &'a BitMatrix) -> Detector<'a> {
         Detector {
             image,
-            result_point_callback: None,
         }
     }
 
     pub fn get_image(&self) -> &BitMatrix {
         self.image
-    }
-
-    pub fn get_point_callback(&self) -> &Option<PointCallback> {
-        &self.result_point_callback
     }
 
     /**
@@ -78,18 +72,18 @@ impl<'a> Detector<'a> {
      * Returns an invalid-format error if a QR Code cannot be decoded
      */
     pub fn detect_with_hints(&mut self, hints: &DecodeHints) -> Result<QRCodeDetectorResult> {
-        self.result_point_callback = hints.need_result_point_callback.clone();
+        let result_point_callback = hints.need_result_point_callback.as_ref();
 
-        let mut finder =
-            FinderPatternFinder::with_callback(self.image, self.result_point_callback.clone());
+        let mut finder = FinderPatternFinder::with_callback(self.image, result_point_callback);
         let info = finder.find(hints)?;
 
-        self.process_finder_pattern_info(info)
+        self.process_finder_pattern_info(info, result_point_callback)
     }
 
     pub fn process_finder_pattern_info(
         &self,
         info: FinderPatternInfo,
+        result_point_callback: Option<&PointCallback>,
     ) -> Result<QRCodeDetectorResult> {
         let top_left = info.get_top_left();
         let top_right = info.get_top_right();
@@ -134,6 +128,7 @@ impl<'a> Detector<'a> {
                     est_alignment_x,
                     est_alignment_y,
                     i as f32,
+                    result_point_callback,
                 ) {
                     alignment_pattern = Some(ap);
                     break;
@@ -460,6 +455,7 @@ impl<'a> Detector<'a> {
         est_alignment_x: u32,
         est_alignment_y: u32,
         allowance_factor: f32,
+        result_point_callback: Option<&PointCallback>,
     ) -> Result<AlignmentPattern> {
         // Look for an alignment pattern (3 modules in size) around where it
         // should be
@@ -502,7 +498,7 @@ impl<'a> Detector<'a> {
             alignment_area_width,
             alignment_area_height,
             overall_est_module_size,
-            self.result_point_callback.clone(),
+            result_point_callback,
         );
         alignment_finder.find()
     }

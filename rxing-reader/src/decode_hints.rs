@@ -115,7 +115,6 @@ pub enum DecodeHintType {
     }*/
 }
 
-#[derive(Clone)]
 pub enum DecodeHintValue {
     /**
      * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
@@ -185,7 +184,7 @@ pub enum DecodeHintValue {
     TelepenAsNumeric(bool),
 }
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct DecodeHints {
     /**
      * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.

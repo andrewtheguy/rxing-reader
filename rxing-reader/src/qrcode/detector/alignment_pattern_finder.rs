@@ -42,7 +42,7 @@ pub struct AlignmentPatternFinder<'a> {
     width: u32,
     height: u32,
     module_size: f32,
-    result_point_callback: Option<PointCallback>,
+    result_point_callback: Option<&'a PointCallback>,
 }
 
 impl<'a> AlignmentPatternFinder<'a> {
@@ -63,7 +63,7 @@ impl<'a> AlignmentPatternFinder<'a> {
         width: u32,
         height: u32,
         module_size: f32,
-        result_point_callback: Option<PointCallback>,
+        result_point_callback: Option<&'a PointCallback>,
     ) -> Self {
         Self {
             image,
@@ -315,7 +315,7 @@ impl<'a> AlignmentPatternFinder<'a> {
             }
             // Hadn't found this before; save it
             let point = AlignmentPattern::new(center_j, center_i, estimated_module_size);
-            if let Some(rpc) = self.result_point_callback.clone() {
+            if let Some(rpc) = self.result_point_callback {
                 rpc((&point).into());
             }
 
