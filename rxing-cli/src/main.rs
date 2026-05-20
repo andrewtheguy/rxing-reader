@@ -7,11 +7,8 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use clap::{Parser, ValueEnum};
 use image::ImageReader;
-use rxing_reader::{
-    AIFlag, QrSymbol, StructuredAppendInfo, SymbologyIdentifier, decode_qr_codes_luma,
-    rgba_to_luma,
-};
-use serde::Serialize;
+use rxing_reader::json_view::{SymbolView, symbol_to_view};
+use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 
 const MAX_HTTP_BODY: u64 = 64 * 1024 * 1024;
 
@@ -36,42 +33,6 @@ enum Format {
     Json,
 }
 
-#[derive(Serialize)]
-struct SymbolJson {
-    version: u32,
-    error_correction_level: String,
-    mask: u8,
-    modes: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    structured_append: Option<StructuredAppendJson>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    ecis: Vec<String>,
-    symbology: SymbologyJson,
-    #[serde(flatten)]
-    payload: PayloadJson,
-}
-
-#[derive(Serialize)]
-struct StructuredAppendJson {
-    index: u8,
-    count: u8,
-    parity: u8,
-}
-
-#[derive(Serialize)]
-struct SymbologyJson {
-    code: String,
-    modifier: String,
-    ai_flag: &'static str,
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-enum PayloadJson {
-    Text { text: String },
-    BytesB64 { bytes_b64: String },
-}
-
 fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
@@ -92,7 +53,7 @@ fn run() -> Result<ExitCode> {
         Format::Json => 0,
     };
     let symbols = decode_symbols(&rgba, w, h, max)?;
-    render(&symbols, cli.format)
+    render(symbols, cli.format)
 }
 
 fn load_bytes(source: &str) -> Result<Vec<u8>> {
@@ -149,63 +110,9 @@ fn decode_symbols(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<QrS
     Ok(fallback)
 }
 
-fn symbol_to_json(symbol: &QrSymbol) -> SymbolJson {
-    SymbolJson {
-        version: symbol.version,
-        error_correction_level: symbol.error_correction_level.to_string(),
-        mask: symbol.mask,
-        modes: symbol.modes.iter().map(|m| m.to_string()).collect(),
-        structured_append: symbol.structured_append.map(structured_append_json),
-        ecis: symbol.ecis.iter().map(|e| e.to_string()).collect(),
-        symbology: symbology_json(&symbol.symbology),
-        payload: payload_json(&symbol.bytes),
-    }
-}
-
-fn structured_append_json(info: StructuredAppendInfo) -> StructuredAppendJson {
-    StructuredAppendJson {
-        index: info.index,
-        count: info.count,
-        parity: info.parity,
-    }
-}
-
-fn symbology_json(sym: &SymbologyIdentifier) -> SymbologyJson {
-    SymbologyJson {
-        code: ascii_byte_string(sym.code),
-        modifier: ascii_byte_string(sym.modifier),
-        ai_flag: ai_flag_str(sym.ai_flag),
-    }
-}
-
-fn ascii_byte_string(b: u8) -> String {
-    if b == 0 {
-        String::new()
-    } else {
-        String::from(b as char)
-    }
-}
-
-fn ai_flag_str(f: AIFlag) -> &'static str {
-    match f {
-        AIFlag::None => "None",
-        AIFlag::GS1 => "GS1",
-        AIFlag::Aim => "Aim",
-    }
-}
-
-fn payload_json(bytes: &[u8]) -> PayloadJson {
-    match std::str::from_utf8(bytes) {
-        Ok(s) => PayloadJson::Text { text: s.to_string() },
-        Err(_) => PayloadJson::BytesB64 {
-            bytes_b64: BASE64.encode(bytes),
-        },
-    }
-}
-
-fn render(symbols: &[QrSymbol], format: Format) -> Result<ExitCode> {
+fn render(symbols: Vec<QrSymbol>, format: Format) -> Result<ExitCode> {
     match format {
-        Format::Text => match symbols.first() {
+        Format::Text => match symbols.into_iter().next() {
             None => Ok(ExitCode::from(1)),
             Some(symbol) => {
                 match std::str::from_utf8(&symbol.bytes) {
@@ -216,7 +123,7 @@ fn render(symbols: &[QrSymbol], format: Format) -> Result<ExitCode> {
             }
         },
         Format::Json => {
-            let entries: Vec<SymbolJson> = symbols.iter().map(symbol_to_json).collect();
+            let entries: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
             let mut stdout = io::stdout().lock();
             serde_json::to_writer(&mut stdout, &entries).context("writing JSON to stdout")?;
             stdout.write_all(b"\n").context("writing trailing newline")?;

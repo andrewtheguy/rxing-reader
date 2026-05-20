@@ -33,13 +33,16 @@ pub struct QrSymbol {
 }
 
 impl QrSymbol {
-    /// Move the metadata + payload out of a finished `DecoderResult`.
-    /// Caller must have verified `decoder_result.is_valid()` first.
-    pub(crate) fn from_decoder_result(decoder_result: DecoderResult) -> Self {
+    /// Move the metadata + payload out of a finished `DecoderResult`. Returns
+    /// `None` when the result is missing required QR metadata (e.g. the EC
+    /// level was never plumbed in). Callers should have verified
+    /// `decoder_result.is_valid()` first; the `debug_assert!` catches an
+    /// invariant violation in dev builds, and returning `None` in release
+    /// builds keeps the decode loop alive instead of panicking.
+    pub(crate) fn from_decoder_result(decoder_result: DecoderResult) -> Option<Self> {
+        debug_assert!(decoder_result.is_valid());
         let version = decoder_result.version();
-        let error_correction_level = decoder_result
-            .error_correction_level()
-            .expect("valid decoder_result has an EC level");
+        let error_correction_level = decoder_result.error_correction_level()?;
         let mask = decoder_result.mask();
         let modes = decoder_result.modes().to_vec();
         let structured_append = decoder_result.structured_append();
@@ -51,7 +54,7 @@ impl QrSymbol {
             .map(|(eci, _, _)| *eci)
             .collect();
         let bytes = content.into_bytes();
-        QrSymbol {
+        Some(QrSymbol {
             bytes,
             version,
             error_correction_level,
@@ -60,7 +63,7 @@ impl QrSymbol {
             structured_append,
             ecis,
             symbology,
-        }
+        })
     }
 }
 

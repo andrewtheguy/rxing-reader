@@ -10,11 +10,10 @@ name = "rxing-cli"
 path = "src/main.rs"
 
 [dependencies]
-rxing-reader = { path = "../rxing-reader" }
+rxing-reader = { path = "../rxing-reader", features = ["serde"] }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 ureq = { version = "2.10", features = ["tls"] }
 base64 = "0.22"
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -1,10 +1,5 @@
-use base64::engine::general_purpose::STANDARD as BASE64;
-use base64::Engine;
-use rxing_reader::{
-    AIFlag, QrSymbol, StructuredAppendInfo, SymbologyIdentifier, decode_qr_codes_luma,
-    rgba_to_luma,
-};
-use serde::Serialize;
+use rxing_reader::json_view::{SymbolView, symbol_to_view};
+use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 use wasm_bindgen::prelude::*;
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
@@ -125,93 +120,6 @@ pub fn read_qr_codes_rgba(
         out.set(i as u32, js_sys::Uint8Array::from(symbol.bytes.as_slice()).into());
     }
     Ok(out)
-}
-
-#[derive(Serialize)]
-struct SymbolView {
-    version: u32,
-    error_correction_level: String,
-    mask: u8,
-    modes: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    structured_append: Option<StructuredAppendView>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    ecis: Vec<String>,
-    symbology: SymbologyView,
-    #[serde(flatten)]
-    payload: PayloadView,
-}
-
-#[derive(Serialize)]
-struct StructuredAppendView {
-    index: u8,
-    count: u8,
-    parity: u8,
-}
-
-#[derive(Serialize)]
-struct SymbologyView {
-    code: String,
-    modifier: String,
-    ai_flag: &'static str,
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-enum PayloadView {
-    Text { text: String },
-    BytesB64 { bytes_b64: String },
-}
-
-fn symbol_to_view(symbol: QrSymbol) -> SymbolView {
-    let payload = match std::str::from_utf8(&symbol.bytes) {
-        Ok(s) => PayloadView::Text { text: s.to_string() },
-        Err(_) => PayloadView::BytesB64 {
-            bytes_b64: BASE64.encode(&symbol.bytes),
-        },
-    };
-    SymbolView {
-        version: symbol.version,
-        error_correction_level: symbol.error_correction_level.to_string(),
-        mask: symbol.mask,
-        modes: symbol.modes.iter().map(|m| m.to_string()).collect(),
-        structured_append: symbol.structured_append.map(sa_view),
-        ecis: symbol.ecis.iter().map(|e| e.to_string()).collect(),
-        symbology: symbology_view(&symbol.symbology),
-        payload,
-    }
-}
-
-fn sa_view(info: StructuredAppendInfo) -> StructuredAppendView {
-    StructuredAppendView {
-        index: info.index,
-        count: info.count,
-        parity: info.parity,
-    }
-}
-
-fn symbology_view(sym: &SymbologyIdentifier) -> SymbologyView {
-    SymbologyView {
-        code: ascii_byte_string(sym.code),
-        modifier: ascii_byte_string(sym.modifier),
-        ai_flag: ai_flag_str(sym.ai_flag),
-    }
-}
-
-fn ascii_byte_string(b: u8) -> String {
-    if b == 0 {
-        String::new()
-    } else {
-        String::from(b as char)
-    }
-}
-
-fn ai_flag_str(f: AIFlag) -> &'static str {
-    match f {
-        AIFlag::None => "None",
-        AIFlag::GS1 => "GS1",
-        AIFlag::Aim => "Aim",
-    }
 }
 
 /// Read every QR code in raw RGBA pixels, returning a JS `Array` of objects
