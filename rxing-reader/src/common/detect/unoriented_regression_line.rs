@@ -166,6 +166,7 @@ impl RegressionLineTrait for UnorientedRegressionLine {
 impl UnorientedRegressionLine {
     pub fn new(point_1: Point, point_2: Point) -> Self {
         let mut new = Self::default();
+        new.set_direction_inward(point_2 - point_1);
         RegressionLineTrait::evaluate(&mut new, &[point_1, point_2]);
         new
     }

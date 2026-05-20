@@ -170,12 +170,22 @@ impl RegressionLineTrait for RegressionLine {
 }
 
 impl RegressionLine {
+    /// Constructs a line through two points.
+    ///
+    /// Evaluation can fail (e.g. when the two points coincide), in which case
+    /// the returned line has NaN coefficients. Callers must check
+    /// [`RegressionLineTrait::is_valid`] before relying on the result.
     pub fn with_two_points(point1: Point, point2: Point) -> Self {
         let mut new_rl = RegressionLine::default();
         new_rl.set_direction_inward(point2 - point1);
         new_rl.evaluate(&[point1, point2]);
         new_rl
     }
+    /// Constructs a line fitted to a slice of points.
+    ///
+    /// Evaluation can fail (e.g. on an empty slice or degenerate input), in
+    /// which case the returned line has NaN coefficients. Callers must check
+    /// [`RegressionLineTrait::is_valid`] before relying on the result.
     pub fn with_point_slice(points: &[Point]) -> Self {
         let mut new_rl = RegressionLine::default();
         if let (Some(first), Some(last)) = (points.first(), points.last())
