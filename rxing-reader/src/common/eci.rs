@@ -4,62 +4,102 @@ use crate::Error;
 
 use super::CharacterSet;
 
+const MAX_ECI_ASSIGNMENT_VALUE: u32 = 999_999;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Eci {
-    Unknown = -1,
-    Cp437 = 2, // obsolete
-    ISO8859_1 = 3,
-    ISO8859_2 = 4,
-    ISO8859_3 = 5,
-    ISO8859_4 = 6,
-    ISO8859_5 = 7,
-    ISO8859_6 = 8,
-    ISO8859_7 = 9,
-    ISO8859_8 = 10,
-    ISO8859_9 = 11,
-    ISO8859_10 = 12,
-    ISO8859_11 = 13,
-    ISO8859_13 = 15,
-    ISO8859_14 = 16,
-    ISO8859_15 = 17,
-    ISO8859_16 = 18,
-    ShiftJis = 20,
-    Cp1250 = 21,
-    Cp1251 = 22,
-    Cp1252 = 23,
-    Cp1256 = 24,
-    UTF16BE = 25,
-    UTF8 = 26,
-    Ascii = 27,
-    Big5 = 28,
-    GB2312 = 29,
-    EucKr = 30,
-    GB18030 = 32,
-    UTF16LE = 33,
-    UTF32BE = 34,
-    UTF32LE = 35,
-    Iso646Inv = 170,
-    Binary = 899,
+    Unknown,
+    Cp437,
+    ISO8859_1,
+    ISO8859_2,
+    ISO8859_3,
+    ISO8859_4,
+    ISO8859_5,
+    ISO8859_6,
+    ISO8859_7,
+    ISO8859_8,
+    ISO8859_9,
+    ISO8859_10,
+    ISO8859_11,
+    ISO8859_13,
+    ISO8859_14,
+    ISO8859_15,
+    ISO8859_16,
+    ShiftJis,
+    Cp1250,
+    Cp1251,
+    Cp1252,
+    Cp1256,
+    UTF16BE,
+    UTF8,
+    Ascii,
+    Big5,
+    GB2312,
+    EucKr,
+    GB18030,
+    UTF16LE,
+    UTF32BE,
+    UTF32LE,
+    Iso646Inv,
+    Binary,
+}
+
+impl Eci {
+    pub const fn assignment_number(self) -> Option<u32> {
+        match self {
+            Eci::Unknown => None,
+            Eci::Cp437 => Some(2),
+            Eci::ISO8859_1 => Some(3),
+            Eci::ISO8859_2 => Some(4),
+            Eci::ISO8859_3 => Some(5),
+            Eci::ISO8859_4 => Some(6),
+            Eci::ISO8859_5 => Some(7),
+            Eci::ISO8859_6 => Some(8),
+            Eci::ISO8859_7 => Some(9),
+            Eci::ISO8859_8 => Some(10),
+            Eci::ISO8859_9 => Some(11),
+            Eci::ISO8859_10 => Some(12),
+            Eci::ISO8859_11 => Some(13),
+            Eci::ISO8859_13 => Some(15),
+            Eci::ISO8859_14 => Some(16),
+            Eci::ISO8859_15 => Some(17),
+            Eci::ISO8859_16 => Some(18),
+            Eci::ShiftJis => Some(20),
+            Eci::Cp1250 => Some(21),
+            Eci::Cp1251 => Some(22),
+            Eci::Cp1252 => Some(23),
+            Eci::Cp1256 => Some(24),
+            Eci::UTF16BE => Some(25),
+            Eci::UTF8 => Some(26),
+            Eci::Ascii => Some(27),
+            Eci::Big5 => Some(28),
+            Eci::GB2312 => Some(29),
+            Eci::EucKr => Some(30),
+            Eci::GB18030 => Some(32),
+            Eci::UTF16LE => Some(33),
+            Eci::UTF32BE => Some(34),
+            Eci::UTF32LE => Some(35),
+            Eci::Iso646Inv => Some(170),
+            Eci::Binary => Some(899),
+        }
+    }
 }
 
 impl TryFrom<u32> for Eci {
     type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value <= i32::MAX as u32 {
-            Ok((value as i32).into())
-        } else {
-            Err(Error::InvalidArgument {
-                message: format!("ECI value {value} exceeds i32::MAX").into(),
+        if value > MAX_ECI_ASSIGNMENT_VALUE {
+            return Err(Error::InvalidArgument {
+                message: format!(
+                    "ECI value {value} exceeds maximum assignment value {MAX_ECI_ASSIGNMENT_VALUE}"
+                )
+                .into(),
             }
-            .into())
+            .into());
         }
-    }
-}
 
-impl From<i32> for Eci {
-    fn from(value: i32) -> Self {
-        match value {
+        Ok(match value {
             0 | 2 => Eci::Cp437,
             1 | 3 => Eci::ISO8859_1,
             4 => Eci::ISO8859_2,
@@ -94,7 +134,7 @@ impl From<i32> for Eci {
             170 => Eci::Iso646Inv,
             899 => Eci::Binary,
             _ => Eci::Unknown,
-        }
+        })
     }
 }
 
@@ -181,17 +221,20 @@ impl From<Eci> for CharacterSet {
 
 impl Display for Eci {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", *self as i32)
+        match self.assignment_number() {
+            Some(value) => write!(f, "{value}"),
+            None => f.write_str("unknown"),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Eci;
+    use super::{Eci, MAX_ECI_ASSIGNMENT_VALUE};
 
     #[test]
-    fn try_from_u32_rejects_values_that_cannot_fit_i32() {
+    fn try_from_u32_rejects_values_outside_eci_range() {
         assert_eq!(Eci::try_from(26_u32).unwrap(), Eci::UTF8);
-        assert!(Eci::try_from(i32::MAX as u32 + 1).is_err());
+        assert!(Eci::try_from(MAX_ECI_ASSIGNMENT_VALUE + 1).is_err());
     }
 }

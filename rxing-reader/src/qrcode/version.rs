@@ -16,7 +16,7 @@
 
 use std::fmt;
 
-use crate::{Error, PointI, common::BitMatrix, point};
+use crate::{Error, common::BitMatrix};
 use anyhow::Result;
 
 use super::ErrorCorrectionLevel;
@@ -26,6 +26,16 @@ use once_cell::sync::Lazy;
 pub type VersionRef = &'static Version;
 
 pub static VERSIONS: Lazy<Box<[Version]>> = Lazy::new(Version::build_versions);
+
+const MIN_VERSION_NUMBER: u32 = 1;
+const MAX_VERSION_NUMBER: u32 = 40;
+const MIN_DIMENSION: u32 = 21;
+const MAX_DIMENSION: u32 = 177;
+const DIMENSION_STEP: u32 = 4;
+const DIMENSION_REMAINDER: u32 = 1;
+const DIMENSION_VERSION_OFFSET: u32 = 17;
+const VERSION_INFO_FIRST_VERSION: usize = 7;
+const MAX_VERSION_INFO_ERRORS: u32 = 3;
 
 /// See ISO 18004:2006 Annex D.
 /// Element i represents the raw version bits that specify version i + 7
@@ -42,7 +52,7 @@ pub struct Version {
     version_number: u32,
     alignment_pattern_centers: Box<[u32]>,
     ec_blocks: Box<[ECBlocks]>,
-    total_codewords: u32,
+    total_codewords: usize,
 }
 impl Version {
     pub(super) fn new(
@@ -73,7 +83,7 @@ impl Version {
         &self.alignment_pattern_centers
     }
 
-    pub const fn total_codewords(&self) -> u32 {
+    pub const fn total_codewords(&self) -> usize {
         self.total_codewords
     }
 
@@ -83,12 +93,12 @@ impl Version {
 
     pub fn ec_blocks_for_level(&self, ec_level: ErrorCorrectionLevel) -> Result<&ECBlocks> {
         self.ec_blocks
-            .get(ec_level.ordinal() as usize)
+            .get(ec_level.ec_blocks_index())
             .ok_or_else(|| {
                 Error::InvalidArgument {
                     message: format!(
-                        "ErrorCorrectionLevel ordinal {} out of range for {} EC blocks",
-                        ec_level.ordinal(),
+                        "ErrorCorrectionLevel index {} out of range for {} EC blocks",
+                        ec_level.ec_blocks_index(),
                         self.ec_blocks.len()
                     ).into(),
                 }
@@ -104,7 +114,7 @@ impl Version {
     /// Version 1 has dimension 21. Returns an invalid-format error if
     /// dimension is less than 21 or (dimension - 1) % 4 != 0.
     pub fn provisional_for_dimension(dimension: u32) -> Result<VersionRef> {
-        if dimension % 4 != 1 || dimension < 21 {
+        if dimension % DIMENSION_STEP != DIMENSION_REMAINDER || dimension < MIN_DIMENSION {
             return Err(Error::InvalidFormat {
                 message: format!(
                     "QR dimension {dimension} is invalid (expected >= 21 and (dimension - 1) % 4 == 0)"
@@ -113,34 +123,34 @@ impl Version {
             }
             .into());
         }
-        Self::for_number((dimension - 17) / 4)
+        Self::for_number((dimension - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP)
     }
 
     pub fn for_number(version_number: u32) -> Result<VersionRef> {
-        if !(1..=40).contains(&version_number) {
+        if !(MIN_VERSION_NUMBER..=MAX_VERSION_NUMBER).contains(&version_number) {
             return Err(Error::InvalidArgument {
                 message: format!("QR version {version_number} is out of spec (expected 1..=40)").into(),
             }
             .into());
         }
-        Ok(&VERSIONS[version_number as usize - 1])
+        let version_index = usize::try_from(version_number - 1).map_err(|_| Error::InvalidState {
+            message: format!("QR version {version_number} does not fit in usize").into(),
+        })?;
+        Ok(&VERSIONS[version_index])
     }
 
     pub const fn dimension_for_number(version_number: u32) -> u32 {
-        17 + 4 * version_number
+        DIMENSION_VERSION_OFFSET + DIMENSION_STEP * version_number
     }
 
-    pub fn decode_version_information_pair(
-        version_bits_a: i32,
-        version_bits_b: i32,
-    ) -> Result<VersionRef> {
+    pub fn decode_version_information_pair(version_bits: [Option<u32>; 2]) -> Result<VersionRef> {
         let mut best_difference = u32::MAX;
-        let mut best_version = 0;
+        let mut best_version = None;
         for (i, target_version) in VERSION_DECODE_INFO.into_iter().enumerate() {
-            for bits in [version_bits_a, version_bits_b] {
-                let bits_difference = ((bits as u32) ^ target_version).count_ones();
+            for bits in version_bits.iter().flatten() {
+                let bits_difference = (*bits ^ target_version).count_ones();
                 if bits_difference < best_difference {
-                    best_version = i + 7;
+                    best_version = Some(i + VERSION_INFO_FIRST_VERSION);
                     best_difference = bits_difference;
                 }
             }
@@ -150,8 +160,13 @@ impl Version {
         }
         // We can tolerate up to 3 bits of error since no two version info codewords will
         // differ in less than 8 bits.
-        if best_difference <= 3 {
-            return Self::for_number(best_version as u32);
+        if best_difference <= MAX_VERSION_INFO_ERRORS
+            && let Some(best_version) = best_version
+        {
+            let best_version = u32::try_from(best_version).map_err(|_| Error::InvalidState {
+                message: "best QR version index does not fit in u32".into(),
+            })?;
+            return Self::for_number(best_version);
         }
         Err(Error::InvalidState {
             message: "required internal state is missing".into(),
@@ -159,24 +174,19 @@ impl Version {
         .into())
     }
 
-    pub fn is_valid_size(size: PointI) -> bool {
-        size.x == size.y && size.x >= 21 && size.x <= 177 && (size.x % 4 == 1)
+    fn is_valid_dimensions(width: u32, height: u32) -> bool {
+        width == height
+            && (MIN_DIMENSION..=MAX_DIMENSION).contains(&width)
+            && width % DIMENSION_STEP == DIMENSION_REMAINDER
     }
 
     pub fn has_valid_size(matrix: &BitMatrix) -> bool {
-        Self::is_valid_size(point(matrix.width() as i32, matrix.height() as i32))
-    }
-
-    pub fn number_from_size(size: PointI) -> Option<u32> {
-        if Self::is_valid_size(size) {
-            Some(((size.x - 17) / 4) as u32)
-        } else {
-            None
-        }
+        Self::is_valid_dimensions(matrix.width(), matrix.height())
     }
 
     pub fn number_from_matrix(bit_matrix: &BitMatrix) -> Option<u32> {
-        Self::number_from_size(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
+        Self::is_valid_dimensions(bit_matrix.width(), bit_matrix.height())
+            .then_some((bit_matrix.width() - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP)
     }
 
     /// See ISO 18004:2006 Annex E
@@ -232,23 +242,23 @@ impl fmt::Display for Version {
 /// will be the same across all blocks within one version.
 #[derive(Debug, Clone)]
 pub struct ECBlocks {
-    ec_codewords_per_block: u32,
+    ec_codewords_per_block: usize,
     ec_blocks: Box<[Ecb]>,
 }
 
 impl ECBlocks {
-    pub const fn new(ec_codewords_per_block: u32, ec_blocks: Box<[Ecb]>) -> Self {
+    pub const fn new(ec_codewords_per_block: usize, ec_blocks: Box<[Ecb]>) -> Self {
         Self {
             ec_codewords_per_block,
             ec_blocks,
         }
     }
 
-    pub const fn ec_codewords_per_block(&self) -> u32 {
+    pub const fn ec_codewords_per_block(&self) -> usize {
         self.ec_codewords_per_block
     }
 
-    pub fn num_blocks(&self) -> u32 {
+    pub fn num_blocks(&self) -> usize {
         let mut total = 0;
         for ec_block in self.ec_blocks.iter() {
             total += ec_block.count();
@@ -256,7 +266,7 @@ impl ECBlocks {
         total
     }
 
-    pub fn total_ec_codewords(&self) -> u32 {
+    pub fn total_ec_codewords(&self) -> usize {
         self.ec_codewords_per_block * self.num_blocks()
     }
 
@@ -270,23 +280,23 @@ impl ECBlocks {
 /// parameters is used consecutively in the QR code version's format.
 #[derive(Debug, Clone, Copy)]
 pub struct Ecb {
-    count: u32,
-    data_codewords: u32,
+    count: usize,
+    data_codewords: usize,
 }
 
 impl Ecb {
-    pub const fn new(count: u32, data_codewords: u32) -> Self {
+    pub const fn new(count: usize, data_codewords: usize) -> Self {
         Self {
             count,
             data_codewords,
         }
     }
 
-    pub const fn count(&self) -> u32 {
+    pub const fn count(&self) -> usize {
         self.count
     }
 
-    pub const fn data_codewords(&self) -> u32 {
+    pub const fn data_codewords(&self) -> usize {
         self.data_codewords
     }
 }

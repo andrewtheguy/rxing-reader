@@ -25,14 +25,13 @@ use anyhow::Result;
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ErrorCorrectionLevel {
     /// L = ~7% correction
-    L, //0x01
+    L,
     /// M = ~15% correction
-    M, //0x00
+    M,
     /// Q = ~25% correction
-    Q, //0x03
+    Q,
     /// H = ~30% correction
-    H, //0x02
-    Invalid,
+    H,
 }
 
 impl ErrorCorrectionLevel {
@@ -52,32 +51,21 @@ impl ErrorCorrectionLevel {
         }
     }
 
-    pub fn from_format_bits(bits: u8) -> Self {
-        match bits & 0x03 {
-            0 => Self::M,
-            1 => Self::L,
-            2 => Self::H,
-            _ => Self::Q,
-        }
-    }
-
-    pub const fn value(&self) -> u8 {
+    pub const fn format_bits(self) -> u8 {
         match self {
             ErrorCorrectionLevel::L => 0x01,
             ErrorCorrectionLevel::M => 0x00,
             ErrorCorrectionLevel::Q => 0x03,
             ErrorCorrectionLevel::H => 0x02,
-            ErrorCorrectionLevel::Invalid => 0xFF,
         }
     }
 
-    pub const fn ordinal(&self) -> u8 {
+    pub const fn ec_blocks_index(self) -> usize {
         match self {
             ErrorCorrectionLevel::L => 0,
             ErrorCorrectionLevel::M => 1,
             ErrorCorrectionLevel::Q => 2,
             ErrorCorrectionLevel::H => 3,
-            ErrorCorrectionLevel::Invalid => 100,
         }
     }
 }
@@ -92,7 +80,7 @@ impl TryFrom<u8> for ErrorCorrectionLevel {
 
 impl From<ErrorCorrectionLevel> for u8 {
     fn from(value: ErrorCorrectionLevel) -> Self {
-        value.value()
+        value.format_bits()
     }
 }
 
@@ -133,7 +121,6 @@ impl Display for ErrorCorrectionLevel {
             ErrorCorrectionLevel::M => "M",
             ErrorCorrectionLevel::Q => "Q",
             ErrorCorrectionLevel::H => "H",
-            ErrorCorrectionLevel::Invalid => "_",
         })
     }
 }
@@ -143,15 +130,11 @@ mod tests {
     use super::ErrorCorrectionLevel;
 
     #[test]
-    fn invalid_value_uses_distinct_sentinel() {
-        assert_eq!(ErrorCorrectionLevel::Invalid.value(), 0xFF);
-        assert_ne!(
-            ErrorCorrectionLevel::Invalid.value(),
-            ErrorCorrectionLevel::M.value()
-        );
-        assert_eq!(
-            u8::from(ErrorCorrectionLevel::Invalid),
-            ErrorCorrectionLevel::Invalid.value()
-        );
+    fn maps_format_bits_to_levels() {
+        assert_eq!(ErrorCorrectionLevel::for_bits(0).unwrap(), ErrorCorrectionLevel::M);
+        assert_eq!(ErrorCorrectionLevel::for_bits(1).unwrap(), ErrorCorrectionLevel::L);
+        assert_eq!(ErrorCorrectionLevel::for_bits(2).unwrap(), ErrorCorrectionLevel::H);
+        assert_eq!(ErrorCorrectionLevel::for_bits(3).unwrap(), ErrorCorrectionLevel::Q);
+        assert!(ErrorCorrectionLevel::for_bits(4).is_err());
     }
 }

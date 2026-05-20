@@ -264,7 +264,7 @@ pub fn generate_finder_pattern_sets(patterns: &mut FinderPatterns) -> FinderPatt
     res
 }
 
-pub fn estimate_module_size(
+fn estimate_module_size(
     image: &BitMatrix,
     a: ConcentricPattern,
     b: ConcentricPattern,
@@ -301,23 +301,32 @@ pub fn estimate_module_size(
     )
 }
 
-pub struct DimensionEstimate {
+struct DimensionEstimate {
     dim: i32,
     ms: f64,
     err: i32,
 }
 
-impl Default for DimensionEstimate {
-    fn default() -> Self {
-        Self {
-            dim: 0,
-            ms: 0.0,
-            err: 4,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FinderPatternEdge {
+    Outer,
+    Inner,
+}
+
+impl FinderPatternEdge {
+    const fn nth(self) -> i32 {
+        match self {
+            Self::Outer => 2,
+            Self::Inner => 3,
         }
+    }
+
+    const fn should_backup(self) -> bool {
+        matches!(self, Self::Inner)
     }
 }
 
-pub fn estimate_dimension(
+fn estimate_dimension(
     image: &BitMatrix,
     a: ConcentricPattern,
     b: ConcentricPattern,
@@ -337,19 +346,19 @@ pub fn estimate_dimension(
     })
 }
 
-pub fn trace_line(
+fn trace_line(
     image: &BitMatrix,
     p: Point,
     d: Point,
-    edge: i32,
+    edge: FinderPatternEdge,
 ) -> Result<impl RegressionLineTrait> {
     let mut cur = EdgeTracer::new(image, p, d - p);
     let mut line = RegressionLine::default();
     line.set_direction_inward(cur.back());
 
     // collect points inside the black line -> backup on 3rd edge
-    cur.step_to_edge(edge, 0, edge == 3);
-    if edge == 3 {
+    cur.step_to_edge(edge.nth(), 0, edge.should_backup());
+    if edge.should_backup() {
         cur.turn_back();
     }
 
@@ -385,7 +394,7 @@ pub fn trace_line(
 }
 
 // estimate how tilted the symbol is (return value between 1 and 2, see also above)
-pub fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
+fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
     let min = [fp.bl.size, fp.tl.size, fp.tr.size]
         .iter()
         .min()
@@ -400,7 +409,7 @@ pub fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
     (max as f64) / (min as f64)
 }
 
-pub fn mod2_pix(
+fn mod2_pix(
     dimension: i32,
     br_offset: Point,
     pix: Quadrilateral,
@@ -411,7 +420,7 @@ pub fn mod2_pix(
     PerspectiveTransform::quadrilateral_to_quadrilateral(quad, pix)
 }
 
-pub fn locate_alignment_pattern(
+fn locate_alignment_pattern(
     image: &BitMatrix,
     module_size: i32,
     estimate: Point,
@@ -459,56 +468,52 @@ pub fn read_version(
     dimension: u32,
     mod2_pix: PerspectiveTransform,
 ) -> Result<VersionRef> {
-    let mut bits = [0; 2]; //
+    let mut bits = [None, None];
 
     for mirror in [false, true] {
         // Read top-right/bottom-left version info: 3 wide by 6 tall (depending on mirrored)
-        let mut version_bits = 0;
-        for y in (0..=5).rev() {
+        let mut version_bits: u32 = 0;
+        let mut valid = true;
+        'read_version_bits: for y in (0..=5).rev() {
             for x in ((dimension - 11)..=(dimension - 9)).rev() {
-                let mod_ = if mirror { point_i(y, x) } else { point_i(x, y) };
-                let Some(pix) = mod2_pix.transform_point((mod_).centered()) else {
-                    version_bits = -1;
-                    continue;
+                let module = if mirror { point_i(y, x) } else { point_i(x, y) };
+                let Some(pixel) = mod2_pix.transform_point(module.centered()) else {
+                    valid = false;
+                    break 'read_version_bits;
                 };
-                if !image.is_in(pix) {
-                    version_bits = -1;
-                } else {
-                    append_bit(&mut version_bits, image.at_point(pix));
+                if !image.is_in(pixel) {
+                    valid = false;
+                    break 'read_version_bits;
                 }
+                append_bit(&mut version_bits, image.at_point(pixel));
             }
-            bits[usize::from(mirror)] = version_bits;
+        }
+        if valid {
+            bits[usize::from(mirror)] = Some(version_bits);
         }
     }
 
-    Version::decode_version_information_pair(bits[0], bits[1])
+    Version::decode_version_information_pair(bits)
 }
 
 pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorResult> {
-    // Tolerate one estimator failing — pick the surviving estimate via the
-    // existing err-based comparison below. Failure (Err) maps to the
-    // `DimensionEstimate::default()` (dim=0, err=4), preserving the prior
-    // sentinel-based control flow.
-    let top = estimate_dimension(image, fp.tl, fp.tr).unwrap_or_default();
-    let left = estimate_dimension(image, fp.tl, fp.bl).unwrap_or_default();
+    let top = estimate_dimension(image, fp.tl, fp.tr).ok();
+    let left = estimate_dimension(image, fp.tl, fp.bl).ok();
 
-    if top.dim == 0 && left.dim == 0 {
-        return Err(Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        }
-        .into());
-    }
-
-    let best = match top.err.cmp(&left.err) {
-        std::cmp::Ordering::Less => top,
-        std::cmp::Ordering::Equal => {
-            if top.dim > left.dim {
-                top
-            } else {
-                left
+    let best = match (top, left) {
+        (Some(top), Some(left)) => match top.err.cmp(&left.err) {
+            std::cmp::Ordering::Less => top,
+            std::cmp::Ordering::Equal if top.dim > left.dim => top,
+            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => left,
+        },
+        (Some(top), None) => top,
+        (None, Some(left)) => left,
+        (None, None) => {
+            return Err(Error::NotFound {
+                message: "QR pattern was not detected".into(),
             }
+            .into());
         }
-        std::cmp::Ordering::Greater => left,
     };
 
     let mut dimension = best.dim;
@@ -526,16 +531,16 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
 
     // generate 4 lines: outer and inner edge of the 1 module wide black line between the two outer and the inner
     // (tl) finder pattern
-    let bl2 = trace_line(image, fp.bl.p, fp.tl.p, 2)?;
-    let bl3 = trace_line(image, fp.bl.p, fp.tl.p, 3)?;
-    let tr2 = trace_line(image, fp.tr.p, fp.tl.p, 2)?;
-    let tr3 = trace_line(image, fp.tr.p, fp.tl.p, 3)?;
+    let bl_outer = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Outer)?;
+    let bl_inner = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Inner)?;
+    let tr_outer = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Outer)?;
+    let tr_inner = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Inner)?;
 
-    if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
+    if bl_outer.is_valid() && tr_outer.is_valid() && bl_inner.is_valid() && tr_inner.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (intersect(&bl2, &tr2).ok_or(Error::NotFound {
+        let br_inter = (intersect(&bl_outer, &tr_outer).ok_or(Error::NotFound {
             message: "QR pattern was not detected".into(),
-        })? + intersect(&bl3, &tr3).ok_or(Error::NotFound {
+        })? + intersect(&bl_inner, &tr_inner).ok_or(Error::NotFound {
             message: "QR pattern was not detected".into(),
         })?) / 2.0;
 
@@ -549,10 +554,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
         // as the best estimate (see discussion in #199 and test image estimate-tilt.jpg )
         if !image.is_in(br.p)
             && (estimate_tilt(fp) > 1.1
-                || (bl2.is_high_res()
-                    && bl3.is_high_res()
-                    && tr2.is_high_res()
-                    && tr3.is_high_res()))
+                || (bl_outer.is_high_res()
+                    && bl_inner.is_high_res()
+                    && tr_outer.is_high_res()
+                    && tr_inner.is_high_res()))
         {
             br = br_inter.into();
         }

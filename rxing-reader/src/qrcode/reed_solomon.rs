@@ -53,13 +53,14 @@ pub(super) fn correct_qr_errors(
 }
 
 const FIELD_SIZE: usize = 256;
+const FIELD_ORDER: usize = FIELD_SIZE - 1;
 const PRIMITIVE: usize = 0x011D;
 
 static QR_FIELD: QrField = QrField::new();
 
 struct QrField {
     exp_table: [u8; FIELD_SIZE],
-    log_table: [u8; FIELD_SIZE],
+    log_table: [usize; FIELD_SIZE],
 }
 
 impl QrField {
@@ -78,9 +79,9 @@ impl QrField {
             i += 1;
         }
         i = 0;
-        while i < FIELD_SIZE - 1 {
+        while i < FIELD_ORDER {
             let value = exp_table[i] as usize;
-            log_table[value] = i as u8;
+            log_table[value] = i;
             i += 1;
         }
 
@@ -98,22 +99,22 @@ impl QrField {
         if value == 0 {
             return Err(ReedSolomonError::TooManyErrors);
         }
-        Ok(self.log_table[value as usize] as usize)
+        Ok(self.log_table[usize::from(value)])
     }
 
     fn inverse(&self, value: u8) -> Result<u8, ReedSolomonError> {
         if value == 0 {
             return Err(ReedSolomonError::TooManyErrors);
         }
-        Ok(self.exp_table[FIELD_SIZE - 1 - self.log_table[value as usize] as usize])
+        Ok(self.exp_table[FIELD_ORDER - self.log_table[usize::from(value)]])
     }
 
     fn multiply(&self, a: u8, b: u8) -> u8 {
         if a == 0 || b == 0 {
             return 0;
         }
-        let log_sum = self.log_table[a as usize] as usize + self.log_table[b as usize] as usize;
-        self.exp_table[log_sum % (FIELD_SIZE - 1)]
+        let log_sum = self.log_table[usize::from(a)] + self.log_table[usize::from(b)];
+        self.exp_table[log_sum % FIELD_ORDER]
     }
 }
 
@@ -188,9 +189,9 @@ fn find_error_locations(
     }
 
     let mut result = Vec::with_capacity(num_errors);
-    for i in 1..FIELD_SIZE {
-        if poly_eval(field, error_locator, i as u8) == 0 {
-            result.push(field.inverse(i as u8)?);
+    for value in 1..=u8::MAX {
+        if poly_eval(field, error_locator, value) == 0 {
+            result.push(field.inverse(value)?);
             if result.len() == num_errors {
                 break;
             }

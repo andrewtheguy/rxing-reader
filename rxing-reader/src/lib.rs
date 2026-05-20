@@ -8,7 +8,7 @@ use decode_hints::DecodeHints;
 use error::Error;
 use luma_source::{Luma8LuminanceSource, downscale_luma_buffer};
 use luminance_source::LuminanceSource;
-use point::{Point, PointI, point, point_i};
+use point::{Point, point, point_i};
 
 pub use decode::{decode_qr_codes_luma, rgba_to_luma};
 

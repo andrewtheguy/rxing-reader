@@ -573,8 +573,8 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Color {
-    White = 0,
-    Black = 1,
+    White,
+    Black,
 }
 
 impl<T: Into<PatternType>> From<T> for Color {

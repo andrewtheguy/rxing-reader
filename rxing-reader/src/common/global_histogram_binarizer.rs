@@ -160,7 +160,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
 
         // Find a valley between them that is low and closer to the white peak.
         let mut best_valley = second_peak as isize - 1;
-        let mut best_valley_score = -1;
+        let mut best_valley_score = None;
 
         let mut x = second_peak as isize;
         while x > first_peak as isize {
@@ -169,9 +169,12 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
                 * from_first
                 * (second_peak as isize - x)
                 * (max_bucket_count - buckets[x as usize]) as isize;
-            if score as i32 > best_valley_score {
+            if best_valley_score
+                .map(|best_score| score > best_score)
+                .unwrap_or(true)
+            {
                 best_valley = x;
-                best_valley_score = score as i32;
+                best_valley_score = Some(score);
             }
             x -= 1;
         }
