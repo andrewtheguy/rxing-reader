@@ -291,7 +291,7 @@ pub fn decode_bit_stream(
                     } else {
                         return Err(Error::InvalidFormat {
                             message: format!(
-                                "Invalid AIM Application Indicator value {app_ind} (expected 0..100, 165..=190, or 197..=222)"
+                                "Invalid AIM Application Indicator value {app_ind} (expected 0..=99, 165..=190, or 197..=222)"
                             ),
                         }
                         .into());

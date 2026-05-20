@@ -183,7 +183,10 @@ impl Luma8LuminanceSource {
             })?;
         if data.len() != expected {
             return Err(Error::InvalidArgument {
-                message: format!("luma length {} != width*height ({expected})", data.len()),
+                message: format!(
+                    "Luma8LuminanceSource::new: luma length {} != width*height ({expected})",
+                    data.len()
+                ),
             }
             .into());
         }
