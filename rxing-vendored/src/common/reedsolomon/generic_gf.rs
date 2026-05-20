@@ -107,7 +107,7 @@ impl GenericGF {
      * @return multiplicative inverse of a
      */
     pub fn inverse(&self, a: i32) -> Result<i32> {
-        if a == 0 {
+        if a <= 0 || a >= self.size as i32 {
             return Err(Exceptions::ARITHMETIC);
         }
         let log_t_loc: usize = a as usize;

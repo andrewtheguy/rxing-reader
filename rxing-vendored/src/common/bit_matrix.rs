@@ -654,8 +654,20 @@ impl BitMatrix {
         result
     }
 
-    pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> BitMatrix {
-        let mut new_bm = BitMatrix::new(width as u32, height as u32).expect("create empty");
+    pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> Result<BitMatrix> {
+        if width == 0 || height == 0 {
+            return Err(Exceptions::illegal_argument_with(
+                "crop width and height must be greater than 0",
+            ));
+        }
+        if left.saturating_add(width) > self.width as usize
+            || top.saturating_add(height) > self.height as usize
+        {
+            return Err(Exceptions::illegal_argument_with(
+                "crop region must fit inside the matrix",
+            ));
+        }
+        let mut new_bm = BitMatrix::new(width as u32, height as u32)?;
         for y in top..top + height {
             for x in left..left + width {
                 if self.get(x as u32, y as u32) {
@@ -665,7 +677,7 @@ impl BitMatrix {
                 }
             }
         }
-        new_bm
+        Ok(new_bm)
     }
 
     #[inline(always)]

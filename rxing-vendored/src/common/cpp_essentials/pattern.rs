@@ -201,7 +201,7 @@ impl<'a> PatternView<'a> {
             .saturating_sub(1)
     }
     pub fn is_at_first_bar(&self) -> bool {
-        self.start == (self.current + 1)
+        self.current == 0
     }
     pub fn is_at_last_bar(&self) -> bool {
         self.current == self.start + self.count - 1
@@ -298,12 +298,14 @@ impl std::ops::Index<isize> for PatternView<'_> {
     type Output = PatternType;
 
     fn index(&self, index: isize) -> &Self::Output {
-        if self.count == self.data.len() {
-            return &self.data[index.unsigned_abs()];
+        if self.count == self.data.len() && index >= 0 {
+            return &self.data[index as usize];
         }
-
         if self.try_get_index(index).is_none() {
-            panic!("array index out of bounds")
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.count, index
+            )
         }
         let fetch_spot = ((self.start + self.current) as isize + index) as usize;
         &self.data.0[fetch_spot]
@@ -346,7 +348,8 @@ impl<'a> From<&PatternView<'a>> for Vec<PatternType> {
 impl<'a, const LEN: usize> From<&PatternView<'a>> for [PatternType; LEN] {
     fn from(value: &PatternView<'a>) -> Self {
         let mut result = [PatternType::default(); LEN];
-        for i in 0..value.count {
+        let copy_len = std::cmp::min(value.count, LEN);
+        for i in 0..copy_len {
             result[i] = value[i];
         }
         result
@@ -514,6 +517,9 @@ pub fn is_pattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPA
     }
 
     let width = view.sum(Some(LEN));
+    if SUM == 0 {
+        return 0.0;
+    }
     if SUM > LEN && Into::<usize>::into(width) < SUM {
         return 0.0;
     }

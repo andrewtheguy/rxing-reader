@@ -152,7 +152,7 @@ pub fn average_edge_pixels<T: BitMatrixCursorTrait>(
             return None;
         }
         cur.step_to_edge(Some(1), Some(range), None);
-        sum += cur.p().centered() + (cur.p() + cur.back()).centered()
+        sum += cur.p().centered() + (cur.p() + cur.back()).centered();
     }
     Some(sum / (2 * num_of_edges) as f32)
 }

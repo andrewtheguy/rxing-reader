@@ -64,9 +64,14 @@ pub fn to_int(a: &[u32]) -> Option<u32> {
         return None;
     }
 
-    let mut pattern = 0;
+    let mut pattern: u32 = 0;
     for (i, element) in a.iter().copied().enumerate() {
-        pattern = (pattern << element) | (!(0xffffffff << element) * (!i & 1) as u32);
+        if element > 32 {
+            return None;
+        }
+        let shifted = pattern.checked_shl(element).unwrap_or(0);
+        let mask = !0xffffffffu32.checked_shl(element).unwrap_or(0);
+        pattern = shifted | (mask * ((!i & 1) as u32));
     }
 
     Some(pattern)
