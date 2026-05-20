@@ -2,7 +2,9 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use image::ImageReader;
-use rxing_reader::{Mode, QrSymbol, decode_qr_codes_luma, rgba_to_luma};
+use rxing_reader::{
+    AIFlag, Eci, ErrorCorrectionLevel, Mode, QrSymbol, decode_qr_codes_luma, rgba_to_luma,
+};
 
 fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, usize, usize) {
     let mut full = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -33,6 +35,133 @@ const ALL_COMBOS: [(bool, bool, bool); 8] = [
     (true, true, true),
 ];
 
+const FAST_QR_GENERATED_MARGIN_MODULES: usize = 4;
+const FAST_QR_GENERATED_SCALE: usize = 4;
+
+#[derive(Clone, Copy)]
+struct FastQrGeneratedFixture {
+    file_name: &'static str,
+    payload: &'static [u8],
+    version: u32,
+    error_correction_level: ErrorCorrectionLevel,
+    mask: u8,
+    modes: &'static [Mode],
+    ecis: &'static [Eci],
+}
+
+impl FastQrGeneratedFixture {
+    fn path(&self) -> String {
+        format!("tests/fixtures/fast_qr/{}", self.file_name)
+    }
+
+    fn expected_side_pixels(&self) -> usize {
+        let module_count = self.version as usize * 4 + 17;
+        (module_count + FAST_QR_GENERATED_MARGIN_MODULES * 2) * FAST_QR_GENERATED_SCALE
+    }
+}
+
+const FAST_QR_GENERATED_FIXTURES: &[FastQrGeneratedFixture] = &[
+    FastQrGeneratedFixture {
+        file_name: "numeric_l_v01_mask0.png",
+        payload: b"01234567",
+        version: 1,
+        error_correction_level: ErrorCorrectionLevel::L,
+        mask: 0,
+        modes: &[Mode::Numeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "alphanumeric_m_v02_mask1.png",
+        payload: b"FAST QR-42",
+        version: 2,
+        error_correction_level: ErrorCorrectionLevel::M,
+        mask: 1,
+        modes: &[Mode::Alphanumeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "byte_q_v03_mask2.png",
+        payload: b"byte/q/v03/\x00\xff",
+        version: 3,
+        error_correction_level: ErrorCorrectionLevel::Q,
+        mask: 2,
+        modes: &[Mode::Byte],
+        ecis: &[Eci::Unknown],
+    },
+    FastQrGeneratedFixture {
+        file_name: "byte_h_v04_mask3.png",
+        payload: b"byte h v04 mask3",
+        version: 4,
+        error_correction_level: ErrorCorrectionLevel::H,
+        mask: 3,
+        modes: &[Mode::Byte],
+        ecis: &[Eci::Unknown],
+    },
+    FastQrGeneratedFixture {
+        file_name: "numeric_m_v05_mask4.png",
+        payload: b"3141592653589793238462643383279",
+        version: 5,
+        error_correction_level: ErrorCorrectionLevel::M,
+        mask: 4,
+        modes: &[Mode::Numeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "alphanumeric_q_v06_mask5.png",
+        payload: b"MASK 5 ALPHANUMERIC QR",
+        version: 6,
+        error_correction_level: ErrorCorrectionLevel::Q,
+        mask: 5,
+        modes: &[Mode::Alphanumeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "byte_l_v07_mask6.png",
+        payload: b"byte/l/v07/mask6\x10\x11",
+        version: 7,
+        error_correction_level: ErrorCorrectionLevel::L,
+        mask: 6,
+        modes: &[Mode::Byte],
+        ecis: &[Eci::Unknown],
+    },
+    FastQrGeneratedFixture {
+        file_name: "byte_h_v08_mask7.png",
+        payload: b"byte h v08 mask7",
+        version: 8,
+        error_correction_level: ErrorCorrectionLevel::H,
+        mask: 7,
+        modes: &[Mode::Byte],
+        ecis: &[Eci::Unknown],
+    },
+    FastQrGeneratedFixture {
+        file_name: "numeric_l_v10_mask0.png",
+        payload: b"01234567890123456789012345678901234567890123456789",
+        version: 10,
+        error_correction_level: ErrorCorrectionLevel::L,
+        mask: 0,
+        modes: &[Mode::Numeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "alphanumeric_m_v27_mask1.png",
+        payload: b"VERSION 27 ALPHA MODE",
+        version: 27,
+        error_correction_level: ErrorCorrectionLevel::M,
+        mask: 1,
+        modes: &[Mode::Alphanumeric],
+        ecis: &[Eci::ISO8859_1],
+    },
+    FastQrGeneratedFixture {
+        file_name: "byte_q_v40_mask2.png",
+        payload: b"version 40 byte fixture from fast_qr",
+        version: 40,
+        error_correction_level: ErrorCorrectionLevel::Q,
+        mask: 2,
+        modes: &[Mode::Byte],
+        ecis: &[Eci::Unknown],
+    },
+];
+
 fn decode_combo(
     rgba: &[u8],
     w: usize,
@@ -54,6 +183,83 @@ fn decode_combo_symbol(
         .expect("decode")
         .into_iter()
         .next()
+}
+
+fn assert_fast_qr_fixture_symbol(
+    symbol: &QrSymbol,
+    fixture: &FastQrGeneratedFixture,
+    combo: (bool, bool, bool),
+) {
+    assert_eq!(
+        symbol.bytes.as_slice(),
+        fixture.payload,
+        "payload mismatch for {} combo={:?}",
+        fixture.file_name,
+        combo
+    );
+    assert_eq!(
+        symbol.version, fixture.version,
+        "version mismatch for {} combo={:?}",
+        fixture.file_name, combo
+    );
+    assert_eq!(
+        symbol.error_correction_level, fixture.error_correction_level,
+        "EC level mismatch for {} combo={:?}",
+        fixture.file_name, combo
+    );
+    assert_eq!(
+        symbol.mask, fixture.mask,
+        "mask mismatch for {} combo={:?}",
+        fixture.file_name, combo
+    );
+    assert_eq!(
+        symbol.modes.as_slice(),
+        fixture.modes,
+        "mode metadata mismatch for {} combo={:?}",
+        fixture.file_name,
+        combo
+    );
+    assert_eq!(
+        symbol.ecis.as_slice(),
+        fixture.ecis,
+        "ECI metadata mismatch for {} combo={:?}",
+        fixture.file_name,
+        combo
+    );
+    assert_eq!(
+        symbol.structured_append, None,
+        "unexpected structured append metadata for {} combo={:?}",
+        fixture.file_name, combo
+    );
+    assert_eq!(symbol.symbology.code, b'Q');
+    assert_eq!(symbol.symbology.modifier, b'1');
+    assert_eq!(symbol.symbology.eci_modifier_offset, 1);
+    assert_eq!(symbol.symbology.ai_flag, AIFlag::None);
+}
+
+#[test]
+fn decodes_fast_qr_generated_fixtures_and_pins_metadata() {
+    for fixture in FAST_QR_GENERATED_FIXTURES {
+        let path = fixture.path();
+        let (rgba, width, height) = load_image_as_rgba(&path);
+        let expected_side_pixels = fixture.expected_side_pixels();
+        assert_eq!(
+            (width, height),
+            (expected_side_pixels, expected_side_pixels),
+            "{} dimensions should match its forced QR version",
+            fixture.file_name
+        );
+
+        for combo in ALL_COMBOS {
+            let symbol = decode_combo_symbol(&rgba, width, height, combo).unwrap_or_else(|| {
+                panic!(
+                    "{} failed to decode for combo={:?}",
+                    fixture.file_name, combo
+                )
+            });
+            assert_fast_qr_fixture_symbol(&symbol, fixture, combo);
+        }
+    }
 }
 
 #[test]
