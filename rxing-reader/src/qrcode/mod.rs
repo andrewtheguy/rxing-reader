@@ -2,6 +2,7 @@ mod cpp_port;
 mod error_correction_level;
 mod format_information;
 mod mode;
+mod reed_solomon;
 mod version;
 mod version_build_versions_arrays;
 
