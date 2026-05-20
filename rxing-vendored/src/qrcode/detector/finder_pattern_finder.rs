@@ -705,21 +705,15 @@ impl<'a> FinderPatternFinder<'_> {
         let mut best_patterns = [None; 3];
 
         for i in 0..self.possible_centers.len() {
-            let Some(fpi) = self.possible_centers.get(i) else {
-                return Err(Error::NotFound(None).into());
-            };
+            let fpi = &self.possible_centers[i];
             let min_module_size = fpi.get_estimated_module_size();
 
             for j in (i + 1)..(self.possible_centers.len() - 1) {
-                let Some(fpj) = self.possible_centers.get(j) else {
-                    return Err(Error::NotFound(None).into());
-                };
+                let fpj = &self.possible_centers[j];
                 let squares0 = Self::squared_distance(fpi, fpj);
 
                 for k in (j + 1)..(self.possible_centers.len()) {
-                    let Some(fpk) = self.possible_centers.get(k) else {
-                        return Err(Error::NotFound(None).into());
-                    };
+                    let fpk = &self.possible_centers[k];
                     let max_module_size = fpk.get_estimated_module_size();
                     if max_module_size > min_module_size * 1.4 {
                         // module size is not similar
