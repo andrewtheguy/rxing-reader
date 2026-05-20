@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: rxing-wasm/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: npm ci
         working-directory: rxing-wasm
       - run: cargo clippy --workspace --all-targets

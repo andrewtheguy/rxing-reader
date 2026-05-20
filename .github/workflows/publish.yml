@@ -53,7 +53,7 @@ jobs:
           cache: npm
           cache-dependency-path: rxing-wasm/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
 
       - run: npm ci
         working-directory: rxing-wasm
@@ -95,6 +95,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
       - run: cargo build -p rxing-cli --release
 
