@@ -1,4 +1,4 @@
-use rxing::decode::{decode_inner, rgba_to_luma};
+use rxing_reader::decode::{decode_inner, rgba_to_luma};
 use wasm_bindgen::prelude::*;
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
