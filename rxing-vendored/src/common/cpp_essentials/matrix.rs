@@ -65,7 +65,7 @@ impl<T: Default + Clone + Copy> Matrix<T> {
 
     pub fn set(&mut self, x: usize, y: usize, value: T) -> Result<T> {
         if x >= self.width || y >= self.height {
-            return Err(Error::out_of_bounds(format!(
+            return Err(Error::invalid_argument(format!(
                 "set: coordinates ({x}, {y}) outside {}x{} matrix",
                 self.width, self.height
             ))
@@ -89,7 +89,7 @@ impl<T: Default + Clone + Copy> Matrix<T> {
             .into());
         }
         if p.x < 0.0 || p.y < 0.0 {
-            return Err(Error::out_of_bounds(format!(
+            return Err(Error::invalid_argument(format!(
                 "set_point: negative coordinates ({}, {})",
                 p.x, p.y
             ))
@@ -98,14 +98,14 @@ impl<T: Default + Clone + Copy> Matrix<T> {
         let x = f64::from(p.x);
         let y = f64::from(p.y);
         if x >= self.width as f64 || y >= self.height as f64 {
-            return Err(Error::out_of_bounds(format!(
+            return Err(Error::invalid_argument(format!(
                 "set_point: coordinates ({}, {}) outside {}x{} matrix",
                 p.x, p.y, self.width, self.height
             ))
             .into());
         }
         if x > usize::MAX as f64 || y > usize::MAX as f64 {
-            return Err(Error::out_of_bounds(format!(
+            return Err(Error::invalid_argument(format!(
                 "set_point: coordinates ({}, {}) cannot be represented as usize",
                 p.x, p.y
             ))

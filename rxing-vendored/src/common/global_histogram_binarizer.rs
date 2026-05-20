@@ -69,7 +69,11 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
 
             let local_luminances = source
                 .get_row(y)
-                .ok_or(Error::out_of_bounds("row out of bounds"))?;
+                .ok_or_else(|| {
+                    Error::invalid_state(format!(
+                        "luminance source returned no data for row {y}"
+                    ))
+                })?;
             let mut local_buckets = [0; LUMINANCE_BUCKETS];
             for x in 0..width {
                 local_buckets[((local_luminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
@@ -202,7 +206,11 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
             let row = height * y / 5;
             let local_luminances = source
                 .get_row(row)
-                .ok_or(Error::out_of_bounds("row out of bounds"))?;
+                .ok_or_else(|| {
+                    Error::invalid_state(format!(
+                        "luminance source returned no data for sampled row {row}"
+                    ))
+                })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
                 local_buckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;

@@ -158,7 +158,7 @@ impl<'a> AlignmentPatternFinder<'a> {
         // Hmm, nothing we saw was observed and confirmed twice. If we had
         // any guess at all, return it.
         if !self.possible_centers.is_empty() {
-            Ok(*(self.possible_centers.first().ok_or(Error::OutOfBounds))?)
+            Ok(self.possible_centers[0])
         } else {
             Err(Error::NotFound.into())
         }

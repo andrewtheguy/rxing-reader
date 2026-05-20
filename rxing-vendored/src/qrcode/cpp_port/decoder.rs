@@ -106,7 +106,7 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     ];
 
     if value >= (ALPHANUMERIC_CHARS.len()) {
-        return Err(Error::out_of_bounds("oAlphaNumericChar: out of range").into());
+        return Err(Error::invalid_format("to_alpha_numeric_char: invalid symbol value").into());
     }
 
     Ok(ALPHANUMERIC_CHARS[value])
@@ -137,8 +137,8 @@ pub fn decode_alphanumeric_segment(
         // We need to massage the result a bit if in an FNC1 mode:
         let mut i = 0;
         while i < buffer.len() {
-            if buffer.get(i).ok_or(Error::OutOfBounds)? == &'%' {
-                if i + 1 < buffer.len() && buffer.get(i + 1).ok_or(Error::OutOfBounds)? == &'%' {
+            if buffer[i] == '%' {
+                if i + 1 < buffer.len() && buffer[i + 1] == '%' {
                     buffer.remove(i + 1);
                 } else {
                     // In alpha mode, % should be converted to FNC1 separator 0x1D

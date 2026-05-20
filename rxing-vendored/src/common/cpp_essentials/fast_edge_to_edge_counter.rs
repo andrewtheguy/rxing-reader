@@ -25,7 +25,7 @@ impl FastEdgeToEdgeCounter<'_> {
             .checked_mul(height)
             .ok_or_else(|| Error::invalid_argument("FastEdgeToEdgeCounter: image size overflow"))?;
         if !(0..image_len).contains(&p) {
-            return Err(Error::out_of_bounds(
+            return Err(Error::invalid_argument(
                 "FastEdgeToEdgeCounter: cursor position is outside the image",
             )
             .into());

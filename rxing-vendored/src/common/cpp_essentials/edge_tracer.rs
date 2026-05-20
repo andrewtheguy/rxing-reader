@@ -273,9 +273,11 @@ impl<'a> EdgeTracer<'_> {
                 if !line.evaluate_max_distance(None, None) {
                     return Ok(false);
                 }
+                let first_point = line.points().first().copied().ok_or_else(|| {
+                    Error::invalid_state("trace line has no anchor point")
+                })?;
                 if !self.update_direction_from_origin(
-                    self.p - line.project(self.p)
-                        + **line.points().first().as_ref().ok_or(Error::OutOfBounds)?,
+                    self.p - line.project(self.p) + first_point,
                 ) {
                     return Ok(false);
                 }
@@ -310,9 +312,7 @@ impl<'a> EdgeTracer<'_> {
                 return Ok(false);
             }
 
-            if !line.points().is_empty()
-                && &&self.p == line.points().last().as_ref().ok_or(Error::OutOfBounds)?
-            {
+            if line.points().last().is_some_and(|last| self.p == *last) {
                 return Ok(false);
             }
 
@@ -348,12 +348,18 @@ impl<'a> EdgeTracer<'_> {
                 // The 'while' instead of 'if' was introduced to fix the issue with #245. It turns out that
                 // np can actually be behind the projection of the last line point and we need 2 steps in d
                 // to prevent a dead lock. see #245.png
+                let mut last_point = line.points().last().copied().ok_or_else(|| {
+                    Error::invalid_state("trace line lost its trailing point")
+                })?;
                 while Point::distance(
                     np,
-                    line.project(line.points().last().copied().ok_or(Error::OutOfBounds)?),
+                    line.project(last_point),
                 ) < 1.0
                 {
                     np += self.d;
+                    last_point = line.points().last().copied().ok_or_else(|| {
+                        Error::invalid_state("trace line lost its trailing point")
+                    })?;
                 }
                 self.p = Point::centered(np);
             } else {
@@ -362,7 +368,10 @@ impl<'a> EdgeTracer<'_> {
                 } else {
                     Point::dot(
                         Point::main_direction(self.d),
-                        self.p - line.points().last().copied().ok_or(Error::OutOfBounds)?,
+                        self.p
+                            - line.points().last().copied().ok_or_else(|| {
+                                Error::invalid_state("trace line lost its trailing point")
+                            })?,
                     )
                 };
                 line.add(self.p)?;
@@ -373,9 +382,11 @@ impl<'a> EdgeTracer<'_> {
                         if !line.evaluate_max_distance(Some(1.5), None) {
                             return Ok(false);
                         }
+                        let first_point = line.points().first().copied().ok_or_else(|| {
+                            Error::invalid_state("trace line has no anchor point")
+                        })?;
                         if !self.update_direction_from_origin(
-                            self.p - line.project(self.p)
-                                + line.points().first().copied().ok_or(Error::OutOfBounds)?,
+                            self.p - line.project(self.p) + first_point,
                         ) {
                             return Ok(false);
                         }

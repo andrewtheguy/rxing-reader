@@ -38,10 +38,6 @@ pub enum Error {
     Writer,
     #[error("writer error: {0}")]
     WriterMessage(String),
-    #[error("index out of bounds")]
-    OutOfBounds,
-    #[error("index out of bounds: {0}")]
-    OutOfBoundsMessage(String),
     #[error("runtime error")]
     Runtime,
     #[error("runtime error: {0}")]
@@ -89,10 +85,6 @@ impl Error {
 
     pub fn writer(message: impl Into<String>) -> Self {
         Self::WriterMessage(message.into())
-    }
-
-    pub fn out_of_bounds(message: impl Into<String>) -> Self {
-        Self::OutOfBoundsMessage(message.into())
     }
 
     pub fn runtime(message: impl Into<String>) -> Self {

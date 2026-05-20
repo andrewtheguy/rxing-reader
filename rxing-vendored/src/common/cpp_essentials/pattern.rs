@@ -589,7 +589,10 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
     if window.is_at_first_bar() && is_guard(&window, Some(f32::MAX)) {
         return Ok(window);
     }
-    let end = Into::<usize>::into(view.end().ok_or(Error::OutOfBounds)?) - min_size;
+    let end = Into::<usize>::into(
+        view.end()
+            .ok_or_else(|| Error::invalid_state("pattern view has no end index"))?,
+    ) - min_size;
     while (window.start + window.current) < end {
         let prev = window.try_get_index(PREV_IDX).map(|v| v as f32);
         if is_guard(&window, prev) {

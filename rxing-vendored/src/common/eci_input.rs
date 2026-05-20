@@ -20,91 +20,34 @@ use anyhow::Result;
 
 use super::Eci;
 
-/**
- * Interface to navigate a sequence of ECIs and bytes.
- *
- * @author Alex Geller
- */
+/// Interface to navigate a sequence of ECIs and bytes.
 pub trait ECIInput: Display {
-    /**
-     * Returns the length of this input.  The length is the number
-     * of {@code byte}s in or ECIs in the sequence.
-     *
-     * @return  the number of {@code char}s in this sequence
-     */
+    /// Returns the length of this input. The length is the number of bytes or
+    /// ECIs in the sequence.
     fn length(&self) -> usize;
 
-    /**
-     * Returns the {@code byte} value at the specified index.  An index ranges from zero
-     * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
-     * index zero, the next at index one, and so on, as for array
-     * indexing.
-     *
-     * @param   index the index of the {@code byte} value to be returned
-     *
-     * @return  the specified {@code byte} value as character or the FNC1 character
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     * Returns an invalid-argument error
-     *          if the value at the {@code index} argument is an ECI (@see #is_eci)
-     */
+    /// Returns the character at the specified index or the FNC1 character.
+    ///
+    /// Returns an invalid-argument error if `index >= length()` or if the value
+    /// at `index` is an ECI.
     fn char_at(&self, index: usize) -> Result<char>;
 
-    /**
-     * Returns a {@code CharSequence} that is a subsequence of this sequence.
-     * The subsequence starts with the {@code char} value at the specified index and
-     * ends with the {@code char} value at index {@code end - 1}.  The length
-     * (in {@code char}s) of the
-     * returned sequence is {@code end - start}, so if {@code start == end}
-     * then an empty sequence is returned.
-     *
-     * @param   start   the start index, inclusive
-     * @param   end     the end index, exclusive
-     *
-     * @return  the specified subsequence
-     *
-     * Returns an out-of-bounds error
-     *          if {@code start} or {@code end} are negative,
-     *          if {@code end} is greater than {@code length()},
-     *          or if {@code start} is greater than {@code end}
-     * Returns an invalid-argument error
-     *          if a value in the range {@code start}-{@code end} is an ECI (@see #is_eci)
-     */
+    /// Returns the subsequence in the half-open range `start..end`.
+    ///
+    /// Returns an invalid-argument error if `end > length()`, `start > end`, or
+    /// any value in the range is an ECI.
     fn sub_sequence(&self, start: usize, end: usize) -> Result<Vec<char>>;
 
-    /**
-     * Determines if a value is an ECI
-     *
-     * @param   index the index of the value
-     *
-     * @return  true if the value at position {@code index} is an ECI
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     */
+    /// Returns `true` if the value at `index` is an ECI.
+    ///
+    /// Returns an invalid-argument error if `index >= length()`.
     fn is_eci(&self, index: usize) -> Result<bool>;
 
-    /**
-     * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
-     * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
-     * index zero, the next at index one, and so on, as for array
-     * indexing.
-     *
-     * @param   index the index of the {@code int} value to be returned
-     *
-     * @return  the specified {@code int} ECI value.
-     *          The ECI specified the encoding of all bytes with a higher index until the
-     *          next ECI or until the end of the input if no other ECI follows.
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     * Returns an invalid-argument error
-     *          if the value at the {@code index} argument is not an ECI (@see #is_eci)
-     */
+    /// Returns the ECI value at the specified index.
+    ///
+    /// Returns an invalid-argument error if `index >= length()` or if the value
+    /// at `index` is not an ECI.
     fn get_ecivalue(&self, index: usize) -> Result<Eci>;
+
     fn have_ncharacters(&self, index: usize, n: usize) -> Result<bool>;
 }

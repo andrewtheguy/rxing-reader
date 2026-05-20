@@ -27,48 +27,22 @@ use super::{CharacterSet, ECIEncoderSet, ECIInput, Eci};
 pub const COST_PER_ECI: usize = 3;
 const FNC1: u16 = 1000;
 
-/**
- * Class that converts a character string into a sequence of ECIs and bytes
- *
- * The implementation uses the Dijkstra algorithm to produce minimal encodings
- *
- * @author Alex Geller
- */
+/// Converts a character string into a sequence of ECIs and bytes.
+///
+/// The implementation uses the Dijkstra algorithm to produce minimal encodings.
 pub struct MinimalECIInput {
     bytes: Vec<u16>,
     fnc1: u16,
 }
 
 impl ECIInput for MinimalECIInput {
-    /**
-     * Returns the length of this input.  The length is the number
-     * of {@code byte}s, FNC1 characters or ECIs in the sequence.
-     *
-     * @return  the number of {@code char}s in this sequence
-     */
     fn length(&self) -> usize {
         self.bytes.len()
     }
 
-    /**
-     * Returns the {@code byte} value at the specified index.  An index ranges from zero
-     * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
-     * index zero, the next at index one, and so on, as for array
-     * indexing.
-     *
-     * @param   index the index of the {@code byte} value to be returned
-     *
-     * @return  the specified {@code byte} value as character or the FNC1 character
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     * Returns an invalid-argument error
-     *          if the value at the {@code index} argument is an ECI (@see #is_eci)
-     */
     fn char_at(&self, index: usize) -> Result<char> {
         if index >= self.length() {
-            return Err(Error::out_of_bounds(index.to_string()).into());
+            return Err(self.invalid_index(index).into());
         }
         if self.is_fnc1(index)? {
             Ok(self.fnc1 as u8 as char)
@@ -82,29 +56,9 @@ impl ECIInput for MinimalECIInput {
         }
     }
 
-    /**
-     * Returns a {@code CharSequence} that is a subsequence of this sequence.
-     * The subsequence starts with the {@code char} value at the specified index and
-     * ends with the {@code char} value at index {@code end - 1}.  The length
-     * (in {@code char}s) of the
-     * returned sequence is {@code end - start}, so if {@code start == end}
-     * then an empty sequence is returned.
-     *
-     * @param   start   the start index, inclusive
-     * @param   end     the end index, exclusive
-     *
-     * @return  the specified subsequence
-     *
-     * Returns an out-of-bounds error
-     *          if {@code start} or {@code end} are negative,
-     *          if {@code end} is greater than {@code length()},
-     *          or if {@code start} is greater than {@code end}
-     * Returns an invalid-argument error
-     *          if a value in the range {@code start}-{@code end} is an ECI (@see #is_eci)
-     */
     fn sub_sequence(&self, start: usize, end: usize) -> Result<Vec<char>> {
         if start > end || end > self.length() {
-            return Err(Error::OutOfBounds.into());
+            return Err(self.invalid_range(start, end).into());
         }
         let mut result = Vec::with_capacity(end - start);
         for i in start..end {
@@ -119,45 +73,16 @@ impl ECIInput for MinimalECIInput {
         Ok(result)
     }
 
-    /**
-     * Determines if a value is an ECI
-     *
-     * @param   index the index of the value
-     *
-     * @return  true if the value at position {@code index} is an ECI
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     */
     fn is_eci(&self, index: usize) -> Result<bool> {
         if index >= self.length() {
-            return Err(Error::OutOfBounds.into());
+            return Err(self.invalid_index(index).into());
         }
         Ok(self.bytes[index] > 255 && self.bytes[index] != FNC1)
     }
 
-    /**
-     * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
-     * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
-     * index zero, the next at index one, and so on, as for array
-     * indexing.
-     *
-     * @param   index the index of the {@code int} value to be returned
-     *
-     * @return  the specified {@code int} ECI value.
-     *          The ECI specified the encoding of all bytes with a higher index until the
-     *          next ECI or until the end of the input if no other ECI follows.
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     * Returns an invalid-argument error
-     *          if the value at the {@code index} argument is not an ECI (@see #is_eci)
-     */
     fn get_ecivalue(&self, index: usize) -> Result<Eci> {
         if index >= self.length() {
-            return Err(Error::OutOfBounds.into());
+            return Err(self.invalid_index(index).into());
         }
         if !self.is_eci(index)? {
             return Err(Error::invalid_argument(format!(
@@ -181,6 +106,20 @@ impl ECIInput for MinimalECIInput {
     }
 }
 impl MinimalECIInput {
+    fn invalid_index(&self, index: usize) -> Error {
+        Error::invalid_argument(format!(
+            "index {index} out of range for input length {}",
+            self.length()
+        ))
+    }
+
+    fn invalid_range(&self, start: usize, end: usize) -> Error {
+        Error::invalid_argument(format!(
+            "range {start}..{end} is invalid for input length {}",
+            self.length()
+        ))
+    }
+
     fn fnc1_value(fnc1: Option<&str>) -> Result<Option<u16>> {
         let Some(fnc1) = fnc1 else {
             return Ok(None);
@@ -205,17 +144,7 @@ impl MinimalECIInput {
             .ok_or_else(|| Error::invalid_argument("empty character segment").into())
     }
 
-    /**
-     * Constructs a minimal input
-     *
-     * @param string_to_encode the character string to encode
-     * @param priority_charset The preferred {@link Charset}. When the value of the argument is null, the algorithm
-     *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
-     *   charset to encode any character in the input that can be encoded by it if the charset is among the
-     *   supported charsets.
-     * @param fnc1 denotes the character in the input that represents the FNC1 character or -1 if this is not GS1
-     *   input.
-     */
+        /// Constructs a minimal input.
     pub fn new(
         string_to_encode_input: &str,
         priority_charset: Option<CharacterSet>,
@@ -252,20 +181,12 @@ impl MinimalECIInput {
         self.fnc1
     }
 
-    /**
-     * Determines if a value is the FNC1 character
-     *
-     * @param   index the index of the value
-     *
-     * @return  true if the value at position {@code index} is the FNC1 character
-     *
-     * Returns an out-of-bounds error
-     *          if the {@code index} argument is negative or not less than
-     *          {@code length()}
-     */
+    /// Returns `true` if the value at `index` is the FNC1 character.
+    ///
+    /// Returns an invalid-argument error if `index >= length()`.
     pub fn is_fnc1(&self, index: usize) -> Result<bool> {
         if index >= self.length() {
-            return Err(Error::OutOfBounds.into());
+            return Err(self.invalid_index(index).into());
         }
         Ok(self.bytes[index] == FNC1)
     }
@@ -278,7 +199,12 @@ impl MinimalECIInput {
         let slot = edges
             .get_mut(to)
             .and_then(|row| row.get_mut(edge.encoder_index))
-            .ok_or_else(|| Error::out_of_bounds(to.to_string()))?;
+            .ok_or_else(|| {
+                Error::invalid_state(format!(
+                    "edge graph is missing slot ({to}, {})",
+                    edge.encoder_index
+                ))
+            })?;
         let should_replace = match slot {
             Some(existing) => existing.cached_total_size > edge.cached_total_size,
             None => true,
@@ -300,7 +226,12 @@ impl MinimalECIInput {
         let ch = string_to_encode
             .get(from)
             .copied()
-            .ok_or_else(|| Error::out_of_bounds(from.to_string()))?;
+            .ok_or_else(|| {
+                Error::invalid_state(format!(
+                    "character position {from} is outside input of length {}",
+                    string_to_encode.len()
+                ))
+            })?;
 
         let mut start = 0;
         let mut end = encoder_set.len();

@@ -263,7 +263,11 @@ impl TryFrom<&Vec<Point>> for Quadrilateral {
         if value.len() == 4 {
             Ok(Self([value[0], value[1], value[2], value[3]]))
         } else {
-            Err(Error::OutOfBounds.into())
+            Err(Error::invalid_argument(format!(
+                "quadrilateral requires exactly 4 points, got {}",
+                value.len()
+            ))
+            .into())
         }
     }
 }

@@ -158,7 +158,13 @@ impl ECIEncoderSet {
         self.encoders
             .get(index)
             .copied()
-            .ok_or_else(|| Error::out_of_bounds(index.to_string()).into())
+            .ok_or_else(|| {
+                Error::invalid_argument(format!(
+                    "encoder index {index} out of range for {} encoders",
+                    self.encoders.len()
+                ))
+                .into()
+            })
     }
 
     pub fn get_eci(&self, encoder_index: usize) -> Result<Eci> {

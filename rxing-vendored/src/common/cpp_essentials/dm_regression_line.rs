@@ -244,10 +244,9 @@ impl DMRegressionLine {
         }
 
         // calculate the (expected average) distance of two adjacent pixels
-        let unit_pixel_dist = Point::length(Point::bresenham_direction(
-            self.points.last().copied().ok_or(Error::OutOfBounds)?
-                - self.points.first().copied().ok_or(Error::OutOfBounds)?,
-        )) as f64;
+        let first = self.points[0];
+        let last = self.points[self.points.len() - 1];
+        let unit_pixel_dist = Point::length(Point::bresenham_direction(last - first)) as f64;
 
         // calculate the width of 2 modules (first black pixel to first black pixel)
         let mut sum_front: f64 =
@@ -268,7 +267,7 @@ impl DMRegressionLine {
             sum_front
                 + Point::distance(
                     end,
-                    self.project(self.points.last().copied().ok_or(Error::OutOfBounds)?),
+                    self.project(last),
                 ) as f64,
         );
         mod_sizes[0] = 0.0; // the first element is an invalid sum_back value, would be pop_front() if vector supported this

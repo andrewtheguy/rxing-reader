@@ -623,16 +623,20 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 let mut i = 2;
                 while i < 2 * n + 2 && hori.len() < 2 {
                     let xi = x as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
-                    if 0 <= xi && xi <= n as isize && ap_p.get(xi as usize, y).is_some() {
-                        hori.push(ap_p.get(xi as usize, y).ok_or(Error::OutOfBounds)?);
+                    if 0 <= xi && xi <= n as isize
+                        && let Some(point) = ap_p.get(xi as usize, y)
+                    {
+                        hori.push(point);
                     }
                     i += 1;
                 }
                 let mut i = 2;
                 while i < 2 * n + 2 && verti.len() < 2 {
                     let yi = y as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
-                    if 0 <= yi && yi <= n as isize && ap_p.get(x, yi as usize).is_some() {
-                        verti.push(ap_p.get(x, yi as usize).ok_or(Error::OutOfBounds)?);
+                    if 0 <= yi && yi <= n as isize
+                        && let Some(point) = ap_p.get(x, yi as usize)
+                    {
+                        verti.push(point);
                     }
                     i += 1;
                 }
