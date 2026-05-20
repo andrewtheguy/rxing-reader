@@ -25,12 +25,12 @@ use crate::{LuminanceSource, common::BitMatrix};
 pub trait Binarizer {
     type Source: LuminanceSource;
 
-    fn get_luminance_source(&self) -> &Self::Source;
+    fn luminance_source(&self) -> &Self::Source;
 
     /// Converts the image to a black/white matrix for QR detection.
     /// Returns the image bits, where `true` means black.
     /// Returns an error if the image cannot be binarized into a matrix.
-    fn get_black_matrix(&self) -> Result<&BitMatrix>;
+    fn black_matrix(&self) -> Result<&BitMatrix>;
 
-    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix>;
+    fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix>;
 }

@@ -43,26 +43,26 @@ pub struct HybridBinarizer<LS: LuminanceSource> {
 impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
     type Source = LS;
 
-    fn get_luminance_source(&self) -> &LS {
-        self.ghb.get_luminance_source()
+    fn luminance_source(&self) -> &LS {
+        self.ghb.luminance_source()
     }
 
     /// Calculates the final BitMatrix once for all requests. This could be called once from the
     /// constructor instead, but there are some advantages to doing it lazily, such as making
     /// profiling easier, and not doing heavy lifting when callers don't expect it.
-    fn get_black_matrix(&self) -> Result<&BitMatrix> {
+    fn black_matrix(&self) -> Result<&BitMatrix> {
         let matrix = self
             .black_matrix
             .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
         Ok(matrix)
     }
 
-    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
+    fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.black_matrix
             .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
         self.black_matrix.get_mut().ok_or_else(|| {
             Error::InvalidState {
-                message: "black matrix cache was not initialized".to_owned(),
+                message: "black matrix cache was not initialized".into(),
             }
             .into()
         })
@@ -89,12 +89,12 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
     fn calculate_black_matrix<LS2: LuminanceSource>(
         ghb: &GlobalHistogramBinarizer<LS2>,
     ) -> Result<BitMatrix> {
-        let source = ghb.get_luminance_source();
-        let width = source.get_width();
-        let height = source.get_height();
+        let source = ghb.luminance_source();
+        let width = source.width();
+        let height = source.height();
 
         if width >= MINIMUM_DIMENSION && height >= MINIMUM_DIMENSION {
-            let luminances = source.get_matrix();
+            let luminances = source.matrix();
             let mut sub_width = width >> BLOCK_SIZE_POWER;
             if (width & BLOCK_SIZE_MASK) != 0 {
                 sub_width += 1;

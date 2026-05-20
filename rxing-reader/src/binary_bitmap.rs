@@ -34,15 +34,15 @@ impl<B: Binarizer> BinaryBitmap<B> {
 
     /// Returns the mutable image matrix, where `true` means black.
     /// Returns an error if the image cannot be binarized into a matrix.
-    pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
-        self.binarizer.get_black_matrix_mut()
+    pub fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
+        self.binarizer.black_matrix_mut()
     }
 
     /// Converts the image to a black/white matrix for QR detection.
     /// Returns the image matrix, where `true` means black.
     /// Returns an error if the image cannot be binarized into a matrix.
-    pub fn get_black_matrix(&self) -> Result<&BitMatrix> {
-        self.binarizer.get_black_matrix()
+    pub fn black_matrix(&self) -> Result<&BitMatrix> {
+        self.binarizer.black_matrix()
     }
 
     /// Apply a 3×3 morphological close to the cached BitMatrix: dilate (set
@@ -52,7 +52,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
     /// photos (cf. zxing-cpp's `tryDenoise`). The 1-pixel border is left
     /// unchanged. No-op if the matrix is smaller than 3×3.
     pub fn close(&mut self) -> Result<()> {
-        let matrix = self.get_black_matrix_mut()?;
+        let matrix = self.black_matrix_mut()?;
         let (w, h) = (matrix.width(), matrix.height());
         if w < 3 || h < 3 {
             return Ok(());
@@ -84,7 +84,7 @@ fn sum_filter_3x3<F: Fn(u8) -> bool>(input: &BitMatrix, output: &mut BitMatrix, 
 
 impl<B: Binarizer> fmt::Display for BinaryBitmap<B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.binarizer.get_black_matrix() {
+        match self.binarizer.black_matrix() {
             Ok(matrix) => write!(f, "{matrix:?}"),
             Err(_) => write!(f, "<unavailable>"),
         }

@@ -55,7 +55,10 @@ impl<'a> BitSource<'a> {
             if num_bits > available_bits {
                 message.push_str(&format!("; available bits: {available_bits}"));
             }
-            return Err(Error::InvalidArgument { message }.into());
+            return Err(Error::InvalidArgument {
+                message: message.into(),
+            }
+            .into());
         }
 
         let mut result: u32 = 0;
@@ -106,7 +109,10 @@ impl<'a> BitSource<'a> {
             if num_bits > available_bits {
                 message.push_str(&format!("; available bits: {available_bits}"));
             }
-            return Err(Error::InvalidArgument { message }.into());
+            return Err(Error::InvalidArgument {
+                message: message.into(),
+            }
+            .into());
         }
 
         let mut bit_offset = self.bit_offset;

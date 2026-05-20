@@ -260,7 +260,7 @@ impl TryFrom<&Vec<Point>> for Quadrilateral {
                 message: format!(
                     "quadrilateral requires exactly 4 points, got {}",
                     value.len()
-                ),
+                ).into(),
             }
             .into())
         }

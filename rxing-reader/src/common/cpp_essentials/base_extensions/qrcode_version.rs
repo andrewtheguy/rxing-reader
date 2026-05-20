@@ -17,7 +17,7 @@ impl Version {
             Err(Error::InvalidArgument {
                 message: format!(
                     "Version::model2: version_number {version_number} out of range (expected 1..=40)"
-                ),
+                ).into(),
             }
             .into())
         } else {
@@ -50,11 +50,11 @@ impl Version {
         // We can tolerate up to 3 bits of error since no two version info codewords will
         // differ in less than 8 bits.
         if best_difference <= 3 {
-            return Self::get_version_for_number(best_version as u32);
+            return Self::for_number(best_version as u32);
         }
         // If we didn't find a close enough match, fail
         Err(Error::InvalidState {
-            message: "required internal state is missing".to_owned(),
+            message: "required internal state is missing".into(),
         }
         .into())
     }
@@ -80,7 +80,7 @@ impl Version {
         Self::is_valid_size(point(matrix.width() as i32, matrix.height() as i32))
     }
 
-    pub fn number_point(size: PointI) -> u32 {
+    pub fn number_from_size(size: PointI) -> u32 {
         if Self::is_valid_size(size) {
             ((size.x - 17) / 4) as u32
         } else {
@@ -88,7 +88,7 @@ impl Version {
         }
     }
 
-    pub fn number(bit_matrix: &BitMatrix) -> u32 {
-        Self::number_point(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
+    pub fn number_from_matrix(bit_matrix: &BitMatrix) -> u32 {
+        Self::number_from_size(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
     }
 }

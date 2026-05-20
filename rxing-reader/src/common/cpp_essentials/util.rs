@@ -36,7 +36,7 @@ pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     }
     if val != 0 {
         return Err(Error::InvalidFormat {
-            message: "Invalid value".to_owned(),
+            message: "Invalid value".into(),
         }
         .into());
     }

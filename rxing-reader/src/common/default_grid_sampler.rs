@@ -32,7 +32,7 @@ impl GridSampler for DefaultGridSampler {
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".to_owned(),
+                message: "barcode pattern was not detected".into(),
             }
             .into());
         }
@@ -51,7 +51,7 @@ impl GridSampler for DefaultGridSampler {
                 || !is_inside(p0.x, p1.y - 1.0)
             {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".to_owned(),
+                    message: "barcode pattern was not detected".into(),
                 }
                 .into());
             }
@@ -64,7 +64,7 @@ impl GridSampler for DefaultGridSampler {
                     let p = transform
                         .transform_point(Point::from((x, y)).centered())
                         .ok_or(Error::NotFound {
-                            message: "barcode pattern was not detected".to_owned(),
+                            message: "barcode pattern was not detected".into(),
                         })?;
 
                     // Due to a "numerical instability" in the PerspectiveTransform generation/application it has been observed
@@ -74,12 +74,12 @@ impl GridSampler for DefaultGridSampler {
                     // TODO: Check some mathematical/numercial property of mod2_pix to determine if it is a perspective transforation.
                     if !image.is_in(p) {
                         return Err(Error::NotFound {
-                            message: "barcode pattern was not detected".to_owned(),
+                            message: "barcode pattern was not detected".into(),
                         }
                         .into());
                     }
 
-                    if image.get_point(p) {
+                    if image.at_point(p) {
                         bits.set(x as u32, y as u32);
                     }
                 }

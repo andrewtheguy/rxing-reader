@@ -46,13 +46,13 @@ impl ErrorCorrectionLevel {
             2 => Ok(Self::H),
             3 => Ok(Self::Q),
             _ => Err(Error::InvalidArgument {
-                message: format!("{bits} is not a valid bit selection"),
+                message: format!("{bits} is not a valid bit selection").into(),
             }
             .into()),
         }
     }
 
-    pub const fn get_value(&self) -> u8 {
+    pub const fn value(&self) -> u8 {
         match self {
             ErrorCorrectionLevel::L => 0x01,
             ErrorCorrectionLevel::M => 0x00,
@@ -62,7 +62,7 @@ impl ErrorCorrectionLevel {
         }
     }
 
-    pub const fn get_ordinal(&self) -> u8 {
+    pub const fn ordinal(&self) -> u8 {
         match self {
             ErrorCorrectionLevel::L => 0,
             ErrorCorrectionLevel::M => 1,
@@ -83,7 +83,7 @@ impl TryFrom<u8> for ErrorCorrectionLevel {
 
 impl From<ErrorCorrectionLevel> for u8 {
     fn from(value: ErrorCorrectionLevel) -> Self {
-        value.get_value()
+        value.value()
     }
 }
 
@@ -111,7 +111,7 @@ impl FromStr for ErrorCorrectionLevel {
         }
 
         Err(Error::InvalidArgument {
-            message: format!("could not parse {s} into an ec level"),
+            message: format!("could not parse {s} into an ec level").into(),
         }
         .into())
     }
@@ -135,14 +135,14 @@ mod tests {
 
     #[test]
     fn invalid_value_uses_distinct_sentinel() {
-        assert_eq!(ErrorCorrectionLevel::Invalid.get_value(), 0xFF);
+        assert_eq!(ErrorCorrectionLevel::Invalid.value(), 0xFF);
         assert_ne!(
-            ErrorCorrectionLevel::Invalid.get_value(),
-            ErrorCorrectionLevel::M.get_value()
+            ErrorCorrectionLevel::Invalid.value(),
+            ErrorCorrectionLevel::M.value()
         );
         assert_eq!(
             u8::from(ErrorCorrectionLevel::Invalid),
-            ErrorCorrectionLevel::Invalid.get_value()
+            ErrorCorrectionLevel::Invalid.value()
         );
     }
 }

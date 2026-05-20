@@ -170,11 +170,11 @@ pub fn generate_finder_pattern_sets(patterns: &mut FinderPatterns) -> FinderPatt
                 let mut dist_ac2 = squared_distance(*a, *c);
 
                 if dist_bc2 >= dist_ab2 && dist_bc2 >= dist_ac2 {
-                    std::mem::swap(&mut a, &mut b);
-                    std::mem::swap(&mut dist_bc2, &mut dist_ac2);
+                    (a, b) = (b, a);
+                    (dist_bc2, dist_ac2) = (dist_ac2, dist_bc2);
                 } else if dist_ab2 >= dist_ac2 && dist_ab2 >= dist_bc2 {
-                    std::mem::swap(&mut b, &mut c);
-                    std::mem::swap(&mut dist_ab2, &mut dist_ac2);
+                    (b, c) = (c, b);
+                    (dist_ab2, dist_ac2) = (dist_ac2, dist_ab2);
                 }
 
                 let dist_ab = dist_ab2.sqrt();
@@ -250,17 +250,17 @@ pub fn estimate_module_size(
     let mut cur = EdgeTracer::new(image, a.p, b.p - a.p);
     if !cur.is_black() {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
+            message: "barcode pattern was not detected".into(),
         }
         .into());
     }
 
     let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound {
-        message: "barcode pattern was not detected".to_owned(),
+        message: "barcode pattern was not detected".into(),
     })?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
-        &PatternView::new(&PatternRow::new(pattern.to_vec())),
+        &PatternView::from_slice(&pattern),
         &PATTERN,
         None,
         0.0,
@@ -268,7 +268,7 @@ pub fn estimate_module_size(
     ) != 0.0)
     {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
+            message: "barcode pattern was not detected".into(),
         }
         .into());
     }
@@ -326,7 +326,7 @@ pub fn trace_line(
     line.set_direction_inward(cur.back());
 
     // collect points inside the black line -> backup on 3rd edge
-    cur.step_to_edge(Some(edge), Some(0), Some(edge == 3));
+    cur.step_to_edge(edge, 0, edge == 3);
     if edge == 3 {
         cur.turn_back();
     }
@@ -340,7 +340,7 @@ pub fn trace_line(
         } else if cur_i.edge_at_right().into() {
             cur_i.turn_left();
         } else {
-            cur_i.step(Some(-1.0));
+            cur_i.step_by(-1.0);
         }
     }
 
@@ -351,13 +351,13 @@ pub fn trace_line(
             line.add(Point::centered(c.p))?;
 
             step_count -= 1;
-            if !(step_count > 0 && c.step_along_edge(dir, Some(true))) {
+            if !(step_count > 0 && c.step_along_edge_with_corner_skip(dir, true)) {
                 break;
             }
         }
     }
 
-    line.evaluate_max_distance(Some(1.0), Some(true));
+    line.evaluate_max_distance_with(1.0, true);
 
     Ok(line)
 }
@@ -416,7 +416,7 @@ pub fn locate_alignment_pattern(
         };
 
         // if we did not land on a black pixel the concentric pattern finder will fail
-        if !image.get_point(cor) {
+        if !image.at_point(cor) {
             continue;
         }
 
@@ -452,7 +452,7 @@ pub fn read_version(
                 if !image.is_in(pix) {
                     version_bits = -1;
                 } else {
-                    append_bit(&mut version_bits, image.get_point(pix));
+                    append_bit(&mut version_bits, image.at_point(pix));
                 }
             }
             bits[usize::from(mirror)] = version_bits;
@@ -472,7 +472,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     if top.dim == 0 && left.dim == 0 {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
+            message: "barcode pattern was not detected".into(),
         }
         .into());
     }
@@ -512,9 +512,9 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
     if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
         let br_inter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
+            message: "barcode pattern was not detected".into(),
         })? + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
+            message: "barcode pattern was not detected".into(),
         })?) / 2.0;
 
         if dimension > 21
@@ -551,14 +551,14 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
     if dimension >= Version::symbol_size(7).x {
         let version =
             read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
-                message: "barcode pattern was not detected".to_owned(),
+                message: "barcode pattern was not detected".into(),
             })?;
-        let version_dimension = version.get_dimension_for_version() as i32;
+        let version_dimension = version.dimension() as i32;
 
         // if the version bits are garbage -> discard the detection
         if (version_dimension - dimension).abs() > 8 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".to_owned(),
+                message: "barcode pattern was not detected".into(),
             }
             .into());
         }
@@ -570,7 +570,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
             )?;
         }
-        let ap_m = version.get_alignment_pattern_centers(); // alignment pattern positions in modules
+        let ap_m = version.alignment_pattern_centers(); // alignment pattern positions in modules
         let mut ap_p = Matrix::new(ap_m.len(), ap_m.len())?; // found/guessed alignment pattern positions in pixels
         let n = (ap_m.len()) - 1;
 
@@ -580,7 +580,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 .transform_point(Point::centered(point_i(ap_m[x], ap_m[y])))
                 .ok_or_else(|| {
                     Error::NotFound {
-                        message: "barcode pattern was not detected".to_owned(),
+                        message: "barcode pattern was not detected".into(),
                     }
                     .into()
                 })
@@ -668,7 +668,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                         &DMRegressionLine::new(verti[0], verti[1]),
                     )
                     .ok_or(Error::InvalidState {
-                        message: "required internal state is missing".to_owned(),
+                        message: "required internal state is missing".into(),
                     })?;
                     let found = locate_alignment_pattern(image, module_size, guessed);
                     // search again near that intersection and if the search fails, use the intersection
@@ -718,16 +718,16 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                         ),
                         Quadrilateral::from([
                             ap_p.get(x, y).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".to_owned(),
+                                message: "required internal state is missing".into(),
                             })?,
                             ap_p.get(x + 1, y).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".to_owned(),
+                                message: "required internal state is missing".into(),
                             })?,
                             ap_p.get(x + 1, y + 1).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".to_owned(),
+                                message: "required internal state is missing".into(),
                             })?,
                             ap_p.get(x, y + 1).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".to_owned(),
+                                message: "required internal state is missing".into(),
                             })?,
                         ]),
                     )?,

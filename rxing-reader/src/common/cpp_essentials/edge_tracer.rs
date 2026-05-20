@@ -13,7 +13,7 @@ pub struct EdgeTracer<'a> {
 impl BitMatrixCursorTrait for EdgeTracer<'_> {
     fn test_at(&self, p: Point) -> Value {
         if self.img.is_in_with_border(p, 0) {
-            Value::from(self.img.get_point(p))
+            Value::from(self.img.at_point(p))
         } else {
             Value::Invalid
         }
@@ -85,9 +85,8 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
         self.d = dir.bresenham_direction();
     }
 
-    fn step(&mut self, s: Option<f32>) -> bool {
-        let s = s.unwrap_or(1.0);
-        self.p += self.d * s;
+    fn step_by(&mut self, distance: f32) -> bool {
+        self.p += self.d * distance;
         self.is_in(self.p)
     }
 
@@ -104,10 +103,8 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
     /// - `backup`: whether or not to backup one step so we land in front of the edge
     ///
     /// Returns number of steps taken or 0 if moved outside of range/image.
-    fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32 {
-        let mut nth = nth.unwrap_or(1);
-        let range = range.unwrap_or(0);
-        let backup = backup.unwrap_or(false);
+    fn step_to_edge(&mut self, nth: i32, range: i32, backup: bool) -> i32 {
+        let mut nth = nth;
         // TODO: provide an alternative and faster out-of-bounds check than is_in() inside test_at()
         let mut steps = 0;
         let mut lv = self.test_at(self.p);

@@ -12,10 +12,10 @@ use crate::{
     qrcode::{FormatInformation, Version, VersionRef},
 };
 
-use super::data_mask::get_data_mask_bit;
+use super::data_mask::data_mask_bit;
 use crate::common::cpp_essentials::append_bit;
 
-pub fn get_bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -> bool {
+pub fn bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -> bool {
     let mirrored = mirrored.unwrap_or(false);
     if mirrored {
         bit_matrix.get(y, x)
@@ -31,29 +31,29 @@ pub fn read_version(bit_matrix: &BitMatrix) -> Result<VersionRef> {
                 "QR data is malformed: matrix size {}x{} is not a valid QR size",
                 bit_matrix.width(),
                 bit_matrix.height(),
-            ),
+            ).into(),
         }
         .into());
     }
 
-    let number = Version::number(bit_matrix);
+    let number = Version::number_from_matrix(bit_matrix);
 
-    Version::get_version_for_number(number)
+    Version::for_number(number)
 }
 
 pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformation> {
     // Read top-left format info bits
     let mut format_info_bits1 = 0;
     for x in 0..6 {
-        append_bit(&mut format_info_bits1, get_bit(bit_matrix, x, 8, None));
+        append_bit(&mut format_info_bits1, bit(bit_matrix, x, 8, None));
     }
     // .. and skip a bit in the timing pattern ...
-    append_bit(&mut format_info_bits1, get_bit(bit_matrix, 7, 8, None));
-    append_bit(&mut format_info_bits1, get_bit(bit_matrix, 8, 8, None));
-    append_bit(&mut format_info_bits1, get_bit(bit_matrix, 8, 7, None));
+    append_bit(&mut format_info_bits1, bit(bit_matrix, 7, 8, None));
+    append_bit(&mut format_info_bits1, bit(bit_matrix, 8, 8, None));
+    append_bit(&mut format_info_bits1, bit(bit_matrix, 8, 7, None));
     // .. and skip a bit in the timing pattern ...
     for y in (0..=5).rev() {
-        append_bit(&mut format_info_bits1, get_bit(bit_matrix, 8, y, None));
+        append_bit(&mut format_info_bits1, bit(bit_matrix, 8, y, None));
     }
 
     // Read the top-right/bottom-left pattern including the 'Dark Module' from the bottom-left
@@ -62,10 +62,10 @@ pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformati
     let dimension = bit_matrix.height();
     let mut format_info_bits2 = 0;
     for y in ((dimension - 8)..=(dimension - 1)).rev() {
-        append_bit(&mut format_info_bits2, get_bit(bit_matrix, 8, y, None));
+        append_bit(&mut format_info_bits2, bit(bit_matrix, 8, y, None));
     }
     for x in (dimension - 8)..dimension {
-        append_bit(&mut format_info_bits2, get_bit(bit_matrix, x, 8, None));
+        append_bit(&mut format_info_bits2, bit(bit_matrix, x, 8, None));
     }
 
     Ok(FormatInformation::decode_qr(
@@ -81,7 +81,7 @@ pub fn read_qrcodewords(
 ) -> Result<Vec<u8>> {
     let function_pattern: BitMatrix = version.build_function_pattern()?;
 
-    let mut result = Vec::with_capacity(version.get_total_codewords() as usize);
+    let mut result = Vec::with_capacity(version.total_codewords() as usize);
     let mut current_byte = 0;
     let mut reading_up = true;
     let mut bits_read = 0;
@@ -103,8 +103,8 @@ pub fn read_qrcodewords(
                     // Read a bit
                     append_bit(
                         &mut current_byte,
-                        get_data_mask_bit(format_info.data_mask as u32, xx, y)?
-                            != get_bit(bit_matrix, xx, y, Some(format_info.is_mirrored)),
+                        data_mask_bit(format_info.data_mask as u32, xx, y)?
+                            != bit(bit_matrix, xx, y, Some(format_info.is_mirrored)),
                     );
                     // If we've made a whole byte, save it off
                     bits_read += 1;
@@ -118,13 +118,13 @@ pub fn read_qrcodewords(
 
         x -= 2;
     }
-    let expected_codewords = version.get_total_codewords() as usize;
+    let expected_codewords = version.total_codewords() as usize;
     let actual_codewords = result.len();
     if actual_codewords != expected_codewords {
         return Err(Error::InvalidFormat {
             message: format!(
                 "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
-            ),
+            ).into(),
         }
         .into());
     }

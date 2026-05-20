@@ -51,7 +51,7 @@ impl RegressionLineTrait for RegressionLine {
     fn add(&mut self, p: Point) -> Result<()> {
         if self.direction_inward == Point::default() {
             return Err(Error::InvalidState {
-                message: "required internal state is missing".to_owned(),
+                message: "required internal state is missing".into(),
             }
             .into());
         }
@@ -66,14 +66,7 @@ impl RegressionLineTrait for RegressionLine {
         self.direction_inward = Point::normalized(d);
     }
 
-    fn evaluate_max_distance(
-        &mut self,
-        max_signed_dist: Option<f64>,
-        update_points: Option<bool>,
-    ) -> bool {
-        let max_signed_dist = max_signed_dist.unwrap_or(-1.0);
-        let update_points = update_points.unwrap_or_default();
-
+    fn evaluate_max_distance_with(&mut self, max_signed_dist: f64, update_points: bool) -> bool {
         let mut ret = self.evaluate_self();
         if max_signed_dist > 0.0 {
             let mut points = Vec::with_capacity(self.points.len());

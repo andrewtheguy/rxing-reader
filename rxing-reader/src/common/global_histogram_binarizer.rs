@@ -45,24 +45,24 @@ pub struct GlobalHistogramBinarizer<LS: LuminanceSource> {
 impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
     type Source = LS;
 
-    fn get_luminance_source(&self) -> &Self::Source {
+    fn luminance_source(&self) -> &Self::Source {
         &self.source
     }
 
     // Does not sharpen the data, as this call is intended to only be used by 2D Readers.
-    fn get_black_matrix(&self) -> Result<&BitMatrix> {
+    fn black_matrix(&self) -> Result<&BitMatrix> {
         let matrix = self
             .black_matrix
             .get_or_try_init(|| Self::build_black_matrix(&self.source))?;
         Ok(matrix)
     }
 
-    fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
+    fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.black_matrix
             .get_or_try_init(|| Self::build_black_matrix(&self.source))?;
         self.black_matrix.get_mut().ok_or_else(|| {
             Error::InvalidState {
-                message: "black matrix cache was not initialized".to_owned(),
+                message: "black matrix cache was not initialized".into(),
             }
             .into()
         })
@@ -78,8 +78,8 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
     }
 
     pub(super) fn build_black_matrix(source: &LS) -> Result<BitMatrix> {
-        let width = source.get_width();
-        let height = source.get_height();
+        let width = source.width();
+        let height = source.height();
         let mut matrix = BitMatrix::new(width as u32, height as u32)?;
 
         // Quickly calculates the histogram by sampling four rows from the image. This proved to be
@@ -87,8 +87,8 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         let mut local_buckets = [0; LUMINANCE_BUCKETS];
         for y in 1..5 {
             let row = height * y / 5;
-            let local_luminances = source.get_row(row).ok_or_else(|| Error::InvalidState {
-                message: format!("luminance source returned no data for sampled row {row}"),
+            let local_luminances = source.row(row).ok_or_else(|| Error::InvalidState {
+                message: format!("luminance source returned no data for sampled row {row}").into(),
             })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
@@ -100,7 +100,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // We delay reading the entire image luminance until the black point estimation succeeds.
         // Although we end up reading four rows twice, it is consistent with our motto of
         // "fail quickly" which is necessary for continuous scanning.
-        let local_luminances = source.get_matrix();
+        let local_luminances = source.matrix();
         for y in 0..height {
             let offset = y * width;
             for x in 0..width {
@@ -146,14 +146,14 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
 
         // Make sure first_peak corresponds to the black peak.
         if first_peak > second_peak {
-            std::mem::swap(&mut first_peak, &mut second_peak);
+            (first_peak, second_peak) = (second_peak, first_peak);
         }
 
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
             return Err(Error::NotFound {
-                message: "second_peak - first_peak <= numBuckets / 16 ".to_owned(),
+                message: "second_peak - first_peak <= numBuckets / 16 ".into(),
             }
             .into());
         }
