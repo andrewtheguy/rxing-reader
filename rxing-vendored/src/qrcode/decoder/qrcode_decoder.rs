@@ -168,7 +168,7 @@ fn decode_bitmatrix_parser_with_hints(
  * @param num_data_codewords number of codewords that are data bytes
  * @throws ChecksumException if error correction fails
  */
-fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
+pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
     let ecc_len = codeword_bytes.len() - num_data_codewords;
     let buf = reed_solomon::Decoder::new(ecc_len)
         .correct(codeword_bytes, None)

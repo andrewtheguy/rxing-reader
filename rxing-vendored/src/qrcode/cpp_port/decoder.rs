@@ -14,24 +14,7 @@ use crate::qrcode::cpp_port::bitmatrix_parser::{
     read_codewords, read_format_information, read_version,
 };
 use crate::qrcode::decoder::DataBlock;
-
-/**
-* <p>Given data and error-correction codewords received, possibly corrupted by errors, attempts to
-* correct the errors in-place using Reed-Solomon error correction.</p>
-*
-* @param codeword_bytes data and error correction codewords
-* @param num_data_codewords number of codewords that are data bytes
-* @return false if error correction fails
-*/
-pub fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: u32) -> Result<()> {
-    let num_data = num_data_codewords as usize;
-    let ecc_len = codeword_bytes.len() - num_data;
-    let buf = reed_solomon::Decoder::new(ecc_len)
-        .correct(codeword_bytes, None)
-        .map_err(|e| Exceptions::ChecksumException(format!("{e:?}")))?;
-    codeword_bytes[..num_data].copy_from_slice(buf.data());
-    Ok(())
-}
+use crate::qrcode::decoder::qrcode_decoder::correct_errors;
 
 /**
 * See specification GBT 18284-2000
@@ -388,7 +371,7 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
         let mut codeword_bytes = data_block.get_codewords().to_vec();
         let num_data_codewords = data_block.get_num_data_codewords() as usize;
 
-        correct_errors(&mut codeword_bytes, num_data_codewords as u32)?;
+        correct_errors(&mut codeword_bytes, num_data_codewords)?;
 
         result_bytes[result_iterator..(result_iterator + num_data_codewords)]
             .copy_from_slice(&codeword_bytes[..num_data_codewords]);
