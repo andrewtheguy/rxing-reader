@@ -6,10 +6,9 @@ use super::Direction;
 #[allow(dead_code)]
 #[inline(always)]
 pub fn opposite(dir: Direction) -> Direction {
-    if dir == Direction::Left {
-        Direction::Right
-    } else {
-        Direction::Left
+    match dir {
+        Direction::Left => Direction::Right,
+        Direction::Right => Direction::Left,
     }
 }
 

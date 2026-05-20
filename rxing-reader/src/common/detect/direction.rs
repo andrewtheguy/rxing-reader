@@ -6,9 +6,6 @@ pub enum Direction {
 
 impl From<Direction> for i32 {
     fn from(value: Direction) -> Self {
-        match value {
-            Direction::Left => -1,
-            Direction::Right => 1,
-        }
+        value as i32
     }
 }
