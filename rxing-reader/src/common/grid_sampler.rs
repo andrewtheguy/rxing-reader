@@ -20,6 +20,9 @@ use crate::{Error, Point};
 
 use super::{BitMatrix, PerspectiveTransform};
 
+const NUDGE_OUTSIDE_MIN: i32 = -1;
+const FIRST_PIXEL: f32 = 0.0;
+
 /// Samples a perspective-corrected grid from an image.
 ///
 /// Implementations use finder-pattern locations to reconstruct a QR Code's
@@ -29,18 +32,18 @@ pub trait GridSampler {
     fn sample_grid(
         &self,
         image: &BitMatrix,
-        dimension_x: u32,
-        dimension_y: u32,
+        dimension_x: usize,
+        dimension_y: usize,
         controls: &[SamplerControl],
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             }
             .into());
         }
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
-        let mut points = vec![Point::default(); dimension_x as usize];
+        let mut points = vec![Point::default(); dimension_x];
         for y in 0..dimension_y {
             let i_value = y as f32 + 0.5;
 
@@ -57,13 +60,13 @@ pub trait GridSampler {
             self.check_and_nudge_points(image, &mut points)?;
             for (x, point) in points.iter().enumerate() {
                 if image
-                    .try_get(point.x as u32, point.y as u32)
+                    .try_at_point(*point)
                     .ok_or(Error::NotFound {
                         message: "grid point transformed outside image bounds".into(),
                     })?
                 {
                     // Black(-ish) pixel
-                    bits.set(x as u32, y);
+                    bits.set(x, y);
                 }
             }
         }
@@ -86,8 +89,12 @@ pub trait GridSampler {
     ///
     /// Returns a not-found error if an endpoint is lies outside the image boundaries
     fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
-        let width = image.width();
-        let height = image.height();
+        let width = i32::try_from(image.width()).map_err(|_| Error::InvalidArgument {
+            message: format!("image width {} does not fit in i32", image.width()).into(),
+        })?;
+        let height = i32::try_from(image.height()).map_err(|_| Error::InvalidArgument {
+            message: format!("image height {} does not fit in i32", image.height()).into(),
+        })?;
         // Check and nudge points from start until we see some that are OK:
         let mut nudged;
         if points.is_empty() {
@@ -96,24 +103,24 @@ pub trait GridSampler {
         let max_offset = points.len() - 1; // points.length must be even
         for point in points.iter_mut().take(max_offset) {
             let (x, y) = (point.x as i32, point.y as i32);
-            if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
+            if x < NUDGE_OUTSIDE_MIN || x > width || y < NUDGE_OUTSIDE_MIN || y > height {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".into(),
+                    message: "QR pattern was not detected".into(),
                 }
                 .into());
             }
             nudged = false;
-            if x == -1 {
-                point.x = 0.0;
+            if x == NUDGE_OUTSIDE_MIN {
+                point.x = FIRST_PIXEL;
                 nudged = true;
-            } else if x == width as i32 {
+            } else if x == width {
                 point.x = width as f32 - 1.0;
                 nudged = true;
             }
-            if y == -1 {
-                point.y = 0.0;
+            if y == NUDGE_OUTSIDE_MIN {
+                point.y = FIRST_PIXEL;
                 nudged = true;
-            } else if y == height as i32 {
+            } else if y == height {
                 point.y = height as f32 - 1.0;
                 nudged = true;
             }
@@ -124,24 +131,24 @@ pub trait GridSampler {
         // Check and nudge points from end:
         for point in points.iter_mut().rev().take(max_offset).rev() {
             let (x, y) = (point.x as i32, point.y as i32);
-            if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
+            if x < NUDGE_OUTSIDE_MIN || x > width || y < NUDGE_OUTSIDE_MIN || y > height {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".into(),
+                    message: "QR pattern was not detected".into(),
                 }
                 .into());
             }
             nudged = false;
-            if x == -1 {
-                point.x = 0.0;
+            if x == NUDGE_OUTSIDE_MIN {
+                point.x = FIRST_PIXEL;
                 nudged = true;
-            } else if x == width as i32 {
+            } else if x == width {
                 point.x = width as f32 - 1.0;
                 nudged = true;
             }
-            if y == -1 {
-                point.y = 0.0;
+            if y == NUDGE_OUTSIDE_MIN {
+                point.y = FIRST_PIXEL;
                 nudged = true;
-            } else if y == height as i32 {
+            } else if y == height {
                 point.y = height as f32 - 1.0;
                 nudged = true;
             }

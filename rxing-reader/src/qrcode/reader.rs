@@ -1,32 +1,31 @@
-/*
-* Copyright 2016 Nu-book Inc.
-* Copyright 2016 ZXing authors
-* Copyright 2022 Axel Waggershauser
-*/
-// SPDX-License-Identifier: Apache-2.0
+mod bitmatrix_parser;
+mod decoder;
+mod detector;
 
-use crate::{DecodeHints, common::cpp_essentials::ConcentricPattern};
+use crate::{
+    Binarizer, BinaryBitmap, DecodeHints,
+    common::detect::ConcentricPattern,
+};
 
-use super::{
+use self::{
     decoder::decode,
     detector::{find_finder_patterns, generate_finder_pattern_sets, sample_qr},
 };
 
 #[derive(Default)]
-pub struct QrReader;
+pub(crate) struct QrReader;
 
 impl QrReader {
     /// Decode every QR symbol found in `image`.
     ///
-    /// `count` caps the number of results; pass `0` for unlimited.
-    pub fn decode_set_number_with_hints<B: crate::Binarizer>(
+    /// `max_symbols` caps the number of results; pass `0` for unlimited.
+    pub(crate) fn decode_with_hints<B: Binarizer>(
         &self,
-        image: &mut crate::BinaryBitmap<B>,
+        image: &mut BinaryBitmap<B>,
         hints: &DecodeHints,
-        count: u32,
+        max_symbols: usize,
     ) -> anyhow::Result<Vec<Vec<u8>>> {
         let bin_img = image.black_matrix()?;
-        let max_symbols = count;
         let try_harder = hints.try_harder;
 
         let mut all_fps = find_finder_patterns(bin_img, try_harder);
@@ -53,9 +52,9 @@ impl QrReader {
                     used_fps.push(fp_set.tl);
                     used_fps.push(fp_set.tr);
 
-                    results.push(decoder_result.content().bytes().to_vec());
+                    results.push(decoder_result.into_bytes());
 
-                    if max_symbols != 0 && (results.len() as u32) == max_symbols {
+                    if max_symbols != 0 && results.len() == max_symbols {
                         break;
                     }
                 }

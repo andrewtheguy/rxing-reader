@@ -53,13 +53,14 @@ pub(super) fn correct_qr_errors(
 }
 
 const FIELD_SIZE: usize = 256;
+const FIELD_ORDER: usize = FIELD_SIZE - 1;
 const PRIMITIVE: usize = 0x011D;
 
 static QR_FIELD: QrField = QrField::new();
 
 struct QrField {
     exp_table: [u8; FIELD_SIZE],
-    log_table: [u8; FIELD_SIZE],
+    log_table: [usize; FIELD_SIZE],
 }
 
 impl QrField {
@@ -78,9 +79,9 @@ impl QrField {
             i += 1;
         }
         i = 0;
-        while i < FIELD_SIZE - 1 {
+        while i < FIELD_ORDER {
             let value = exp_table[i] as usize;
-            log_table[value] = i as u8;
+            log_table[value] = i;
             i += 1;
         }
 
@@ -98,22 +99,22 @@ impl QrField {
         if value == 0 {
             return Err(ReedSolomonError::TooManyErrors);
         }
-        Ok(self.log_table[value as usize] as usize)
+        Ok(self.log_table[usize::from(value)])
     }
 
     fn inverse(&self, value: u8) -> Result<u8, ReedSolomonError> {
         if value == 0 {
             return Err(ReedSolomonError::TooManyErrors);
         }
-        Ok(self.exp_table[FIELD_SIZE - 1 - self.log_table[value as usize] as usize])
+        Ok(self.exp_table[FIELD_ORDER - self.log_table[usize::from(value)]])
     }
 
     fn multiply(&self, a: u8, b: u8) -> u8 {
         if a == 0 || b == 0 {
             return 0;
         }
-        let log_sum = self.log_table[a as usize] as usize + self.log_table[b as usize] as usize;
-        self.exp_table[log_sum % (FIELD_SIZE - 1)]
+        let log_sum = self.log_table[usize::from(a)] + self.log_table[usize::from(b)];
+        self.exp_table[log_sum % FIELD_ORDER]
     }
 }
 
@@ -160,7 +161,7 @@ fn run_euclidean_algorithm(
         }
         poly_trim(&mut q);
 
-        t = poly_add(&poly_multiply(field, &q, &t_last), &t_last_last);
+        t = poly_add(poly_multiply(field, &q, &t_last), &t_last_last);
         if poly_degree(&r) >= poly_degree(&r_last) {
             return Err(ReedSolomonError::TooManyErrors);
         }
@@ -173,8 +174,8 @@ fn run_euclidean_algorithm(
 
     let inverse = field.inverse(sigma_tilde_at_zero)?;
     Ok((
-        poly_multiply_scalar(field, &t, inverse),
-        poly_multiply_scalar(field, &r, inverse),
+        poly_multiply_scalar(field, t, inverse),
+        poly_multiply_scalar(field, r, inverse),
     ))
 }
 
@@ -188,9 +189,9 @@ fn find_error_locations(
     }
 
     let mut result = Vec::with_capacity(num_errors);
-    for i in 1..FIELD_SIZE {
-        if poly_eval(field, error_locator, i as u8) == 0 {
-            result.push(field.inverse(i as u8)?);
+    for value in 1..=u8::MAX {
+        if poly_eval(field, error_locator, value) == 0 {
+            result.push(field.inverse(value)?);
             if result.len() == num_errors {
                 break;
             }
@@ -289,24 +290,23 @@ fn poly_eval(field: &QrField, poly: &[u8], value: u8) -> u8 {
     result
 }
 
-fn poly_add(a: &[u8], b: &[u8]) -> Vec<u8> {
-    if poly_is_zero(a) {
+fn poly_add(a: Vec<u8>, b: &[u8]) -> Vec<u8> {
+    if poly_is_zero(&a) {
         return b.to_vec();
     }
     if poly_is_zero(b) {
-        return a.to_vec();
+        return a;
     }
 
-    let (smaller, larger) = if a.len() < b.len() { (a, b) } else { (b, a) };
-    let length_diff = larger.len() - smaller.len();
-    let mut sum = Vec::with_capacity(larger.len());
-    sum.extend_from_slice(&larger[..length_diff]);
-    sum.extend(
-        smaller
-            .iter()
-            .zip(larger[length_diff..].iter())
-            .map(|(&left, &right)| left ^ right),
-    );
+    let (mut sum, smaller) = if a.len() >= b.len() {
+        (a, b)
+    } else {
+        (b.to_vec(), a.as_slice())
+    };
+    let length_diff = sum.len() - smaller.len();
+    for (target, &coefficient) in sum[length_diff..].iter_mut().zip(smaller.iter()) {
+        *target ^= coefficient;
+    }
     poly_new(sum)
 }
 
@@ -329,17 +329,18 @@ fn poly_multiply(field: &QrField, a: &[u8], b: &[u8]) -> Vec<u8> {
     poly_new(product)
 }
 
-fn poly_multiply_scalar(field: &QrField, poly: &[u8], scalar: u8) -> Vec<u8> {
-    if scalar == 0 || poly_is_zero(poly) {
+fn poly_multiply_scalar(field: &QrField, mut poly: Vec<u8>, scalar: u8) -> Vec<u8> {
+    if scalar == 0 || poly_is_zero(&poly) {
         return vec![0];
     }
     if scalar == 1 {
-        return poly.to_vec();
+        return poly;
     }
 
-    poly.iter()
-        .map(|&coefficient| field.multiply(coefficient, scalar))
-        .collect()
+    for coefficient in &mut poly {
+        *coefficient = field.multiply(*coefficient, scalar);
+    }
+    poly
 }
 
 fn poly_add_scaled_in_place(field: &QrField, target: &mut Vec<u8>, term: &[u8], scale: u8) {

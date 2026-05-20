@@ -80,7 +80,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
     pub(super) fn build_black_matrix(source: &LS) -> Result<BitMatrix> {
         let width = source.width();
         let height = source.height();
-        let mut matrix = BitMatrix::new(width as u32, height as u32)?;
+        let mut matrix = BitMatrix::new(width, height)?;
 
         // Quickly calculates the histogram by sampling four rows from the image. This proved to be
         // more robust on the blackbox tests than sampling a diagonal as we used to do.
@@ -92,7 +92,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
             })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
-                local_buckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;
+                local_buckets[usize::from(*pixel >> LUMINANCE_SHIFT)] += 1;
             }
         }
         let black_point = Self::estimate_black_point(&local_buckets)?;
@@ -105,8 +105,8 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
             let offset = y * width;
             for x in 0..width {
                 let pixel = local_luminances[offset + x];
-                if (pixel as u32) < black_point {
-                    matrix.set(x as u32, y as u32);
+                if usize::from(pixel) < black_point {
+                    matrix.set(x, y);
                 }
             }
         }
@@ -115,8 +115,8 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
     }
 
     fn estimate_black_point<const BUCKET_COUNT: usize>(
-        buckets: &[u32; BUCKET_COUNT],
-    ) -> Result<u32> {
+        buckets: &[usize; BUCKET_COUNT],
+    ) -> Result<usize> {
         // Find the tallest peak in the histogram.
         let mut max_bucket_count = 0;
         let mut first_peak = 0;
@@ -135,7 +135,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         let mut second_peak = 0;
         let mut second_peak_score = 0;
         for (x, bucket) in buckets.iter().enumerate() {
-            let distance_to_biggest = (x as i32 - first_peak as i32).unsigned_abs();
+            let distance_to_biggest = x.abs_diff(first_peak);
             // Encourage more distant second peaks by multiplying by square of distance.
             let score = *bucket * distance_to_biggest * distance_to_biggest;
             if score > second_peak_score {
@@ -159,23 +159,23 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         }
 
         // Find a valley between them that is low and closer to the white peak.
-        let mut best_valley = second_peak as isize - 1;
-        let mut best_valley_score = -1;
+        let mut best_valley = second_peak - 1;
+        let mut best_valley_score = None;
 
-        let mut x = second_peak as isize;
-        while x > first_peak as isize {
-            let from_first = x - first_peak as isize;
+        let mut x = second_peak;
+        while x > first_peak {
+            let from_first = x - first_peak;
             let score = from_first
                 * from_first
-                * (second_peak as isize - x)
-                * (max_bucket_count - buckets[x as usize]) as isize;
-            if score as i32 > best_valley_score {
+                * (second_peak - x)
+                * (max_bucket_count - buckets[x]);
+            if best_valley_score.is_none_or(|best_score| score > best_score) {
                 best_valley = x;
-                best_valley_score = score as i32;
+                best_valley_score = Some(score);
             }
             x -= 1;
         }
 
-        Ok((best_valley as u32) << LUMINANCE_SHIFT)
+        Ok(best_valley << LUMINANCE_SHIFT)
     }
 }

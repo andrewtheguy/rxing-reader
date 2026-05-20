@@ -116,7 +116,7 @@ pub struct PatternView<'a> {
 
 impl<'a> PatternView<'a> {
     // A PatternRow always starts with the width of whitespace in front of the
-    // first black bar (see `get_pattern_row`). `start = 1` skips that
+    // first black bar (see `fill_pattern_row`). `start = 1` skips that
     // leading-whitespace element, so `view[0]` is the first bar; `count`
     // is the number of view elements (bars + spaces, excluding the
     // leading-whitespace prefix).
@@ -132,7 +132,7 @@ impl<'a> PatternView<'a> {
     /// Construct a view directly over a bar-only buffer (no leading-whitespace
     /// element at index 0). `view[0]` is `bars[0]`; use this for buffers that
     /// were built as raw bar-width arrays rather than fed through
-    /// `get_pattern_row`.
+    /// `fill_pattern_row`.
     pub fn from_bars(bars: &'a [PatternType]) -> PatternView<'a> {
         PatternView {
             data: bars,
@@ -573,8 +573,8 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Color {
-    White = 0,
-    Black = 1,
+    White,
+    Black,
 }
 
 impl<T: Into<PatternType>> From<T> for Color {
@@ -586,7 +586,7 @@ impl<T: Into<PatternType>> From<T> for Color {
     }
 }
 
-pub fn get_pattern_row_tp(matrix: &BitMatrix, r: u32, pr: &mut PatternRow, transpose: bool) {
+pub fn read_pattern_row(matrix: &BitMatrix, r: usize, pr: &mut PatternRow, transpose: bool) {
     let row = if transpose {
         matrix.column(r)
     } else {
@@ -595,10 +595,10 @@ pub fn get_pattern_row_tp(matrix: &BitMatrix, r: u32, pr: &mut PatternRow, trans
 
     let pixel_states: Vec<bool> = row.into();
 
-    get_pattern_row(&pixel_states, pr)
+    fill_pattern_row(&pixel_states, pr)
 }
 
-pub fn get_pattern_row<T: Into<PatternType> + Copy + Default + From<T>>(
+pub fn fill_pattern_row<T: Into<PatternType> + Copy + Default + From<T>>(
     b_row: &[T],
     p_row: &mut PatternRow,
 ) {
@@ -635,9 +635,9 @@ pub fn get_pattern_row<T: Into<PatternType> + Copy + Default + From<T>>(
 
 #[cfg(test)]
 mod tests {
-    use crate::common::cpp_essentials::PatternType;
+    use crate::common::detect::PatternType;
 
-    use super::{FixedPattern, PatternRow, PatternView, get_pattern_row, is_pattern};
+    use super::{FixedPattern, PatternRow, PatternView, fill_pattern_row, is_pattern};
     const N: usize = 33;
 
     #[test]
@@ -645,7 +645,7 @@ mod tests {
         for s in 1..=N {
             let t_in: Vec<PatternType> = vec![0; s];
             let mut pr = PatternRow::default();
-            get_pattern_row(&t_in, &mut pr);
+            fill_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 1);
             assert_eq!(pr.0[0], s as PatternType);
@@ -657,7 +657,7 @@ mod tests {
         for s in 1..=N {
             let t_in: Vec<PatternType> = vec![0xff; s];
             let mut pr = PatternRow::default();
-            get_pattern_row(&t_in, &mut pr);
+            fill_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], 0);
@@ -672,7 +672,7 @@ mod tests {
             let mut t_in: Vec<PatternType> = vec![0; N];
             t_in[..s].copy_from_slice(&vec![1; s]);
             let mut pr = PatternRow::default();
-            get_pattern_row(&t_in, &mut pr);
+            fill_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], 0);
@@ -687,7 +687,7 @@ mod tests {
             let mut t_in: Vec<PatternType> = vec![0xff; N];
             t_in[..s].copy_from_slice(&vec![0; s]);
             let mut pr = PatternRow::default();
-            get_pattern_row(&t_in, &mut pr);
+            fill_pattern_row(&t_in, &mut pr);
 
             assert_eq!(pr.0.len(), 3);
             assert_eq!(pr.0[0], s as PatternType);
@@ -711,7 +711,7 @@ mod tests {
     #[test]
     fn basic_pattern_view() {
         let mut p_row = PatternRow::default();
-        get_pattern_row(
+        fill_pattern_row(
             &[
                 0_u16, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
             ],

@@ -1,10 +1,7 @@
-mod base_extensions;
-
 pub mod bitmatrix_cursor_trait;
 pub mod concentric_finder;
 pub mod decoder_result;
 pub mod direction;
-pub mod dm_regression_line;
 pub mod edge_tracer;
 pub mod fast_edge_to_edge_counter;
 pub mod matrix;
@@ -18,7 +15,6 @@ pub use bitmatrix_cursor_trait::*;
 pub use concentric_finder::*;
 pub use decoder_result::*;
 pub use direction::*;
-pub use dm_regression_line::*;
 pub use edge_tracer::*;
 pub use fast_edge_to_edge_counter::*;
 pub use matrix::*;

@@ -5,8 +5,8 @@ use crate::{
     Error,
     common::{
         DefaultGridSampler, GridSampler, SamplerControl,
-        cpp_essentials::{
-            DMRegressionLine, Matrix, append_bit, center_of_ring, find_concentric_pattern_corners,
+        detect::{
+            Matrix, append_bit, center_of_ring, find_concentric_pattern_corners,
             find_left_guard_by,
         },
     },
@@ -18,15 +18,28 @@ use crate::{
     Point,
     common::{
         BitMatrix, PerspectiveTransform, Quadrilateral,
-        cpp_essentials::{
+        detect::{
             BitMatrixCursorTrait, ConcentricPattern, Direction, EdgeTracer, FixedPattern,
             PatternRow, PatternType, PatternView, RegressionLine, RegressionLineTrait,
-            get_pattern_row_tp, is_pattern, locate_concentric_pattern, read_symmetric_pattern,
+            intersect, is_pattern, locate_concentric_pattern, read_pattern_row,
+            read_symmetric_pattern,
         },
     },
 };
 
-use super::detector_result::QRCodeDetectorResult;
+pub(super) struct DetectorResult {
+    bits: BitMatrix,
+}
+
+impl DetectorResult {
+    fn new(bits: BitMatrix) -> Self {
+        Self { bits }
+    }
+
+    pub(super) fn bits(&self) -> &BitMatrix {
+        &self.bits
+    }
+}
 
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct FinderPatternSet {
@@ -43,13 +56,22 @@ const SUM: usize = 7;
 const PATTERN: FixedPattern<LEN, SUM, false> = FixedPattern::new([1, 1, 3, 1, 1]);
 const E2E: bool = true;
 
+/// Search-window multiplier applied to the finder-pattern row sum when locating
+/// the concentric pattern. The window is widened to tolerate strongly skewed
+/// samples where the on-row run lengths underestimate the true pattern extent.
+const SKEW_TOLERANCE_MULTIPLIER: i32 = 3;
+
+/// Step size (in module widths) for the 3x3 neighbour search around the initial
+/// alignment-pattern estimate in [`locate_alignment_pattern`].
+const ALIGNMENT_SEARCH_RADIUS_MULTIPLIER: f32 = 2.25;
+
 fn find_pattern(view: PatternView<'_>) -> Result<PatternView<'_>> {
     find_left_guard_by::<LEN, _>(
         view,
         LEN,
         |view: &PatternView, space_in_pixel: Option<f32>| {
             // perform a fast plausibility test for 1:1:3:1:1 pattern
-            if view[2] < 2 as PatternType * std::cmp::max(view[0], view[4])
+            if view[2] < 2u16 * std::cmp::max(view[0], view[4])
                 || view[2] < std::cmp::max(view[1], view[3])
             {
                 return false;
@@ -61,8 +83,8 @@ fn find_pattern(view: PatternView<'_>) -> Result<PatternView<'_>> {
 
 /// Locate the finder patterns for the symbol.
 pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatterns {
-    const MIN_SKIP: u32 = 3; // 1 pixel/module times 3 modules/center
-    const MAX_MODULES_FAST: u32 = 20 * 4 + 17; // support up to version 20 for mobile clients
+    const MIN_SKIP: usize = 3; // 1 pixel/module times 3 modules/center
+    const MAX_MODULES_FAST: usize = 20 * 4 + 17; // support up to version 20 for mobile clients
 
     // Let's assume that the maximum version QR Code we support takes up 1/4 the height of the
     // image, and then account for the center being 3 modules in size. This gives the smallest
@@ -79,7 +101,7 @@ pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatter
 
     while y < height {
         let mut row = PatternRow::default();
-        get_pattern_row_tp(image, y, &mut row, false);
+        read_pattern_row(image, y, &mut row, false);
         let mut next: PatternView = PatternView::new(&row);
 
         while {
@@ -107,8 +129,8 @@ pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatter
                     image,
                     &PATTERN.into(),
                     p,
-                    next.iter().sum::<u16>() as i32 * 3,
-                ); // 3 for very skewed samples
+                    next.iter().sum::<u16>() as i32 * SKEW_TOLERANCE_MULTIPLIER,
+                );
                 if let Some(p) = pattern {
                     res.push(p);
                 }
@@ -242,7 +264,7 @@ pub fn generate_finder_pattern_sets(patterns: &mut FinderPatterns) -> FinderPatt
     res
 }
 
-pub fn estimate_module_size(
+fn estimate_module_size(
     image: &BitMatrix,
     a: ConcentricPattern,
     b: ConcentricPattern,
@@ -250,13 +272,13 @@ pub fn estimate_module_size(
     let mut cur = EdgeTracer::new(image, a.p, b.p - a.p);
     if !cur.is_black() {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+            message: "QR pattern was not detected".into(),
         }
         .into());
     }
 
     let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound {
-        message: "barcode pattern was not detected".into(),
+        message: "QR pattern was not detected".into(),
     })?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
@@ -268,7 +290,7 @@ pub fn estimate_module_size(
     ) != 0.0)
     {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+            message: "QR pattern was not detected".into(),
         }
         .into());
     }
@@ -279,23 +301,32 @@ pub fn estimate_module_size(
     )
 }
 
-pub struct DimensionEstimate {
+struct DimensionEstimate {
     dim: i32,
     ms: f64,
     err: i32,
 }
 
-impl Default for DimensionEstimate {
-    fn default() -> Self {
-        Self {
-            dim: 0,
-            ms: 0.0,
-            err: 4,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FinderPatternEdge {
+    Outer,
+    Inner,
+}
+
+impl FinderPatternEdge {
+    const fn nth(self) -> i32 {
+        match self {
+            Self::Outer => 2,
+            Self::Inner => 3,
         }
+    }
+
+    const fn should_backup(self) -> bool {
+        matches!(self, Self::Inner)
     }
 }
 
-pub fn estimate_dimension(
+fn estimate_dimension(
     image: &BitMatrix,
     a: ConcentricPattern,
     b: ConcentricPattern,
@@ -315,26 +346,26 @@ pub fn estimate_dimension(
     })
 }
 
-pub fn trace_line(
+fn trace_line(
     image: &BitMatrix,
     p: Point,
     d: Point,
-    edge: i32,
+    edge: FinderPatternEdge,
 ) -> Result<impl RegressionLineTrait> {
     let mut cur = EdgeTracer::new(image, p, d - p);
     let mut line = RegressionLine::default();
     line.set_direction_inward(cur.back());
 
     // collect points inside the black line -> backup on 3rd edge
-    cur.step_to_edge(edge, 0, edge == 3);
-    if edge == 3 {
+    cur.step_to_edge(edge.nth(), 0, edge.should_backup());
+    if edge.should_backup() {
         cur.turn_back();
     }
 
     let mut cur_i = EdgeTracer::new(image, cur.p, Point::main_direction(cur.d()));
     // make sure cur_i positioned such that the white->black edge is directly behind
     // Test image: fix-traceline.jpg
-    while !bool::from(cur_i.edge_at_back()) {
+    while !cur_i.edge_at_back().is_black() {
         if cur_i.edge_at_left().into() {
             cur_i.turn_right();
         } else if cur_i.edge_at_right().into() {
@@ -363,7 +394,7 @@ pub fn trace_line(
 }
 
 // estimate how tilted the symbol is (return value between 1 and 2, see also above)
-pub fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
+fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
     let min = [fp.bl.size, fp.tl.size, fp.tr.size]
         .iter()
         .min()
@@ -378,7 +409,7 @@ pub fn estimate_tilt(fp: &FinderPatternSet) -> f64 {
     (max as f64) / (min as f64)
 }
 
-pub fn mod2_pix(
+fn mod2_pix(
     dimension: i32,
     br_offset: Point,
     pix: Quadrilateral,
@@ -389,7 +420,7 @@ pub fn mod2_pix(
     PerspectiveTransform::quadrilateral_to_quadrilateral(quad, pix)
 }
 
-pub fn locate_alignment_pattern(
+fn locate_alignment_pattern(
     image: &BitMatrix,
     module_size: i32,
     estimate: Point,
@@ -407,7 +438,7 @@ pub fn locate_alignment_pattern(
     ] {
         let Some(cor) = center_of_ring(
             image,
-            (estimate + module_size as f32 * 2.25 * d).floor(),
+            (estimate + module_size as f32 * ALIGNMENT_SEARCH_RADIUS_MULTIPLIER * d).floor(),
             module_size * 3,
             1,
             false,
@@ -434,62 +465,72 @@ pub fn locate_alignment_pattern(
 
 pub fn read_version(
     image: &BitMatrix,
-    dimension: u32,
+    dimension: usize,
     mod2_pix: PerspectiveTransform,
 ) -> Result<VersionRef> {
-    let mut bits = [0; 2]; //
+    let mut bits = [None, None];
 
     for mirror in [false, true] {
         // Read top-right/bottom-left version info: 3 wide by 6 tall (depending on mirrored)
-        let mut version_bits = 0;
-        for y in (0..=5).rev() {
+        let mut version_bits: u32 = 0;
+        let mut valid = true;
+        'read_version_bits: for y in (0..=5).rev() {
             for x in ((dimension - 11)..=(dimension - 9)).rev() {
-                let mod_ = if mirror { point_i(y, x) } else { point_i(x, y) };
-                let Some(pix) = mod2_pix.transform_point((mod_).centered()) else {
-                    version_bits = -1;
-                    continue;
-                };
-                if !image.is_in(pix) {
-                    version_bits = -1;
+                let module = if mirror {
+                    point(y as f32, x as f32)
                 } else {
-                    append_bit(&mut version_bits, image.at_point(pix));
+                    point(x as f32, y as f32)
+                };
+                let Some(pixel) = mod2_pix.transform_point(module.centered()) else {
+                    valid = false;
+                    break 'read_version_bits;
+                };
+                if !image.is_in(pixel) {
+                    valid = false;
+                    break 'read_version_bits;
                 }
+                append_bit(&mut version_bits, image.at_point(pixel));
             }
-            bits[usize::from(mirror)] = version_bits;
+        }
+        if valid {
+            bits[usize::from(mirror)] = Some(version_bits);
         }
     }
 
-    Version::decode_version_information_pair(bits[0], bits[1])
+    Version::decode_version_information_pair(bits)
 }
 
-pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetectorResult> {
-    // Tolerate one estimator failing — pick the surviving estimate via the
-    // existing err-based comparison below. Failure (Err) maps to the
-    // `DimensionEstimate::default()` (dim=0, err=4), preserving the prior
-    // sentinel-based control flow.
-    let top = estimate_dimension(image, fp.tl, fp.tr).unwrap_or_default();
-    let left = estimate_dimension(image, fp.tl, fp.bl).unwrap_or_default();
-
-    if top.dim == 0 && left.dim == 0 {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+fn module_dimension(dimension: i32) -> Result<usize> {
+    usize::try_from(dimension).map_err(|_| {
+        Error::NotFound {
+            message: "QR pattern was not detected".into(),
         }
-        .into());
-    }
+        .into()
+    })
+}
 
-    let best = match top.err.cmp(&left.err) {
-        std::cmp::Ordering::Less => top,
-        std::cmp::Ordering::Equal => {
-            if top.dim > left.dim {
-                top
-            } else {
-                left
+pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorResult> {
+    let top = estimate_dimension(image, fp.tl, fp.tr).ok();
+    let left = estimate_dimension(image, fp.tl, fp.bl).ok();
+
+    let best = match (top, left) {
+        (Some(top), Some(left)) => match top.err.cmp(&left.err) {
+            std::cmp::Ordering::Less => top,
+            std::cmp::Ordering::Equal if top.dim > left.dim => top,
+            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => left,
+        },
+        (Some(top), None) => top,
+        (None, Some(left)) => left,
+        (None, None) => {
+            return Err(Error::NotFound {
+                message: "QR pattern was not detected".into(),
             }
+            .into());
         }
-        std::cmp::Ordering::Greater => left,
     };
 
     let mut dimension = best.dim;
+    let mut dimension_usize = module_dimension(dimension)?;
     let module_size = (best.ms + 1.0) as i32;
 
     let mut br = ConcentricPattern {
@@ -504,17 +545,17 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     // generate 4 lines: outer and inner edge of the 1 module wide black line between the two outer and the inner
     // (tl) finder pattern
-    let bl2 = trace_line(image, fp.bl.p, fp.tl.p, 2)?;
-    let bl3 = trace_line(image, fp.bl.p, fp.tl.p, 3)?;
-    let tr2 = trace_line(image, fp.tr.p, fp.tl.p, 2)?;
-    let tr3 = trace_line(image, fp.tr.p, fp.tl.p, 3)?;
+    let bl_outer = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Outer)?;
+    let bl_inner = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Inner)?;
+    let tr_outer = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Outer)?;
+    let tr_inner = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Inner)?;
 
-    if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
+    if bl_outer.is_valid() && tr_outer.is_valid() && bl_inner.is_valid() && tr_inner.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
-        })? + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+        let br_inter = (intersect(&bl_outer, &tr_outer).ok_or(Error::NotFound {
+            message: "QR pattern was not detected".into(),
+        })? + intersect(&bl_inner, &tr_inner).ok_or(Error::NotFound {
+            message: "QR pattern was not detected".into(),
         })?) / 2.0;
 
         if dimension > 21
@@ -527,10 +568,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         // as the best estimate (see discussion in #199 and test image estimate-tilt.jpg )
         if !image.is_in(br.p)
             && (estimate_tilt(fp) > 1.1
-                || (bl2.is_high_res()
-                    && bl3.is_high_res()
-                    && tr2.is_high_res()
-                    && tr3.is_high_res()))
+                || (bl_outer.is_high_res()
+                    && bl_inner.is_high_res()
+                    && tr_outer.is_high_res()
+                    && tr_inner.is_high_res()))
         {
             br = br_inter.into();
         }
@@ -548,22 +589,24 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
     )?;
 
-    if dimension >= Version::symbol_size(7).x {
+    if dimension_usize >= Version::dimension_for_number(7) {
         let version =
-            read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+            read_version(image, dimension_usize, mod_to_pix).map_err(|_| Error::NotFound {
+                message: "QR pattern was not detected".into(),
             })?;
-        let version_dimension = version.dimension() as i32;
+        let version_dimension = version.dimension();
+        let version_dimension_i32 = version_dimension as i32;
 
         // if the version bits are garbage -> discard the detection
-        if (version_dimension - dimension).abs() > 8 {
+        if (version_dimension_i32 - dimension).abs() > 8 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             }
             .into());
         }
-        if version_dimension != dimension {
-            dimension = version_dimension;
+        if version_dimension_i32 != dimension {
+            dimension = version_dimension_i32;
+            dimension_usize = version_dimension;
             mod_to_pix = mod2_pix(
                 dimension,
                 br_offset,
@@ -577,10 +620,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         // project the alignment pattern at module coordinates x/y to pixel coordinate based on current mod2_pix
         let project_m2_p = |x, y, mod2_pix: &PerspectiveTransform| -> Result<Point> {
             mod2_pix
-                .transform_point(Point::centered(point_i(ap_m[x], ap_m[y])))
+                .transform_point(point(ap_m[x] as f32, ap_m[y] as f32).centered())
                 .ok_or_else(|| {
                     Error::NotFound {
-                        message: "barcode pattern was not detected".into(),
+                        message: "QR pattern was not detected".into(),
                     }
                     .into()
                 })
@@ -635,7 +678,8 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                     continue;
                 }
 
-                // find the two closest valid alignment pattern pixel positions both horizontally and vertically
+                // find the two closest valid alignment pattern pixel positions both horizontally and vertically.
+                // The offset walks outward in alternating directions: i=2→+1, 3→-1, 4→+2, 5→-2, ...
                 let mut hori = Vec::new();
                 let mut verti = Vec::new();
                 let mut i = 2;
@@ -663,9 +707,9 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
                 // if we found 2 each, intersect the two lines that are formed by connecting the point pairs
                 if (hori.len()) == 2 && (verti.len()) == 2 {
-                    let guessed = RegressionLine::intersect(
-                        &DMRegressionLine::new(hori[0], hori[1]),
-                        &DMRegressionLine::new(verti[0], verti[1]),
+                    let guessed = intersect(
+                        &RegressionLine::with_two_points(hori[0], hori[1]),
+                        &RegressionLine::with_two_points(verti[0], verti[1]),
                     )
                     .ok_or(Error::InvalidState {
                         message: "required internal state is missing".into(),
@@ -706,12 +750,13 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 let x1 = ap_m[x + 1];
                 let y0 = ap_m[y];
                 let y1 = ap_m[y + 1];
+                let module_left = x0 - usize::from(x == 0) * 6;
+                let module_top = y0 - usize::from(y == 0) * 6;
+                let module_right = x1 + usize::from(x == n - 1) * 7;
+                let module_bottom = y1 + usize::from(y == n - 1) * 7;
                 rois.push(SamplerControl {
-                    p0: point_i(x0 - u32::from(x == 0) * 6, y0 - u32::from(y == 0) * 6),
-                    p1: point_i(
-                        x1 + u32::from(x == n - 1) * 7,
-                        y1 + u32::from(y == n - 1) * 7,
-                    ),
+                    p0: point(module_left as f32, module_top as f32),
+                    p1: point(module_right as f32, module_bottom as f32),
                     transform: PerspectiveTransform::quadrilateral_to_quadrilateral(
                         Quadrilateral::rectangle_from_xy(
                             x0 as f32, x1 as f32, y0 as f32, y1 as f32, None,
@@ -735,22 +780,22 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
             }
         }
         let grid_sampler = DefaultGridSampler;
-        let sampled = grid_sampler.sample_grid(image, dimension as u32, dimension as u32, &rois)?;
-        let result = QRCodeDetectorResult::new(sampled);
+        let sampled = grid_sampler.sample_grid(image, dimension_usize, dimension_usize, &rois)?;
+        let result = DetectorResult::new(sampled);
         return Ok(result);
     }
 
     let grid_sampler = DefaultGridSampler;
     let sampled = grid_sampler.sample_grid(
         image,
-        dimension as u32,
-        dimension as u32,
+        dimension_usize,
+        dimension_usize,
         &[SamplerControl {
-            p1: point_i(dimension as u32, dimension as u32),
+            p1: point(dimension_usize as f32, dimension_usize as f32),
             p0: point_i(0, 0),
             transform: mod_to_pix,
         }],
     )?;
-    let result = QRCodeDetectorResult::new(sampled);
+    let result = DetectorResult::new(sampled);
     Ok(result)
 }

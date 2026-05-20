@@ -5,10 +5,9 @@ use crate::{Error, common::BitMatrix};
 use super::BitMatrixCursorTrait;
 
 pub struct FastEdgeToEdgeCounter<'a> {
-    p: u32,
+    p: usize,
     stride: isize,
     steps_to_border: i32,
-    _arr: isize,
     under_array: &'a BitMatrix,
 }
 
@@ -37,7 +36,7 @@ impl FastEdgeToEdgeCounter<'_> {
             }
             .into());
         }
-        let p = p as u32;
+        let p = p as usize;
 
         let max_steps_x: i32 = if cur.d().x != 0.0 {
             if cur.d().x > 0.0 {
@@ -63,7 +62,6 @@ impl FastEdgeToEdgeCounter<'_> {
             p,
             stride,
             steps_to_border,
-            _arr: cur.p().y as isize * stride,
             under_array: cur.img(),
         })
     }
@@ -81,11 +79,11 @@ impl FastEdgeToEdgeCounter<'_> {
                 }
             }
 
-            let Some(idx_pt) = self.get_array_check_index(steps) else {
+            let Some(idx_pt) = self.checked_index_for_steps(steps) else {
                 return 0;
             };
 
-            if self.under_array.at_index(idx_pt) != self.under_array.at_index(self.p as usize) {
+            if self.under_array.at_index(idx_pt) != self.under_array.at_index(self.p) {
                 break;
             }
         }
@@ -96,14 +94,14 @@ impl FastEdgeToEdgeCounter<'_> {
         // for negative stride. Caller never re-reads `self.p` in that terminal case,
         // but clamping keeps `self.p` in a defined state.
         let new_pos = self.p as isize + (steps as isize * self.stride);
-        self.p = new_pos.max(0) as u32;
+        self.p = new_pos.max(0) as usize;
         self.steps_to_border -= steps;
 
         steps as u32
     }
 
     #[inline(always)]
-    fn get_array_check_index(&self, steps: i32) -> Option<usize> {
+    fn checked_index_for_steps(&self, steps: i32) -> Option<usize> {
         let idx = self.p as isize + (steps as isize * self.stride);
         if idx < 0 {
             return None;

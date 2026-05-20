@@ -22,21 +22,24 @@ use super::Version;
 /// See ISO 18004:2006, 6.4.1, Tables 2 and 3. This enum encapsulates the various modes in which
 /// data can be encoded to bits in the QR code standard.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[repr(u8)]
 pub enum Mode {
-    Terminator,
-    Numeric,
-    Alphanumeric,
-    StructuredAppend,
-    Byte,
-    Eci,
-    Kanji,
-    Fnc1FirstPosition,
-    Fnc1SecondPosition,
+    Terminator = 0x0,
+    Numeric = 0x1,
+    Alphanumeric = 0x2,
+    StructuredAppend = 0x3,
+    Byte = 0x4,
+    Fnc1FirstPosition = 0x5,
+    Eci = 0x7,
+    Kanji = 0x8,
+    Fnc1SecondPosition = 0x9,
     /// See GBT 18284-2000; "Hanzi" is a transliteration of this mode name.
-    Hanzi,
+    Hanzi = 0xD,
 }
 
 impl Mode {
+    const MODE_INDICATOR_BITS: usize = 4;
+
     /// Converts the four-bit QR Code mode indicator into a [`Mode`].
     ///
     /// - `bits`: four bits encoding a QR Code data mode.
@@ -69,7 +72,7 @@ impl Mode {
     ///
     /// The returned value is the number of bits used to encode the count of
     /// characters that follow this mode indicator.
-    pub fn character_count_bits_u8(&self, version: &Version) -> u8 {
+    pub fn character_count_bits(&self, version: &Version) -> usize {
         let number = version.number();
 
         let offset = if number <= 9 {
@@ -82,44 +85,33 @@ impl Mode {
         self.character_counts()[offset]
     }
 
-    fn character_counts(&self) -> &[u8] {
+    fn character_counts(&self) -> [usize; 3] {
         match self {
-            Mode::Terminator => &[0, 0, 0],
-            Mode::Numeric => &[10, 12, 14],
-            Mode::Alphanumeric => &[9, 11, 13],
-            Mode::StructuredAppend => &[0, 0, 0],
-            Mode::Byte => &[8, 16, 16],
-            Mode::Eci => &[0, 0, 0],
-            Mode::Kanji => &[8, 10, 12],
-            Mode::Fnc1FirstPosition => &[0, 0, 0],
-            Mode::Fnc1SecondPosition => &[0, 0, 0],
-            Mode::Hanzi => &[8, 10, 12],
+            Mode::Terminator => [0, 0, 0],
+            Mode::Numeric => [10, 12, 14],
+            Mode::Alphanumeric => [9, 11, 13],
+            Mode::StructuredAppend => [0, 0, 0],
+            Mode::Byte => [8, 16, 16],
+            Mode::Eci => [0, 0, 0],
+            Mode::Kanji => [8, 10, 12],
+            Mode::Fnc1FirstPosition => [0, 0, 0],
+            Mode::Fnc1SecondPosition => [0, 0, 0],
+            Mode::Hanzi => [8, 10, 12],
         }
     }
 
-    pub fn bits(&self) -> u8 {
-        match self {
-            Mode::Terminator => 0x00,
-            Mode::Numeric => 0x01,
-            Mode::Alphanumeric => 0x02,
-            Mode::StructuredAppend => 0x03,
-            Mode::Byte => 0x04,
-            Mode::Eci => 0x07,
-            Mode::Kanji => 0x08,
-            Mode::Fnc1FirstPosition => 0x05,
-            Mode::Fnc1SecondPosition => 0x09,
-            Mode::Hanzi => 0x0D,
-        }
+    pub const fn bits(self) -> u8 {
+        self as u8
     }
 
-    pub fn terminator_bit_length(version: &Version) -> u8 {
+    pub fn terminator_bit_length(version: &Version) -> usize {
         let _ = version;
-        4
+        Self::MODE_INDICATOR_BITS
     }
 
-    pub fn codec_mode_bits_length(version: &Version) -> u8 {
+    pub fn codec_mode_bits_length(version: &Version) -> usize {
         let _ = version;
-        4
+        Self::MODE_INDICATOR_BITS
     }
     /// Converts a QR mode indicator into a [`Mode`].
     ///
@@ -127,22 +119,10 @@ impl Mode {
     ///
     /// Returns an invalid-format error if `bits` does not correspond to a known mode.
     pub fn codec_mode_for_bits(bits: u32) -> Result<Self> {
-        if (0x00..=0x05).contains(&bits) || (0x07..=0x09).contains(&bits) || bits == 0x0d {
-            return Mode::try_from(bits);
-        }
-
-        Err(Error::InvalidFormat {
+        Mode::try_from(bits).map_err(|_| Error::InvalidFormat {
             message: format!("Invalid QR codec mode bits 0x{bits:X}").into(),
         }
         .into())
-    }
-
-    /// Returns the character-count field width for this mode and symbol version.
-    ///
-    /// The returned value is the number of bits used to encode the count of
-    /// characters that follow this mode indicator.
-    pub fn character_count_bits(&self, version: &Version) -> u32 {
-        self.character_count_bits_u8(version) as u32
     }
 }
 
@@ -164,12 +144,9 @@ impl TryFrom<u32> for Mode {
     type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value > u32::from(u8::MAX) {
-            return Err(Error::InvalidArgument {
-                message: format!("{value} is not valid").into(),
-            }
-            .into());
-        }
-        Self::for_bits(value as u8)
+        let value = u8::try_from(value).map_err(|_| Error::InvalidArgument {
+            message: format!("{value} is not valid").into(),
+        })?;
+        Self::for_bits(value)
     }
 }

@@ -20,8 +20,8 @@ impl DecoderResult {
         self.content.symbology.code != 0 && self.error.is_none()
     }
 
-    pub fn content(&self) -> &ECIStringBuilder {
-        &self.content
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.content.into_bytes()
     }
 
     pub fn with_error(mut self, error: Option<anyhow::Error>) -> DecoderResult {

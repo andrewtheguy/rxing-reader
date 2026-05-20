@@ -18,7 +18,7 @@ use anyhow::Result;
 
 use crate::{LuminanceSource, common::BitMatrix};
 
-/// Converts greyscale luminance data into one-bit black/white barcode data.
+/// Converts greyscale luminance data into one-bit black/white QR image data.
 ///
 /// Implementations can choose different thresholding strategies while exposing
 /// the same row, line, and matrix accessors to readers.

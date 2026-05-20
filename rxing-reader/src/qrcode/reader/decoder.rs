@@ -7,20 +7,158 @@
 use anyhow::Result;
 
 use crate::Error;
-use crate::common::cpp_essentials::DecoderResult;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
-};
-use crate::qrcode::cpp_port::bitmatrix_parser::{
-    read_codewords, read_format_information, read_version,
+    detect::{DecoderResult, to_fixed_len_string as padded_digits},
 };
 use crate::qrcode::reed_solomon::correct_qr_errors;
 use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
 
+use super::bitmatrix_parser::{read_codewords, read_format_information, read_version};
+
+const BYTE_BITS: usize = 8;
+const DOUBLE_BYTE_SEGMENT_BITS: usize = 13;
+const HANZI_SUBSET_BITS: usize = 4;
+const GB2312_SUBSET: u32 = 1;
+const HANZI_BYTE_MULTIPLIER: u32 = 0x060;
+const HANZI_LOW_RANGE_LIMIT: u32 = 0x00A00;
+const HANZI_LOW_RANGE_OFFSET: u32 = 0x0A1A1;
+const HANZI_HIGH_RANGE_OFFSET: u32 = 0x0A6A1;
+const KANJI_BYTE_MULTIPLIER: u32 = 0x0C0;
+const KANJI_LOW_RANGE_LIMIT: u32 = 0x01F00;
+const KANJI_LOW_RANGE_OFFSET: u32 = 0x08140;
+const KANJI_HIGH_RANGE_OFFSET: u32 = 0x0C140;
+const ALPHANUMERIC_PAIR_BITS: usize = 11;
+const ALPHANUMERIC_SINGLE_BITS: usize = 6;
+const ALPHANUMERIC_RADIX: usize = 45;
+const ALPHANUMERIC_CHARS: [char; ALPHANUMERIC_RADIX] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    ' ', '$', '%', '*', '+', '-', '.', '/', ':',
+];
+const NUMERIC_DIGIT_GROUP_BITS: [usize; 4] = [0, 4, 7, 10];
+const FNC1_GROUP_SEPARATOR: u8 = 0x1D;
+const STRUCTURED_APPEND_INDEX_BITS: usize = 4;
+const STRUCTURED_APPEND_COUNT_BITS: usize = 4;
+const STRUCTURED_APPEND_PARITY_BITS: usize = 8;
+const AIM_NUMERIC_MAX: u32 = 99;
+const AIM_ALPHA_OFFSET: u32 = 100;
+const ECI_ONE_BYTE_PREFIX_MASK: u32 = 0x80;
+const ECI_ONE_BYTE_PAYLOAD_MASK: u32 = 0x7F;
+const ECI_TWO_BYTE_PREFIX_MASK: u32 = 0xC0;
+const ECI_TWO_BYTE_PREFIX: u32 = 0x80;
+const ECI_TWO_BYTE_PAYLOAD_MASK: u32 = 0x3F;
+const ECI_THREE_BYTE_PREFIX_MASK: u32 = 0xE0;
+const ECI_THREE_BYTE_PREFIX: u32 = 0xC0;
+const ECI_THREE_BYTE_PAYLOAD_MASK: u32 = 0x1F;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HanziSubset {
+    Gb2312,
+}
+
+impl TryFrom<u32> for HanziSubset {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            GB2312_SUBSET => Ok(Self::Gb2312),
+            _ => Err(Error::InvalidFormat {
+                message: format!(
+                    "Unsupported HANZI subset {value} (only GB2312_SUBSET = {GB2312_SUBSET} is supported)"
+                )
+                .into(),
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AimApplicationIndicator {
+    Numeric(usize),
+    Alphabetic(u8),
+}
+
+impl TryFrom<u32> for AimApplicationIndicator {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            0..=AIM_NUMERIC_MAX => Ok(Self::Numeric(usize::try_from(value).map_err(|_| {
+                Error::InvalidFormat {
+                    message: format!("AIM numeric indicator {value} does not fit in usize").into(),
+                }
+            })?)),
+            165..=190 | 197..=222 => Ok(Self::Alphabetic(
+                u8::try_from(value - AIM_ALPHA_OFFSET).map_err(|_| Error::InvalidFormat {
+                    message: format!("AIM alphabetic indicator {value} does not fit in u8").into(),
+                })?,
+            )),
+            _ => Err(Error::InvalidFormat {
+                message: format!(
+                    "Invalid AIM Application Indicator value {value} (expected 0..=99, 165..=190, or 197..=222)"
+                )
+                .into(),
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EciValueLength {
+    OneByte,
+    TwoBytes,
+    ThreeBytes,
+}
+
+impl EciValueLength {
+    fn from_first_byte(first_byte: u32) -> Result<Self> {
+        if (first_byte & ECI_ONE_BYTE_PREFIX_MASK) == 0 {
+            return Ok(Self::OneByte);
+        }
+        if (first_byte & ECI_TWO_BYTE_PREFIX_MASK) == ECI_TWO_BYTE_PREFIX {
+            return Ok(Self::TwoBytes);
+        }
+        if (first_byte & ECI_THREE_BYTE_PREFIX_MASK) == ECI_THREE_BYTE_PREFIX {
+            return Ok(Self::ThreeBytes);
+        }
+        Err(Error::InvalidFormat {
+            message: format!(
+                "parse_eci_value: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
+            )
+            .into(),
+        }
+        .into())
+    }
+}
+
+fn read_bits_as_usize(bits: &mut BitSource, num_bits: usize, context: &str) -> Result<usize> {
+    usize::try_from(bits.read_bits(num_bits)?).map_err(|_| Error::InvalidFormat {
+        message: format!("{context} does not fit in usize (num_bits={num_bits})").into(),
+    }
+    .into())
+}
+
+fn read_count(bits: &mut BitSource, num_bits: usize) -> Result<usize> {
+    read_bits_as_usize(bits, num_bits, "QR segment count")
+}
+
+fn append_be_u16(result: &mut ECIStringBuilder, value: u32) -> Result<()> {
+    let value = u16::try_from(value).map_err(|_| Error::InvalidFormat {
+        message: format!("double-byte character value 0x{value:X} out of range").into(),
+    })?;
+    let bytes = value.to_be_bytes();
+    *result += bytes[0];
+    *result += bytes[1];
+    Ok(())
+}
+
 /// See specification GBT 18284-2000
 pub fn decode_hanzi_segment(
     bits: &mut BitSource,
-    count: u32,
+    count: usize,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     let mut count = count;
@@ -28,21 +166,21 @@ pub fn decode_hanzi_segment(
     // Each character will require 2 bytes, decode as GB2312
     // There is no ECI value for GB2312, use GB18030 which is a superset
     result.switch_encoding(CharacterSet::GB18030, false);
-    result.reserve(2 * count as usize);
+    result.reserve(2 * count);
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let two_bytes = bits.read_bits(13)?;
-        let mut assembled_two_bytes = ((two_bytes / 0x060) << 8) | (two_bytes % 0x060);
-        if assembled_two_bytes < 0x00A00 {
+        let two_bytes = bits.read_bits(DOUBLE_BYTE_SEGMENT_BITS)?;
+        let mut assembled_two_bytes =
+            ((two_bytes / HANZI_BYTE_MULTIPLIER) << 8) | (two_bytes % HANZI_BYTE_MULTIPLIER);
+        if assembled_two_bytes < HANZI_LOW_RANGE_LIMIT {
             // In the 0xA1A1 to 0xAAFE range
-            assembled_two_bytes += 0x0A1A1;
+            assembled_two_bytes += HANZI_LOW_RANGE_OFFSET;
         } else {
             // In the 0xB0A1 to 0xFAFE range
-            assembled_two_bytes += 0x0A6A1;
+            assembled_two_bytes += HANZI_HIGH_RANGE_OFFSET;
         }
-        *result += ((assembled_two_bytes >> 8) & 0xFF) as u8;
-        *result += (assembled_two_bytes & 0xFF) as u8;
+        append_be_u16(result, assembled_two_bytes)?;
         count -= 1;
     }
     Ok(())
@@ -50,28 +188,28 @@ pub fn decode_hanzi_segment(
 
 pub fn decode_kanji_segment(
     bits: &mut BitSource,
-    count: u32,
+    count: usize,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     let mut count = count;
     // Each character will require 2 bytes. Read the characters as 2-byte pairs
     // and decode as ShiftJis afterwards
     result.switch_encoding(CharacterSet::ShiftJis, false);
-    result.reserve(2 * count as usize);
+    result.reserve(2 * count);
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let two_bytes = bits.read_bits(13)?;
-        let mut assembled_two_bytes = ((two_bytes / 0x0C0) << 8) | (two_bytes % 0x0C0);
-        if assembled_two_bytes < 0x01F00 {
+        let two_bytes = bits.read_bits(DOUBLE_BYTE_SEGMENT_BITS)?;
+        let mut assembled_two_bytes =
+            ((two_bytes / KANJI_BYTE_MULTIPLIER) << 8) | (two_bytes % KANJI_BYTE_MULTIPLIER);
+        if assembled_two_bytes < KANJI_LOW_RANGE_LIMIT {
             // In the 0x8140 to 0x9FFC range
-            assembled_two_bytes += 0x08140;
+            assembled_two_bytes += KANJI_LOW_RANGE_OFFSET;
         } else {
             // In the 0xE040 to 0xEBBF range
-            assembled_two_bytes += 0x0C140;
+            assembled_two_bytes += KANJI_HIGH_RANGE_OFFSET;
         }
-        *result += (assembled_two_bytes >> 8) as u8;
-        *result += (assembled_two_bytes) as u8;
+        append_be_u16(result, assembled_two_bytes)?;
         count -= 1;
     }
     Ok(())
@@ -79,43 +217,36 @@ pub fn decode_kanji_segment(
 
 pub fn decode_byte_segment(
     bits: &mut BitSource,
-    count: u32,
+    count: usize,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     result.switch_encoding(CharacterSet::Unknown, false);
-    result.reserve(count as usize);
+    result.reserve(count);
 
-    for _i in 0..count {
-        *result += (bits.read_bits(8)?) as u8;
+    for _ in 0..count {
+        *result += u8::try_from(bits.read_bits(BYTE_BITS)?).map_err(|_| Error::InvalidFormat {
+            message: "byte segment produced a value outside u8".into(),
+        })?;
     }
     Ok(())
 }
 
-pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
-    let value = value as usize;
-    /// See ISO 18004:2006, 6.4.4 Table 5
-    const ALPHANUMERIC_CHARS: [char; 45] = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-        'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-        ' ', '$', '%', '*', '+', '-', '.', '/', ':',
-    ];
-
-    if value >= (ALPHANUMERIC_CHARS.len()) {
-        return Err(Error::InvalidFormat {
+pub fn to_alphanumeric_char(value: usize) -> Result<char> {
+    ALPHANUMERIC_CHARS
+        .get(value)
+        .copied()
+        .ok_or_else(|| Error::InvalidFormat {
             message: format!(
-                "to_alpha_numeric_char: value {value} out of range (expected 0..{})",
+                "to_alphanumeric_char: value {value} out of range (expected 0..{})",
                 ALPHANUMERIC_CHARS.len()
             ).into(),
         }
-        .into());
-    }
-
-    Ok(ALPHANUMERIC_CHARS[value])
+        .into())
 }
 
 pub fn decode_alphanumeric_segment(
     bits: &mut BitSource,
-    count: u32,
+    count: usize,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     let mut count = count;
@@ -124,14 +255,20 @@ pub fn decode_alphanumeric_segment(
     let mut buffer = Vec::new();
 
     while count > 1 {
-        let next_two_chars_bits = bits.read_bits(11)?;
-        buffer.push(to_alpha_numeric_char(next_two_chars_bits / 45)?);
-        buffer.push(to_alpha_numeric_char(next_two_chars_bits % 45)?);
+        let next_two_chars_bits =
+            read_bits_as_usize(bits, ALPHANUMERIC_PAIR_BITS, "alphanumeric pair value")?;
+        buffer.push(to_alphanumeric_char(next_two_chars_bits / ALPHANUMERIC_RADIX)?);
+        buffer.push(to_alphanumeric_char(next_two_chars_bits % ALPHANUMERIC_RADIX)?);
         count -= 2;
     }
     if count == 1 {
         // special case: one character left
-        buffer.push(to_alpha_numeric_char(bits.read_bits(6)?)?);
+        let value = read_bits_as_usize(
+            bits,
+            ALPHANUMERIC_SINGLE_BITS,
+            "alphanumeric single value",
+        )?;
+        buffer.push(to_alphanumeric_char(value)?);
     }
     // See section 6.4.8.1, 6.4.8.2
     if result.symbology.ai_flag != AIFlag::None {
@@ -143,7 +280,7 @@ pub fn decode_alphanumeric_segment(
                     buffer.remove(i + 1);
                 } else {
                     // In alpha mode, % should be converted to FNC1 separator 0x1D
-                    buffer[i] = char::from(0x1D);
+                    buffer[i] = char::from(FNC1_GROUP_SEPARATOR);
                 }
             }
             i += 1;
@@ -158,53 +295,45 @@ pub fn decode_alphanumeric_segment(
 
 pub fn decode_numeric_segment(
     bits: &mut BitSource,
-    count: u32,
+    count: usize,
     result: &mut ECIStringBuilder,
 ) -> Result<()> {
     let mut count = count;
 
     result.switch_encoding(CharacterSet::ISO8859_1, false);
-    result.reserve(count as usize);
+    result.reserve(count);
 
     while count > 0 {
         let n = std::cmp::min(count, 3);
-        let n_digits = bits.read_bits(1 + 3 * n as usize)?; // read 4, 7 or 10 bits into 1, 2 or 3 digits
-        result.append_string(&crate::common::cpp_essentials::util::to_string(
-            n_digits as usize,
-            n as usize,
-        )?);
+        let n_digits =
+            read_bits_as_usize(bits, NUMERIC_DIGIT_GROUP_BITS[n], "numeric segment value")?;
+        result.append_string(&padded_digits(n_digits, n)?);
         count -= n;
     }
 
     Ok(())
 }
 
-pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
-    let first_byte = bits.read_bits(8)?;
-    if (first_byte & 0x80) == 0 {
-        // just one byte
-        return Eci::try_from(first_byte & 0x7F);
+pub fn parse_eci_value(bits: &mut BitSource) -> Result<Eci> {
+    let first_byte = bits.read_bits(BYTE_BITS)?;
+    match EciValueLength::from_first_byte(first_byte)? {
+        EciValueLength::OneByte => Eci::try_from(first_byte & ECI_ONE_BYTE_PAYLOAD_MASK),
+        EciValueLength::TwoBytes => {
+            let second_byte = bits.read_bits(BYTE_BITS)?;
+            Eci::try_from(((first_byte & ECI_TWO_BYTE_PAYLOAD_MASK) << BYTE_BITS) | second_byte)
+        }
+        EciValueLength::ThreeBytes => {
+            let second_third_bytes = bits.read_bits(2 * BYTE_BITS)?;
+            Eci::try_from(
+                ((first_byte & ECI_THREE_BYTE_PAYLOAD_MASK) << (2 * BYTE_BITS))
+                    | second_third_bytes,
+            )
+        }
     }
-    if (first_byte & 0xC0) == 0x80 {
-        // two bytes
-        let second_byte = bits.read_bits(8)?;
-        return Eci::try_from(((first_byte & 0x3F) << 8) | second_byte);
-    }
-    if (first_byte & 0xE0) == 0xC0 {
-        // three bytes
-        let second_third_bytes = bits.read_bits(16)?;
-        return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
-    }
-    Err(Error::InvalidFormat {
-        message: format!(
-            "parse_ecivalue: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
-        ).into(),
-    }
-    .into())
 }
 
 /// QR codes encode mode indicators and terminator codes into a constant bit length of 4.
-/// IsTerminator peaks into the bit stream to see if the current position is at the start of
+/// IsTerminator peeks into the bit stream to see if the current position is at the start of
 /// a terminator code.  If true, then the decoding can finish. If false, then the decoding
 /// can read off the next mode code.
 ///
@@ -214,7 +343,7 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
 /// - `version`: the QR code version
 pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
     let bits_required = Mode::terminator_bit_length(version);
-    let bits_available = std::cmp::min(bits.available(), bits_required as usize);
+    let bits_available = std::cmp::min(bits.available(), bits_required);
     Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
 }
 
@@ -236,7 +365,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
 
     let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
-            let mode = Mode::codec_mode_for_bits(bits.read_bits(mode_bit_length as usize)?)?;
+            let mode = Mode::codec_mode_for_bits(bits.read_bits(mode_bit_length)?)?;
 
             match mode {
                 Mode::Fnc1FirstPosition => {
@@ -249,53 +378,36 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                     }
                     result.symbology.modifier = b'5';
                     // ISO/IEC 18004:2015 7.4.8.3 AIM Application Indicator (FNC1 in second position), "00-99" or "A-Za-z"
-                    let app_ind = bits.read_bits(8)?;
-                    if app_ind < 100 {
-                        // "00-09"
-                        result +=
-                            crate::common::cpp_essentials::util::to_string(app_ind as usize, 2)?;
-                    } else if (165..=190).contains(&app_ind) || (197..=222).contains(&app_ind) {
-                        // "A-Za-z"
-                        result += (app_ind - 100) as u8;
-                    } else {
-                        return Err(Error::InvalidFormat {
-                            message: format!(
-                                "Invalid AIM Application Indicator value {app_ind} (expected 0..=99, 165..=190, or 197..=222)"
-                            ).into(),
+                    match AimApplicationIndicator::try_from(bits.read_bits(BYTE_BITS)?)? {
+                        AimApplicationIndicator::Numeric(value) => {
+                            result += padded_digits(value, 2)?;
                         }
-                        .into());
+                        AimApplicationIndicator::Alphabetic(value) => {
+                            result += value;
+                        }
                     }
                     result.symbology.ai_flag = AIFlag::Aim;
                 }
                 Mode::StructuredAppend => {
-                    bits.read_bits(4)?;
-                    bits.read_bits(4)?;
-                    bits.read_bits(8)?;
+                    bits.read_bits(STRUCTURED_APPEND_INDEX_BITS)?;
+                    bits.read_bits(STRUCTURED_APPEND_COUNT_BITS)?;
+                    bits.read_bits(STRUCTURED_APPEND_PARITY_BITS)?;
                 }
                 Mode::Eci => {
                     // Count doesn't apply to ECI
-                    result.switch_encoding(parse_ecivalue(&mut bits)?.into(), true);
+                    result.switch_encoding(parse_eci_value(&mut bits)?.into(), true);
                 }
                 Mode::Hanzi => {
                     // First handle Hanzi mode which does not start with character count
                     // chinese mode contains a sub set indicator right after mode indicator
-                    let subset = bits.read_bits(4)?;
-                    if subset != 1 {
-                        // GB2312_SUBSET is the only supported one right now
-                        return Err(Error::InvalidFormat {
-                            message: format!(
-                                "Unsupported HANZI subset {subset} (only GB2312_SUBSET = 1 is supported)"
-                            ).into(),
-                        }
-                        .into());
-                    }
-                    let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
+                    let _subset = HanziSubset::try_from(bits.read_bits(HANZI_SUBSET_BITS)?)?;
+                    let count = read_count(&mut bits, mode.character_count_bits(version))?;
                     decode_hanzi_segment(&mut bits, count, &mut result)?;
                 }
                 _ => {
                     // "Normal" QR code modes:
                     // How many characters will follow, encoded in this mode?
-                    let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
+                    let count = read_count(&mut bits, mode.character_count_bits(version))?;
                     match mode {
                         Mode::Numeric => decode_numeric_segment(&mut bits, count, &mut result)?,
                         Mode::Alphanumeric => {
@@ -377,12 +489,12 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
     let op =
         |total_bytes, data_block: &DataBlock| total_bytes + data_block.num_data_codewords();
     let total_bytes = data_blocks.iter().fold(0, op);
-    let mut result_bytes = vec![0u8; total_bytes as usize];
+    let mut result_bytes = vec![0u8; total_bytes];
     let mut result_iterator = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
     for data_block in data_blocks {
-        let num_data_codewords = data_block.num_data_codewords() as usize;
+        let num_data_codewords = data_block.num_data_codewords();
         let mut codeword_bytes = data_block.codewords;
 
         correct_errors(&mut codeword_bytes, num_data_codewords)?;
@@ -397,12 +509,12 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
 }
 
 struct DataBlock {
-    num_data_codewords: u32,
+    num_data_codewords: usize,
     codewords: Vec<u8>,
 }
 
 impl DataBlock {
-    fn new(num_data_codewords: u32, codewords: Vec<u8>) -> Self {
+    fn new(num_data_codewords: usize, codewords: Vec<u8>) -> Self {
         Self {
             num_data_codewords,
             codewords,
@@ -414,7 +526,7 @@ impl DataBlock {
         version: VersionRef,
         ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
-        if raw_codewords.len() as u32 != version.total_codewords() {
+        if raw_codewords.len() != version.total_codewords() {
             return Err(Error::InvalidArgument {
                 message: format!(
                     "raw codewords length {} does not match expected total codewords {}",
@@ -436,7 +548,7 @@ impl DataBlock {
                     ec_blocks.ec_codewords_per_block() + num_data_codewords;
                 result.push(DataBlock::new(
                     num_data_codewords,
-                    vec![0u8; num_block_codewords as usize],
+                    vec![0u8; num_block_codewords],
                 ));
                 num_result_blocks += 1;
             }
@@ -465,7 +577,7 @@ impl DataBlock {
         }
 
         let shorter_blocks_num_data_codewords =
-            shorter_blocks_total_codewords - ec_blocks.ec_codewords_per_block() as usize;
+            shorter_blocks_total_codewords - ec_blocks.ec_codewords_per_block();
         let mut raw_codewords_offset = 0;
         for i in 0..shorter_blocks_num_data_codewords {
             for result_j in result.iter_mut().take(num_result_blocks) {
@@ -492,7 +604,7 @@ impl DataBlock {
         Ok(result)
     }
 
-    fn num_data_codewords(&self) -> u32 {
+    fn num_data_codewords(&self) -> usize {
         self.num_data_codewords
     }
 

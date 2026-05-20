@@ -9,14 +9,13 @@ use crate::{
     qrcode::QrReader,
 };
 
-/// Pyramid downscale threshold and factor, mirroring zxing-cpp's
-/// `tryDownscale` defaults.
-pub const PYRAMID_DOWNSCALE_THRESHOLD: u32 = 500;
-pub const PYRAMID_DOWNSCALE_FACTOR: u32 = 3;
+/// Pyramid downscale threshold and factor used by try-harder QR scanning.
+pub const PYRAMID_DOWNSCALE_THRESHOLD: usize = 500;
+pub const PYRAMID_DOWNSCALE_FACTOR: usize = 3;
 
-pub fn rgba_to_luma(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
-    let expected = (width as usize)
-        .checked_mul(height as usize)
+pub fn rgba_to_luma(rgba: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+    let expected = width
+        .checked_mul(height)
         .and_then(|n| n.checked_mul(4))
         .ok_or_else(|| "Image dimensions overflow".to_string())?;
     if rgba.len() != expected {
@@ -43,11 +42,11 @@ pub fn rgba_to_luma(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, Str
 pub fn decode_with_optional_invert<B: Binarizer>(
     bitmap: &mut BinaryBitmap<B>,
     hints: &DecodeHints,
-    max_number_of_symbols: u32,
+    max_number_of_symbols: usize,
     try_invert: bool,
 ) -> Vec<Vec<u8>> {
     let results = QrReader
-        .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+        .decode_with_hints(bitmap, hints, max_number_of_symbols)
         .unwrap_or_default();
     if !results.is_empty() {
         return results;
@@ -55,7 +54,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     if try_invert && let Ok(matrix) = bitmap.black_matrix_mut() {
         matrix.flip_self();
         return QrReader
-            .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+            .decode_with_hints(bitmap, hints, max_number_of_symbols)
             .unwrap_or_default();
     }
     Vec::new()
@@ -66,7 +65,7 @@ pub fn decode_one_layer(
     source: Luma8LuminanceSource<'_>,
     hints: &DecodeHints,
     use_hybrid_binarizer: bool,
-    max_number_of_symbols: u32,
+    max_number_of_symbols: usize,
     try_invert: bool,
     close: bool,
 ) -> Vec<Vec<u8>> {
@@ -89,12 +88,12 @@ pub fn decode_one_layer(
 /// close-pass, binarizer, and optional-inversion pipeline.
 pub fn decode_qr_codes_luma(
     luma: &[u8],
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
     try_harder: bool,
     try_invert: bool,
     use_hybrid_binarizer: bool,
-    max_number_of_symbols: u32,
+    max_number_of_symbols: usize,
 ) -> RxingResult<Vec<Vec<u8>>> {
     let hints = DecodeHints { try_harder };
 
@@ -135,7 +134,9 @@ pub fn decode_qr_codes_luma(
         }
         let (next_luma, next_w, next_h) =
             downscale_luma_buffer(cur_luma.as_ref(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)?;
-        cur_luma = Cow::Owned(next_luma);
+        if let Cow::Owned(next_luma) = next_luma {
+            cur_luma = Cow::Owned(next_luma);
+        }
         cur_w = next_w;
         cur_h = next_h;
     }

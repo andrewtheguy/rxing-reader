@@ -26,13 +26,13 @@ impl GridSampler for DefaultGridSampler {
     fn sample_grid(
         &self,
         image: &BitMatrix,
-        dimension_x: u32,
-        dimension_y: u32,
+        dimension_x: usize,
+        dimension_y: usize,
         controls: &[SamplerControl],
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             }
             .into());
         }
@@ -51,7 +51,7 @@ impl GridSampler for DefaultGridSampler {
                 || !is_inside(p0.x, p1.y - 1.0)
             {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".into(),
+                    message: "QR pattern was not detected".into(),
                 }
                 .into());
             }
@@ -59,12 +59,12 @@ impl GridSampler for DefaultGridSampler {
 
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
         for SamplerControl { p0, p1, transform } in controls {
-            for y in (p0.y as i32)..(p1.y as i32) {
-                for x in (p0.x as i32)..(p1.x as i32) {
+            for y in (p0.y as usize)..(p1.y as usize) {
+                for x in (p0.x as usize)..(p1.x as usize) {
                     let p = transform
-                        .transform_point(Point::from((x, y)).centered())
+                        .transform_point(point(x as f32, y as f32).centered())
                         .ok_or(Error::NotFound {
-                            message: "barcode pattern was not detected".into(),
+                            message: "QR pattern was not detected".into(),
                         })?;
 
                     // Due to a "numerical instability" in the PerspectiveTransform generation/application it has been observed
@@ -74,13 +74,13 @@ impl GridSampler for DefaultGridSampler {
                     // TODO: Check some mathematical/numercial property of mod2_pix to determine if it is a perspective transforation.
                     if !image.is_in(p) {
                         return Err(Error::NotFound {
-                            message: "barcode pattern was not detected".into(),
+                            message: "QR pattern was not detected".into(),
                         }
                         .into());
                     }
 
                     if image.at_point(p) {
-                        bits.set(x as u32, y as u32);
+                        bits.set(x, y);
                     }
                 }
             }

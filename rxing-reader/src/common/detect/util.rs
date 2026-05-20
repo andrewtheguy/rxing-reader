@@ -6,10 +6,9 @@ use super::Direction;
 #[allow(dead_code)]
 #[inline(always)]
 pub fn opposite(dir: Direction) -> Direction {
-    if dir == Direction::Left {
-        Direction::Right
-    } else {
-        Direction::Left
+    match dir {
+        Direction::Left => Direction::Right,
+        Direction::Right => Direction::Left,
     }
 }
 
@@ -25,7 +24,7 @@ pub fn update_min_max_float(min: &mut f64, max: &mut f64, val: f64) {
     *max = f64::max(*max, val);
 }
 
-pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
+pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     let mut val: usize = val.into();
     let mut result = vec!['0'; len];
     let mut idx = len;
@@ -44,8 +43,10 @@ pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     Ok(result.iter().collect())
 }
 
-pub fn append_bit(val: &mut i32, bit: bool) {
+pub fn append_bit<T>(val: &mut T, bit: bool)
+where
+    T: std::ops::ShlAssign<u32> + std::ops::BitOrAssign + From<bool>,
+{
     *val <<= 1;
-
-    *val |= i32::from(bit)
+    *val |= T::from(bit);
 }

@@ -2,8 +2,8 @@ use std::{fmt, iter::Sum};
 
 use std::hash::Hash;
 
-/// Encapsulates a point of interest in an image containing a barcode. Typically, this
-/// would be the location of a finder pattern or the corner of the barcode, for example.
+/// Encapsulates a point of interest in an image containing a QR symbol. Typically, this
+/// would be the location of a finder pattern or a symbol corner, for example.
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, PartialOrd)]
 pub struct PointT<T> {
     pub x: T,
@@ -576,7 +576,7 @@ mod point_tests {
         assert_eq!(v1.cross(v2), -7.0);
         assert_eq!(v1.sum_abs_component(), 3.0);
         assert_eq!(v1.max_abs_component(), 2.0);
-        assert!((v1.length() - (5.0f32).hypot(0.0)).abs() > -1.0); // length >= 0
+        assert!((v1.length() - (5.0f32).sqrt()).abs() < 1e-6);
         // squared_distance / distance
         assert_eq!(v1.squared_distance(v2), {
             let d = v1 - v2;

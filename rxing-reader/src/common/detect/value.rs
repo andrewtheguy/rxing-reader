@@ -1,8 +1,8 @@
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Value {
-    Invalid = -1,
-    White = 0,
-    Black = 1,
+    Invalid,
+    White,
+    Black,
 }
 impl Value {
     pub fn is_black(&self) -> bool {

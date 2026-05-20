@@ -93,7 +93,7 @@ fn fetch_url(url: &str) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-fn decode_image_bytes(bytes: &[u8]) -> Result<(Vec<u8>, u32, u32)> {
+fn decode_image_bytes(bytes: &[u8]) -> Result<(Vec<u8>, usize, usize)> {
     let mut reader = ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
         .context("could not guess image format")?;
@@ -103,11 +103,11 @@ fn decode_image_bytes(bytes: &[u8]) -> Result<(Vec<u8>, u32, u32)> {
     limits.max_alloc = Some(512 * 1024 * 1024);
     reader.limits(limits);
     let rgba = reader.decode().context("image decode failed")?.into_rgba8();
-    let (w, h) = (rgba.width(), rgba.height());
+    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
     Ok((rgba.into_raw(), w, h))
 }
 
-fn decode_payloads(rgba: &[u8], w: u32, h: u32, max: u32) -> Result<Vec<Vec<u8>>> {
+fn decode_payloads(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<Vec<u8>>> {
     let luma = rgba_to_luma(rgba, w, h).map_err(anyhow::Error::msg)?;
     let primary = decode_qr_codes_luma(&luma, w, h, true, true, true, max)?;
     if !primary.is_empty() {

@@ -99,7 +99,7 @@ impl PerspectiveTransform {
     pub fn transform_points_single(&self, points: &mut [Point]) -> Result<()> {
         for point in points.iter_mut() {
             *point = self.transform_point(*point).ok_or(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             })?;
         }
         Ok(())

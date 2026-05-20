@@ -33,8 +33,8 @@ pub struct ECIStringBuilder {
 }
 
 impl ECIStringBuilder {
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
     }
 
     /// Appends one raw byte.
