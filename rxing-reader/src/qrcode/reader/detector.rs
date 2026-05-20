@@ -21,7 +21,8 @@ use crate::{
         detect::{
             BitMatrixCursorTrait, ConcentricPattern, Direction, EdgeTracer, FixedPattern,
             PatternRow, PatternType, PatternView, RegressionLine, RegressionLineTrait,
-            is_pattern, locate_concentric_pattern, read_pattern_row, read_symmetric_pattern,
+            intersect, is_pattern, locate_concentric_pattern, read_pattern_row,
+            read_symmetric_pattern,
         },
     },
 };
@@ -523,9 +524,9 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
 
     if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (RegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
+        let br_inter = (intersect(&bl2, &tr2).ok_or(Error::NotFound {
             message: "QR pattern was not detected".into(),
-        })? + RegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
+        })? + intersect(&bl3, &tr3).ok_or(Error::NotFound {
             message: "QR pattern was not detected".into(),
         })?) / 2.0;
 
@@ -675,7 +676,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
 
                 // if we found 2 each, intersect the two lines that are formed by connecting the point pairs
                 if (hori.len()) == 2 && (verti.len()) == 2 {
-                    let guessed = RegressionLine::intersect(
+                    let guessed = intersect(
                         &RegressionLine::with_two_points(hori[0], hori[1]),
                         &RegressionLine::with_two_points(verti[0], verti[1]),
                     )

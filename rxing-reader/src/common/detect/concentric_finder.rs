@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     BitMatrixCursorTrait, EdgeTracer, FastEdgeToEdgeCounter, Pattern, RegressionLine,
-    RegressionLineTrait, update_min_max, update_min_max_float,
+    RegressionLineTrait, intersect, update_min_max, update_min_max_float,
 };
 
 pub fn read_symmetric_pattern<const N: usize, Cursor: BitMatrixCursorTrait>(
@@ -409,7 +409,7 @@ pub fn fit_quadrilateral_to_points(center: Point, points: &mut [Point]) -> Optio
 
     let mut res = Quadrilateral::default();
     for i in 0..4 {
-        res[i] = RegressionLine::intersect(&lines[i], &lines[(i + 1) % 4])?;
+        res[i] = intersect(&lines[i], &lines[(i + 1) % 4])?;
     }
 
     Some(res)
