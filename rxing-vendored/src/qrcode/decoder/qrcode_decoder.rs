@@ -116,7 +116,12 @@ pub fn decode_bitmatrix_with_hints(
             if let Some(fe) = fe {
                 Err(fe)
             } else {
-                Err(ce.unwrap_or_else(|| Error::Checksum { message: "error correction failed".to_owned() }.into()))
+                Err(ce.unwrap_or_else(|| {
+                    Error::Checksum {
+                        message: "error correction failed".to_owned(),
+                    }
+                    .into()
+                }))
             }
         }
         Err(er) => Err(er),
@@ -188,7 +193,9 @@ pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usiz
     let ecc_len = codeword_bytes.len() - num_data_codewords;
     let buf = reed_solomon::Decoder::new(ecc_len)
         .correct(codeword_bytes, None)
-        .map_err(|e| Error::Checksum { message: format!("{e:?}") })?;
+        .map_err(|e| Error::Checksum {
+            message: format!("{e:?}"),
+        })?;
     codeword_bytes[..num_data_codewords].copy_from_slice(buf.data());
     Ok(())
 }

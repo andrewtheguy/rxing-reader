@@ -120,7 +120,10 @@ impl BitArray {
 
     pub fn set_range(&mut self, start: usize, end: usize) -> Result<()> {
         if end < start || end > self.bits.len() {
-            return Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into());
         }
         if end == start {
             return Ok(());
@@ -135,7 +138,10 @@ impl BitArray {
 
     pub fn is_range(&self, start: usize, end: usize, value: bool) -> Result<bool> {
         if end < start || end > self.bits.len() {
-            return Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into());
         }
         if end == start {
             return Ok(true);
@@ -152,10 +158,9 @@ impl BitArray {
     /// least-significant. For example, appending 6 bits from 0x1E appends 0,1,1,1,1,0.
     pub fn append_bits(&mut self, value: BaseType, num_bits: usize) -> Result<()> {
         if num_bits > BASE_BITS {
-            return Err(Error::InvalidArgument { message: format!(
-                "num bits must be between 0 and {}",
-                BaseType::BITS
-            ) }
+            return Err(Error::InvalidArgument {
+                message: format!("num bits must be between 0 and {}", BaseType::BITS),
+            }
             .into());
         }
         for i in (0..num_bits).rev() {
@@ -174,7 +179,10 @@ impl BitArray {
 
     pub fn xor(&mut self, other: &BitArray) -> Result<()> {
         if self.bits.len() != other.bits.len() {
-            return Err(Error::InvalidArgument { message: "Sizes don't match".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "Sizes don't match".to_owned(),
+            }
+            .into());
         }
         self.bits ^= &other.bits;
         Ok(())

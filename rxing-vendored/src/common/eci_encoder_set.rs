@@ -155,24 +155,23 @@ impl ECIEncoderSet {
     }
 
     pub fn get_charset(&self, index: usize) -> Result<CharacterSet> {
-        self.encoders
-            .get(index)
-            .copied()
-            .ok_or_else(|| {
-                Error::InvalidArgument { message: format!(
+        self.encoders.get(index).copied().ok_or_else(|| {
+            Error::InvalidArgument {
+                message: format!(
                     "encoder index {index} out of range for {} encoders",
                     self.encoders.len()
-                ) }
-                .into()
-            })
+                ),
+            }
+            .into()
+        })
     }
 
     pub fn get_eci(&self, encoder_index: usize) -> Result<Eci> {
         let eci = Eci::from(self.get_charset(encoder_index)?);
         if eci == Eci::Unknown {
-            return Err(Error::InvalidState { message: format!(
-                "no ECI assignment for encoder index {encoder_index}"
-            ) }
+            return Err(Error::InvalidState {
+                message: format!("no ECI assignment for encoder index {encoder_index}"),
+            }
             .into());
         }
         Ok(eci)

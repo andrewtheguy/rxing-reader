@@ -202,10 +202,16 @@ impl<'a> MonochromeRectangleDetector<'_> {
                     }
                 }
             } else {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             }
         }
-        Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into())
+        Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into())
     }
 
     /**

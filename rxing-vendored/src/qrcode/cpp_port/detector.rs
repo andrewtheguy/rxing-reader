@@ -254,10 +254,15 @@ pub fn estimate_module_size(
 ) -> Result<f64> {
     let mut cur = EdgeTracer::new(image, a.p, b.p - a.p);
     if !cur.is_black() {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
-    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound {
+        message: "barcode pattern was not detected".to_owned(),
+    })?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
         &PatternView::new(&PatternRow::new(pattern.to_vec())),
@@ -267,7 +272,10 @@ pub fn estimate_module_size(
         0.0,
     ) != 0.0)
     {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
     Ok(
@@ -468,7 +476,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
     let left = estimate_dimension(image, fp.tl, fp.bl).unwrap_or_default();
 
     if top.dim == 0 && left.dim == 0 {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
     let best = match top.err.cmp(&left.err) {
@@ -505,9 +516,11 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?
-            + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?)
-            / 2.0;
+        let br_inter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        })? + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        })?) / 2.0;
 
         if dimension > 21
             && let Some(br_cp) = locate_alignment_pattern(image, module_size, br_inter)
@@ -542,12 +555,17 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     if dimension >= Version::symbol_size(7, Type::Model2).x {
         let version =
-            read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+            read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            })?;
         let version_dimension = version.get_dimension_for_version() as i32;
 
         // if the version bits are garbage -> discard the detection
         if (version_dimension - dimension).abs() > 8 {
-            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into());
         }
         if version_dimension != dimension {
             dimension = version_dimension;
@@ -565,7 +583,12 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         let project_m2_p = |x, y, mod2_pix: &PerspectiveTransform| -> Result<Point> {
             mod2_pix
                 .transform_point(Point::centered(point_i(ap_m[x], ap_m[y])))
-                .ok_or_else(|| Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into())
+                .ok_or_else(|| {
+                    Error::NotFound {
+                        message: "barcode pattern was not detected".to_owned(),
+                    }
+                    .into()
+                })
         };
 
         let mut find_inner_corner_of_concentric_pattern =
@@ -623,7 +646,8 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 let mut i = 2;
                 while i < 2 * n + 2 && hori.len() < 2 {
                     let xi = x as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
-                    if 0 <= xi && xi <= n as isize
+                    if 0 <= xi
+                        && xi <= n as isize
                         && let Some(point) = ap_p.get(xi as usize, y)
                     {
                         hori.push(point);
@@ -633,7 +657,8 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 let mut i = 2;
                 while i < 2 * n + 2 && verti.len() < 2 {
                     let yi = y as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
-                    if 0 <= yi && yi <= n as isize
+                    if 0 <= yi
+                        && yi <= n as isize
                         && let Some(point) = ap_p.get(x, yi as usize)
                     {
                         verti.push(point);
@@ -647,7 +672,9 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                         &DMRegressionLine::new(hori[0], hori[1]),
                         &DMRegressionLine::new(verti[0], verti[1]),
                     )
-                    .ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?;
+                    .ok_or(Error::InvalidState {
+                        message: "required internal state is missing".to_owned(),
+                    })?;
                     let found = locate_alignment_pattern(image, module_size, guessed);
                     // search again near that intersection and if the search fails, use the intersection
                     ap_p.set(x, y, if let Some(f) = found { f } else { guessed })?;
@@ -695,10 +722,18 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                             x0 as f32, x1 as f32, y0 as f32, y1 as f32, None,
                         ),
                         Quadrilateral::from([
-                            ap_p.get(x, y).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?,
-                            ap_p.get(x + 1, y).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?,
-                            ap_p.get(x + 1, y + 1).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?,
-                            ap_p.get(x, y + 1).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })?,
+                            ap_p.get(x, y).ok_or(Error::InvalidState {
+                                message: "required internal state is missing".to_owned(),
+                            })?,
+                            ap_p.get(x + 1, y).ok_or(Error::InvalidState {
+                                message: "required internal state is missing".to_owned(),
+                            })?,
+                            ap_p.get(x + 1, y + 1).ok_or(Error::InvalidState {
+                                message: "required internal state is missing".to_owned(),
+                            })?,
+                            ap_p.get(x, y + 1).ok_or(Error::InvalidState {
+                                message: "required internal state is missing".to_owned(),
+                            })?,
                         ]),
                     )?,
                 });
@@ -728,7 +763,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
 pub fn sample_mqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetectorResult> {
     let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) else {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     };
 
     let src_quad = Quadrilateral::rectangle(7, 7, Some(0.5));
@@ -795,7 +833,10 @@ pub fn sample_mqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
     }
 
     if !best_fi.is_valid() {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
     let dim: u32 = Version::symbol_size(best_fi.micro_version, Type::Micro).x as u32;
@@ -814,7 +855,10 @@ pub fn sample_mqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
         }
     }
     if black_pixels > 2 * dim / 3 {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
     let grid_sampler = DefaultGridSampler;
@@ -834,7 +878,10 @@ pub fn sample_mqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDete
 pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetectorResult> {
     // TODO proper
     let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) else {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     };
 
     let src_quad = Quadrilateral::rectangle(7, 7, Some(0.5));
@@ -902,7 +949,10 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
     }
 
     if !best_fi.is_valid() {
-        return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+        return Err(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        }
+        .into());
     }
 
     let dim = Version::symbol_size(best_fi.micro_version, Type::RectMicro);
@@ -919,11 +969,15 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
                         .partial_cmp(&Point::distance(**b, br))
                         .unwrap_or(std::cmp::Ordering::Less)
                 })
-                .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?;
+                .ok_or(Error::InvalidFormat {
+                    message: "QR data is malformed".to_owned(),
+                })?;
         let offset_a =
             a.0.iter()
                 .position(|x| x == offset_atarget)
-                .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })? as i32;
+                .ok_or(Error::InvalidFormat {
+                    message: "QR data is malformed".to_owned(),
+                })? as i32;
         let offset_btarget =
             b.0.iter()
                 .min_by(|a, b| {
@@ -931,11 +985,15 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
                         .partial_cmp(&Point::distance(**b, tl))
                         .unwrap_or(std::cmp::Ordering::Less)
                 })
-                .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?;
+                .ok_or(Error::InvalidFormat {
+                    message: "QR data is malformed".to_owned(),
+                })?;
         let offset_b =
             b.0.iter()
                 .position(|x| x == offset_btarget)
-                .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })? as i32;
+                .ok_or(Error::InvalidFormat {
+                    message: "QR data is malformed".to_owned(),
+                })? as i32;
 
         let a = a.rotated_corners(Some(offset_a), None);
         let b = b.rotated_corners(Some(offset_b), None);
@@ -943,32 +1001,38 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
             &RegressionLine::with_two_points(a[0], a[1]),
             &RegressionLine::with_two_points(b[1], b[2]),
         )
-        .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?
-            + RegressionLine::intersect(
-                &RegressionLine::with_two_points(a[3], a[2]),
-                &RegressionLine::with_two_points(b[0], b[3]),
-            )
-            .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?)
-            / 2.0;
+        .ok_or(Error::InvalidFormat {
+            message: "QR data is malformed".to_owned(),
+        })? + RegressionLine::intersect(
+            &RegressionLine::with_two_points(a[3], a[2]),
+            &RegressionLine::with_two_points(b[0], b[3]),
+        )
+        .ok_or(Error::InvalidFormat {
+            message: "QR data is malformed".to_owned(),
+        })?) / 2.0;
 
         let bl = (RegressionLine::intersect(
             &RegressionLine::with_two_points(a[0], a[3]),
             &RegressionLine::with_two_points(b[2], b[3]),
         )
-        .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?
-            + RegressionLine::intersect(
-                &RegressionLine::with_two_points(a[1], a[2]),
-                &RegressionLine::with_two_points(b[0], b[1]),
-            )
-            .ok_or(Error::InvalidFormat { message: "QR data is malformed".to_owned() })?)
-            / 2.0;
+        .ok_or(Error::InvalidFormat {
+            message: "QR data is malformed".to_owned(),
+        })? + RegressionLine::intersect(
+            &RegressionLine::with_two_points(a[1], a[2]),
+            &RegressionLine::with_two_points(b[0], b[1]),
+        )
+        .ok_or(Error::InvalidFormat {
+            message: "QR data is malformed".to_owned(),
+        })?) / 2.0;
 
         Ok(Quadrilateral::from([tl, tr, br, bl]))
     };
 
     let alignment_estimate = best_pt
         .transform_point(Into::<Point>::into(dim) - point(3.0, 3.0))
-        .ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+        .ok_or(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        })?;
     if let Some(found) = locate_alignment_pattern(image, fp.size / 7, alignment_estimate)
         && let Some(sp_quad) = find_concentric_pattern_corners(image, found, fp.size / 2, 1)
     {

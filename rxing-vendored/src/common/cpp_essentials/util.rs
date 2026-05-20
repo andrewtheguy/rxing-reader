@@ -9,11 +9,17 @@ pub fn intersect<T: RegressionLineTrait, T2: RegressionLineTrait>(
     l2: &T2,
 ) -> Result<Point> {
     if !(l1.is_valid() && l2.is_valid()) {
-        return Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into());
+        return Err(Error::InvalidState {
+            message: "required internal state is missing".to_owned(),
+        }
+        .into());
     }
     let d = l1.a() * l2.b() - l1.b() * l2.a();
     if d.abs() < LINE_INTERSECTION_EPS {
-        return Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into());
+        return Err(Error::InvalidState {
+            message: "required internal state is missing".to_owned(),
+        }
+        .into());
     }
     let x = (l1.c() * l2.b() - l1.b() * l2.c()) / d;
     let y = (l1.a() * l2.c() - l1.c() * l2.a()) / d;
@@ -52,7 +58,10 @@ pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
         val /= 10;
     }
     if val != 0 {
-        return Err(Error::InvalidFormat { message: "Invalid value".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Invalid value".to_owned(),
+        }
+        .into());
     }
 
     Ok(result.iter().collect())

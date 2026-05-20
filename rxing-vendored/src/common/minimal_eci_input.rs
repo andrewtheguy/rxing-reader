@@ -47,10 +47,10 @@ impl ECIInput for MinimalECIInput {
         if self.is_fnc1(index)? {
             Ok(self.fnc1 as u8 as char)
         } else if self.is_eci(index)? {
-            Err(
-                Error::InvalidArgument { message: format!("value at {index} is not a character but an ECI") }
-                    .into(),
-            )
+            Err(Error::InvalidArgument {
+                message: format!("value at {index} is not a character but an ECI"),
+            }
+            .into())
         } else {
             Ok(self.bytes[index] as u8 as char)
         }
@@ -63,9 +63,9 @@ impl ECIInput for MinimalECIInput {
         let mut result = Vec::with_capacity(end - start);
         for i in start..end {
             if self.is_eci(i)? {
-                return Err(Error::InvalidArgument { message: format!(
-                    "value at {i} is not a character but an ECI"
-                ) }
+                return Err(Error::InvalidArgument {
+                    message: format!("value at {i} is not a character but an ECI"),
+                }
                 .into());
             }
             result.push(self.char_at(i)?);
@@ -85,9 +85,9 @@ impl ECIInput for MinimalECIInput {
             return Err(self.invalid_index(index).into());
         }
         if !self.is_eci(index)? {
-            return Err(Error::InvalidArgument { message: format!(
-                "value at {index} is not an ECI but a character"
-            ) }
+            return Err(Error::InvalidArgument {
+                message: format!("value at {index} is not an ECI but a character"),
+            }
             .into());
         }
         Eci::try_from(self.bytes[index] as u32 - 256)
@@ -107,17 +107,21 @@ impl ECIInput for MinimalECIInput {
 }
 impl MinimalECIInput {
     fn invalid_index(&self, index: usize) -> Error {
-        Error::InvalidArgument { message: format!(
-            "index {index} out of range for input length {}",
-            self.length()
-        ) }
+        Error::InvalidArgument {
+            message: format!(
+                "index {index} out of range for input length {}",
+                self.length()
+            ),
+        }
     }
 
     fn invalid_range(&self, start: usize, end: usize) -> Error {
-        Error::InvalidArgument { message: format!(
-            "range {start}..{end} is invalid for input length {}",
-            self.length()
-        ) }
+        Error::InvalidArgument {
+            message: format!(
+                "range {start}..{end} is invalid for input length {}",
+                self.length()
+            ),
+        }
     }
 
     fn fnc1_value(fnc1: Option<&str>) -> Result<Option<u16>> {
@@ -126,25 +130,36 @@ impl MinimalECIInput {
         };
         let mut chars = fnc1.chars();
         let Some(ch) = chars.next() else {
-            return Err(Error::InvalidArgument { message: "fnc1 marker cannot be empty".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "fnc1 marker cannot be empty".to_owned(),
+            }
+            .into());
         };
         if chars.next().is_some() {
-            return Err(Error::InvalidArgument { message: "fnc1 marker must be a single character".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "fnc1 marker must be a single character".to_owned(),
+            }
+            .into());
         }
         if (ch as u32) > u16::MAX as u32 {
-            return Err(Error::InvalidArgument { message: "fnc1 marker must fit in u16".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "fnc1 marker must fit in u16".to_owned(),
+            }
+            .into());
         }
         Ok(Some(ch as u16))
     }
 
     fn first_char(value: &str) -> Result<char> {
-        value
-            .chars()
-            .next()
-            .ok_or_else(|| Error::InvalidArgument { message: "empty character segment".to_owned() }.into())
+        value.chars().next().ok_or_else(|| {
+            Error::InvalidArgument {
+                message: "empty character segment".to_owned(),
+            }
+            .into()
+        })
     }
 
-        /// Constructs a minimal input.
+    /// Constructs a minimal input.
     pub fn new(
         string_to_encode_input: &str,
         priority_charset: Option<CharacterSet>,
@@ -199,11 +214,8 @@ impl MinimalECIInput {
         let slot = edges
             .get_mut(to)
             .and_then(|row| row.get_mut(edge.encoder_index))
-            .ok_or_else(|| {
-                Error::InvalidState { message: format!(
-                    "edge graph is missing slot ({to}, {})",
-                    edge.encoder_index
-                ) }
+            .ok_or_else(|| Error::InvalidState {
+                message: format!("edge graph is missing slot ({to}, {})", edge.encoder_index),
             })?;
         let should_replace = match slot {
             Some(existing) => existing.cached_total_size > edge.cached_total_size,
@@ -226,11 +238,11 @@ impl MinimalECIInput {
         let ch = string_to_encode
             .get(from)
             .copied()
-            .ok_or_else(|| {
-                Error::InvalidState { message: format!(
+            .ok_or_else(|| Error::InvalidState {
+                message: format!(
                     "character position {from} is outside input of length {}",
                     string_to_encode.len()
-                ) }
+                ),
             })?;
 
         let mut start = 0;
@@ -290,10 +302,12 @@ impl MinimalECIInput {
             }
         }
         if minimal_j < 0 {
-            return Err(Error::InvalidState { message: format!(
-                "internal error: failed to encode \"{}\"",
-                string_to_encode.join("")
-            ) }
+            return Err(Error::InvalidState {
+                message: format!(
+                    "internal error: failed to encode \"{}\"",
+                    string_to_encode.join("")
+                ),
+            }
             .into());
         }
         let mut ints_al: Vec<u16> = Vec::new();
@@ -350,10 +364,10 @@ impl InputEdge {
         } else {
             encoder_set
                 .encode_char(c, encoder_index)
-                .map_err(|e| {
-                    Error::InvalidArgument { message: format!(
+                .map_err(|e| Error::InvalidArgument {
+                    message: format!(
                         "failed to encode \"{c}\" with encoder index {encoder_index}: {e}"
-                    ) }
+                    ),
                 })?
                 .len()
         };

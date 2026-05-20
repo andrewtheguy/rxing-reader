@@ -106,7 +106,10 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     ];
 
     if value >= (ALPHANUMERIC_CHARS.len()) {
-        return Err(Error::InvalidFormat { message: "to_alpha_numeric_char: invalid symbol value".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "to_alpha_numeric_char: invalid symbol value".to_owned(),
+        }
+        .into());
     }
 
     Ok(ALPHANUMERIC_CHARS[value])
@@ -194,7 +197,10 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
         let second_third_bytes = bits.read_bits(16)?;
         return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
-    Err(Error::InvalidFormat { message: "parse_ecivalue: invalid value".to_owned() }.into())
+    Err(Error::InvalidFormat {
+        message: "parse_ecivalue: invalid value".to_owned(),
+    }
+    .into())
 }
 
 /**
@@ -278,9 +284,10 @@ pub fn decode_bit_stream(
                         // "A-Za-z"
                         result += (app_ind - 100) as u8;
                     } else {
-                        return Err(
-                            Error::InvalidFormat { message: "Invalid AIM Application Indicator".to_owned() }.into()
-                        );
+                        return Err(Error::InvalidFormat {
+                            message: "Invalid AIM Application Indicator".to_owned(),
+                        }
+                        .into());
                     }
                     result.symbology.ai_flag = AIFlag::AIM;
                 }
@@ -301,7 +308,10 @@ pub fn decode_bit_stream(
                     let subset = bits.read_bits(4)?;
                     if subset != 1 {
                         // GB2312_SUBSET is the only supported one right now
-                        return Err(Error::InvalidFormat { message: "Unsupported HANZI subset".to_owned() }.into());
+                        return Err(Error::InvalidFormat {
+                            message: "Unsupported HANZI subset".to_owned(),
+                        }
+                        .into());
                     }
                     let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
                     decode_hanzi_segment(&mut bits, count, &mut result)?;
@@ -317,7 +327,12 @@ pub fn decode_bit_stream(
                         }
                         Mode::Byte => decode_byte_segment(&mut bits, count, &mut result)?,
                         Mode::Kanji => decode_kanji_segment(&mut bits, count, &mut result)?,
-                        _ => return Err(Error::InvalidFormat { message: "Invalid CodecMode".to_owned() }.into()),
+                        _ => {
+                            return Err(Error::InvalidFormat {
+                                message: "Invalid CodecMode".to_owned(),
+                            }
+                            .into());
+                        }
                     };
                 }
             }
@@ -335,27 +350,42 @@ pub fn decode_bit_stream(
 
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     if !Version::has_valid_size(bits) {
-        return Err(Error::InvalidFormat { message: "Invalid symbol size".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Invalid symbol size".to_owned(),
+        }
+        .into());
     }
     let Ok(format_info) = read_format_information(bits) else {
-        return Err(Error::InvalidFormat { message: "Invalid format information".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Invalid format information".to_owned(),
+        }
+        .into());
     };
 
     let Ok(version) = read_version(bits, format_info.qr_type()) else {
-        return Err(Error::InvalidFormat { message: "Invalid version".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Invalid version".to_owned(),
+        }
+        .into());
     };
 
     // Read codewords
     let codewords = read_codewords(bits, version, &format_info)?;
     if codewords.is_empty() {
-        return Err(Error::InvalidFormat { message: "Failed to read codewords".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Failed to read codewords".to_owned(),
+        }
+        .into());
     }
 
     // Separate into data blocks
     let data_blocks: Vec<DataBlock> =
         DataBlock::get_data_blocks(&codewords, version, format_info.error_correction_level)?;
     if data_blocks.is_empty() {
-        return Err(Error::InvalidFormat { message: "Failed to get data blocks".to_owned() }.into());
+        return Err(Error::InvalidFormat {
+            message: "Failed to get data blocks".to_owned(),
+        }
+        .into());
     }
 
     // Count total number of data bytes

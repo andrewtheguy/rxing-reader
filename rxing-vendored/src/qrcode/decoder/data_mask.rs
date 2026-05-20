@@ -120,7 +120,10 @@ impl TryFrom<u8> for DataMask {
             5 => Ok(DataMask::DataMask101),
             6 => Ok(DataMask::DataMask110),
             7 => Ok(DataMask::DataMask111),
-            _ => Err(Error::InvalidArgument { message: format!("{value} is not between 0 and 7") }.into()),
+            _ => Err(Error::InvalidArgument {
+                message: format!("{value} is not between 0 and 7"),
+            }
+            .into()),
         }
     }
 }

@@ -97,7 +97,10 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Error::UnsupportedOperation { message: "This luminance source does not support cropping.".to_owned() }.into())
+        Err(Error::UnsupportedOperation {
+            message: "This luminance source does not support cropping.".to_owned(),
+        }
+        .into())
     }
 
     /**
@@ -116,7 +119,9 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Error::UnsupportedOperation { message: "This luminance source does not support rotation by 90 degrees.".to_owned() }
+        Err(Error::UnsupportedOperation {
+            message: "This luminance source does not support rotation by 90 degrees.".to_owned(),
+        }
         .into())
     }
 
@@ -130,7 +135,9 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Error::UnsupportedOperation { message: "This luminance source does not support rotation by 45 degrees.".to_owned() }
+        Err(Error::UnsupportedOperation {
+            message: "This luminance source does not support rotation by 45 degrees.".to_owned(),
+        }
         .into())
     }
 

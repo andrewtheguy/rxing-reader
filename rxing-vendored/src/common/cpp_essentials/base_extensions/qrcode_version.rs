@@ -55,7 +55,10 @@ const RMQR_SIZES: [PointI; 32] = [
 impl Version {
     pub fn model1(version_number: u32) -> Result<VersionRef> {
         if !(1..=14).contains(&version_number) {
-            Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into())
+            Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into())
         } else {
             Ok(&MODEL1_VERSIONS[version_number as usize - 1])
         }
@@ -63,7 +66,10 @@ impl Version {
 
     pub fn model2(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
-            Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into())
+            Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into())
         } else {
             Ok(&VERSIONS[version_number as usize - 1])
         }
@@ -71,7 +77,10 @@ impl Version {
 
     pub fn micro(version_number: u32) -> Result<VersionRef> {
         if !(1..=4).contains(&version_number) {
-            Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into())
+            Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into())
         } else {
             Ok(&MICRO_VERSIONS[version_number as usize - 1])
         }
@@ -80,7 +89,10 @@ impl Version {
     pub fn r_mqr(version_number: u32) -> Result<VersionRef> {
         let version_number = version_number as usize;
         if version_number < 1 || version_number > (RMQR_VERSIONS.len()) {
-            Err(Error::InvalidArgument { message: "argument is out of range".to_owned() }.into())
+            Err(Error::InvalidArgument {
+                message: "argument is out of range".to_owned(),
+            }
+            .into())
         } else {
             Ok(&RMQR_VERSIONS[version_number - 1])
         }
@@ -127,7 +139,10 @@ impl Version {
             return Self::get_version_for_number(best_version as u32);
         }
         // If we didn't find a close enough match, fail
-        Err(Error::InvalidState { message: "required internal state is missing".to_owned() }.into())
+        Err(Error::InvalidState {
+            message: "required internal state is missing".to_owned(),
+        }
+        .into())
     }
 
     pub const fn is_micro(&self) -> bool {

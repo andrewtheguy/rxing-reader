@@ -56,11 +56,13 @@ impl DataBlock {
         ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
         if raw_codewords.len() as u32 != version.get_total_codewords() {
-            return Err(Error::InvalidArgument { message: format!(
-                "raw codewords length {} does not match expected total codewords {}",
-                raw_codewords.len(),
-                version.get_total_codewords()
-            ) }
+            return Err(Error::InvalidArgument {
+                message: format!(
+                    "raw codewords length {} does not match expected total codewords {}",
+                    raw_codewords.len(),
+                    version.get_total_codewords()
+                ),
+            }
             .into());
         }
 
@@ -94,7 +96,11 @@ impl DataBlock {
         // All blocks have the same amount of data, except that the last n
         // (where n may be 0) have 1 more byte. Figure out where these start.
         if result.is_empty() {
-            return Err(Error::InvalidArgument { message: "result block list is empty — possible data corruption or misconfiguration".to_owned() }
+            return Err(Error::InvalidArgument {
+                message:
+                    "result block list is empty — possible data corruption or misconfiguration"
+                        .to_owned(),
+            }
             .into());
         }
         let shorter_blocks_total_codewords = result[0].codewords.len();

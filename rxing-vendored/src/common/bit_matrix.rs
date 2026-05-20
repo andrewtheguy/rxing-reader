@@ -66,7 +66,10 @@ impl BitMatrix {
      */
     pub fn new(width: u32, height: u32) -> Result<Self> {
         if width < 1 || height < 1 {
-            return Err(Error::InvalidArgument { message: "Both dimensions must be greater than 0".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "Both dimensions must be greater than 0".to_owned(),
+            }
+            .into());
         }
         Ok(Self {
             width,
@@ -148,15 +151,22 @@ impl BitMatrix {
         let mut pos = 0;
         let chars: Vec<char> = string_representation.chars().collect();
         while pos < chars.len() {
-            if chars.get(pos).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })? == &'\n'
-                || chars.get(pos).ok_or(Error::InvalidState { message: "required internal state is missing".to_owned() })? == &'\r'
+            if chars.get(pos).ok_or(Error::InvalidState {
+                message: "required internal state is missing".to_owned(),
+            })? == &'\n'
+                || chars.get(pos).ok_or(Error::InvalidState {
+                    message: "required internal state is missing".to_owned(),
+                })? == &'\r'
             {
                 if bits_pos > row_start_pos {
                     if first_run {
                         first_run = false;
                         row_length = bits_pos - row_start_pos;
                     } else if bits_pos - row_start_pos != row_length {
-                        return Err(Error::InvalidArgument { message: "row lengths do not match".to_owned() }.into());
+                        return Err(Error::InvalidArgument {
+                            message: "row lengths do not match".to_owned(),
+                        }
+                        .into());
                     }
                     row_start_pos = bits_pos;
                     n_rows += 1;
@@ -171,10 +181,12 @@ impl BitMatrix {
                 bits[bits_pos] = false;
                 bits_pos += 1;
             } else {
-                return Err(Error::InvalidArgument { message: format!(
-                    "illegal character encountered: {}",
-                    string_representation[pos..].to_owned()
-                ) }
+                return Err(Error::InvalidArgument {
+                    message: format!(
+                        "illegal character encountered: {}",
+                        string_representation[pos..].to_owned()
+                    ),
+                }
                 .into());
             }
         }
@@ -184,7 +196,10 @@ impl BitMatrix {
             if first_run {
                 row_length = bits_pos - row_start_pos;
             } else if bits_pos - row_start_pos != row_length {
-                return Err(Error::InvalidArgument { message: "row lengths do not match".to_owned() }.into());
+                return Err(Error::InvalidArgument {
+                    message: "row lengths do not match".to_owned(),
+                }
+                .into());
             }
             n_rows += 1;
         }
@@ -338,7 +353,10 @@ impl BitMatrix {
     pub fn xor(&mut self, mask: &BitMatrix) -> Result<()> {
         if self.width != mask.width || self.height != mask.height || self.row_size != mask.row_size
         {
-            return Err(Error::InvalidArgument { message: "input matrix dimensions do not match".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "input matrix dimensions do not match".to_owned(),
+            }
+            .into());
         }
         for y in 0..self.height {
             let offset = y as usize * self.row_size;
@@ -369,12 +387,18 @@ impl BitMatrix {
      */
     pub fn set_region(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
         if height < 1 || width < 1 {
-            return Err(Error::InvalidArgument { message: "height and width must be at least 1".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "height and width must be at least 1".to_owned(),
+            }
+            .into());
         }
         let right = left + width;
         let bottom = top + height;
         if bottom > self.height || right > self.width {
-            return Err(Error::InvalidArgument { message: "the region must fit inside the matrix".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "the region must fit inside the matrix".to_owned(),
+            }
+            .into());
         }
         for y in top..bottom {
             let offset = y as usize * self.row_size;
@@ -448,9 +472,10 @@ impl BitMatrix {
                 self.rotate180();
                 Ok(())
             }
-            _ => Err(
-                Error::InvalidArgument { message: "degrees must be a multiple of 0, 90, 180, or 270".to_owned() }.into(),
-            ),
+            _ => Err(Error::InvalidArgument {
+                message: "degrees must be a multiple of 0, 90, 180, or 270".to_owned(),
+            }
+            .into()),
         }
     }
 
@@ -650,14 +675,18 @@ impl BitMatrix {
 
     pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> Result<BitMatrix> {
         if width == 0 || height == 0 {
-            return Err(
-                Error::InvalidArgument { message: "crop width and height must be greater than 0".to_owned() }.into(),
-            );
+            return Err(Error::InvalidArgument {
+                message: "crop width and height must be greater than 0".to_owned(),
+            }
+            .into());
         }
         if left.saturating_add(width) > self.width as usize
             || top.saturating_add(height) > self.height as usize
         {
-            return Err(Error::InvalidArgument { message: "crop region must fit inside the matrix".to_owned() }.into());
+            return Err(Error::InvalidArgument {
+                message: "crop region must fit inside the matrix".to_owned(),
+            }
+            .into());
         }
         let mut new_bm = BitMatrix::new(width as u32, height as u32)?;
         for y in top..top + height {

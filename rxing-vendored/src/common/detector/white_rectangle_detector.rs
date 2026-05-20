@@ -75,7 +75,10 @@ impl<'a> WhiteRectangleDetector<'_> {
             || down_init >= image.get_height() as i32
             || right_init >= image.get_width() as i32
         {
-            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into());
         }
 
         Ok(WhiteRectangleDetector {
@@ -220,7 +223,10 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if z.is_none() {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             }
 
             let mut t: Option<Point> = None;
@@ -237,7 +243,10 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if t.is_none() {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             }
 
             let mut x: Option<Point> = None;
@@ -254,7 +263,10 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if x.is_none() {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             }
 
             let mut y: Option<Point> = None;
@@ -271,16 +283,25 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if y.is_none() {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             }
 
             let (Some(y), Some(z), Some(x), Some(t)) = (y, z, x, t) else {
-                return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
             };
 
             Ok(self.center_edges(y, z, x, t))
         } else {
-            Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into())
+            Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into())
         }
     }
 

@@ -89,9 +89,12 @@ impl<B: Binarizer> BinaryBitmap<B> {
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.matrix
             .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())?;
-        self.matrix
-            .get_mut()
-            .ok_or_else(|| Error::InvalidState { message: "black matrix cache was not initialized".to_owned() }.into())
+        self.matrix.get_mut().ok_or_else(|| {
+            Error::InvalidState {
+                message: "black matrix cache was not initialized".to_owned(),
+            }
+            .into()
+        })
     }
 
     /**

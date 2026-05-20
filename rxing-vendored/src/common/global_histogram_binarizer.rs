@@ -67,13 +67,9 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
             let width = source.get_width();
             let mut row = BitArray::with_size(width);
 
-            let local_luminances = source
-                .get_row(y)
-                .ok_or_else(|| {
-                    Error::InvalidState { message: format!(
-                        "luminance source returned no data for row {y}"
-                    ) }
-                })?;
+            let local_luminances = source.get_row(y).ok_or_else(|| Error::InvalidState {
+                message: format!("luminance source returned no data for row {y}"),
+            })?;
             let mut local_buckets = [0; LUMINANCE_BUCKETS];
             for x in 0..width {
                 local_buckets[((local_luminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
@@ -204,13 +200,9 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         let mut local_buckets = [0; LUMINANCE_BUCKETS];
         for y in 1..5 {
             let row = height * y / 5;
-            let local_luminances = source
-                .get_row(row)
-                .ok_or_else(|| {
-                    Error::InvalidState { message: format!(
-                        "luminance source returned no data for sampled row {row}"
-                    ) }
-                })?;
+            let local_luminances = source.get_row(row).ok_or_else(|| Error::InvalidState {
+                message: format!("luminance source returned no data for sampled row {row}"),
+            })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
                 local_buckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;
@@ -273,7 +265,10 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
-            return Err(Error::NotFound { message: "second_peak - first_peak <= numBuckets / 16 ".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "second_peak - first_peak <= numBuckets / 16 ".to_owned(),
+            }
+            .into());
         }
 
         // Find a valley between them that is low and closer to the white peak.

@@ -97,7 +97,10 @@ impl<'a> Detector<'a> {
 
         let module_size = self.calculate_module_size(top_left, top_right, bottom_left);
         if module_size < 1.0 {
-            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into());
         }
         let dimension = Self::compute_dimension(top_left, top_right, bottom_left, module_size)?;
         let provisional_version = Version::get_provisional_version_for_dimension(dimension)?;
@@ -147,7 +150,9 @@ impl<'a> Detector<'a> {
             alignment_pattern.as_ref(),
             dimension,
         )
-        .ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+        .ok_or(Error::NotFound {
+            message: "barcode pattern was not detected".to_owned(),
+        })?;
 
         let bits = Detector::sample_grid(self.image, transform, dimension)?;
 
@@ -158,7 +163,13 @@ impl<'a> Detector<'a> {
         ];
 
         if alignment_pattern.is_some() {
-            points.push(alignment_pattern.ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?.into())
+            points.push(
+                alignment_pattern
+                    .ok_or(Error::NotFound {
+                        message: "barcode pattern was not detected".to_owned(),
+                    })?
+                    .into(),
+            )
         }
 
         Ok(QRCodeDetectorResult::new(bits, points))
@@ -244,7 +255,12 @@ impl<'a> Detector<'a> {
         match dimension & 0x03 {
             0 => dimension += 1,
             2 => dimension -= 1,
-            3 => return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into()),
+            3 => {
+                return Err(Error::NotFound {
+                    message: "barcode pattern was not detected".to_owned(),
+                }
+                .into());
+            }
             _ => {}
         }
         Ok(dimension as u32)
@@ -452,10 +468,15 @@ impl<'a> Detector<'a> {
         let alignment_area_right_x = (self.image.get_width() - 1).min(est_alignment_x + allowance);
         let alignment_area_width = alignment_area_right_x
             .checked_sub(alignment_area_left_x)
-            .ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+            .ok_or(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            })?;
 
         if (alignment_area_width as f32) < overall_est_module_size * 3.0 {
-            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into());
         }
 
         let alignment_area_top_y = 0.max(est_alignment_y as i32 - allowance as i32) as u32;
@@ -463,10 +484,15 @@ impl<'a> Detector<'a> {
             (self.image.get_height() - 1).min(est_alignment_y + allowance);
         let alignment_area_height = alignment_area_bottom_y
             .checked_sub(alignment_area_top_y)
-            .ok_or(Error::NotFound { message: "barcode pattern was not detected".to_owned() })?;
+            .ok_or(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            })?;
 
         if alignment_area_height < overall_est_module_size as u32 * 3 {
-            return Err(Error::NotFound { message: "barcode pattern was not detected".to_owned() }.into());
+            return Err(Error::NotFound {
+                message: "barcode pattern was not detected".to_owned(),
+            }
+            .into());
         }
 
         let mut alignment_finder = AlignmentPatternFinder::new(
