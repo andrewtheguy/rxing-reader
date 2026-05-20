@@ -16,7 +16,8 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{Exceptions, common::Result};
+use crate::Error;
+use anyhow::Result;
 
 use super::{CharacterSet, Eci};
 
@@ -157,15 +158,15 @@ impl ECIEncoderSet {
         self.encoders
             .get(index)
             .copied()
-            .ok_or_else(|| Exceptions::index_out_of_bounds_with(index.to_string()))
+            .ok_or_else(|| Error::out_of_bounds(index.to_string()).into())
     }
 
     pub fn get_eci(&self, encoder_index: usize) -> Result<Eci> {
         let eci = Eci::from(self.get_charset(encoder_index)?);
         if eci == Eci::Unknown {
-            return Err(Exceptions::illegal_state_with(format!(
+            return Err(Error::invalid_state(format!(
                 "no ECI assignment for encoder index {encoder_index}"
-            )));
+            )).into());
         }
         Ok(eci)
     }

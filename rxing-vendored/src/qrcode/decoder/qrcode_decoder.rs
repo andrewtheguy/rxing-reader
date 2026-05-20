@@ -16,6 +16,8 @@
 
 use std::sync::Arc;
 
+use anyhow::Result;
+
 /**
  * <p>The main class which implements QR Code decoding -- as opposed to locating and extracting
  * the QR Code from an image.</p>
@@ -23,8 +25,8 @@ use std::sync::Arc;
  * @author Sean Owen
  */
 use crate::{
-    DecodeHints, Exceptions,
-    common::{BitMatrix, DecoderRXingResult, Result},
+    DecodeHints, Error,
+    common::{BitMatrix, DecoderRXingResult},
 };
 
 use super::{BitMatrixParser, DataBlock, QRCodeDecoderMetaData, decoded_bit_stream_parser};
@@ -40,8 +42,8 @@ pub fn decode_bool_array(image: &[Vec<bool>]) -> Result<DecoderRXingResult> {
  * @param image booleans representing white/black QR Code modules
  * @param hints decoding hints that should be used to influence decoding
  * @return text and bytes encoded within the QR Code
- * @throws FormatException if the QR Code cannot be decoded
- * @throws ChecksumException if error correction fails
+ * Returns an invalid-format error if the QR Code cannot be decoded
+ * Returns a checksum error if error correction fails
  */
 pub fn decode_bool_array_with_hints(
     image: &[Vec<bool>],
@@ -60,8 +62,8 @@ pub fn decode_bitmatrix(bits: &BitMatrix) -> Result<DecoderRXingResult> {
  * @param bits booleans representing white/black QR Code modules
  * @param hints decoding hints that should be used to influence decoding
  * @return text and bytes encoded within the QR Code
- * @throws FormatException if the QR Code cannot be decoded
- * @throws ChecksumException if error correction fails
+ * Returns an invalid-format error if the QR Code cannot be decoded
+ * Returns a checksum error if error correction fails
  */
 pub fn decode_bitmatrix_with_hints(
     bits: &BitMatrix,
@@ -73,11 +75,9 @@ pub fn decode_bitmatrix_with_hints(
     let mut ce = None;
     match decode_bitmatrix_parser_with_hints(&mut parser, hints) {
         Ok(ok) => return Ok(ok),
-        Err(er) => match er {
-            Exceptions::FormatException(_) => fe = Some(er),
-            Exceptions::ChecksumException(_) => ce = Some(er),
-            _ => return Err(er),
-        },
+        Err(er) if is_invalid_format(&er) => fe = Some(er),
+        Err(er) if is_checksum(&er) => ce = Some(er),
+        Err(er) => return Err(er),
     }
 
     let mut trying = || -> Result<DecoderRXingResult> {
@@ -112,17 +112,29 @@ pub fn decode_bitmatrix_with_hints(
 
     match trying() {
         Ok(res) => Ok(res),
-        Err(er) => match er {
-            Exceptions::FormatException(_) | Exceptions::ChecksumException(_) => {
-                if let Some(fe) = fe {
-                    Err(fe)
-                } else {
-                    Err(ce.unwrap_or(Exceptions::CHECKSUM))
-                }
+        Err(er) if is_retryable_decode_error(&er) => {
+            if let Some(fe) = fe {
+                Err(fe)
+            } else {
+                Err(ce.unwrap_or_else(|| Error::Checksum.into()))
             }
-            _ => Err(er),
-        },
+        }
+        Err(er) => Err(er),
     }
+}
+
+fn is_invalid_format(error: &anyhow::Error) -> bool {
+    error
+        .downcast_ref::<Error>()
+        .is_some_and(Error::is_invalid_format)
+}
+
+fn is_checksum(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<Error>().is_some_and(Error::is_checksum)
+}
+
+fn is_retryable_decode_error(error: &anyhow::Error) -> bool {
+    is_invalid_format(error) || is_checksum(error)
 }
 
 fn decode_bitmatrix_parser_with_hints(
@@ -166,13 +178,13 @@ fn decode_bitmatrix_parser_with_hints(
  *
  * @param codeword_bytes data and error correction codewords
  * @param num_data_codewords number of codewords that are data bytes
- * @throws ChecksumException if error correction fails
+ * Returns a checksum error if error correction fails
  */
 pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
     let ecc_len = codeword_bytes.len() - num_data_codewords;
     let buf = reed_solomon::Decoder::new(ecc_len)
         .correct(codeword_bytes, None)
-        .map_err(|e| Exceptions::ChecksumException(format!("{e:?}")))?;
+        .map_err(|e| Error::checksum(format!("{e:?}")))?;
     codeword_bytes[..num_data_codewords].copy_from_slice(buf.data());
     Ok(())
 }

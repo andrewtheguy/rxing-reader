@@ -16,9 +16,11 @@
 
 use std::borrow::Cow;
 
+use anyhow::Result;
+
 use crate::{
     LuminanceSource,
-    common::{BitArray, BitMatrix, LineOrientation, Result},
+    common::{BitArray, BitMatrix, LineOrientation},
 };
 
 /**
@@ -46,7 +48,7 @@ pub trait Binarizer {
      * @param row An optional preallocated array. If null or too small, it will be ignored.
      *            If used, the Binarizer will call BitArray.clear(). Always use the returned object.
      * @return The array of bits for this row (true means black).
-     * @throws NotFoundException if row can't be binarized
+     * Returns a not-found error if row can't be binarized
      */
     fn get_black_row(&self, y: usize) -> Result<Cow<'_, BitArray>>;
 
@@ -61,7 +63,7 @@ pub trait Binarizer {
      * fetched using getBlackRow(), so don't mix and match between them.
      *
      * @return The 2D array of bits for the image (true means black).
-     * @throws NotFoundException if image can't be binarized to make a matrix
+     * Returns a not-found error if image can't be binarized to make a matrix
      */
     fn get_black_matrix(&self) -> Result<&BitMatrix>;
 

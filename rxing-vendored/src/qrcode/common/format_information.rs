@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::common::Result;
+use anyhow::Result;
 
 use super::ErrorCorrectionLevel;
 

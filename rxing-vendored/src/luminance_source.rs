@@ -16,8 +16,8 @@
 
 use std::borrow::Cow;
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 /**
  * The purpose of this class hierarchy is to abstract different bitmap implementations across
@@ -97,9 +97,9 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Exceptions::unsupported_operation_with(
+        Err(Error::unsupported_operation(
             "This luminance source does not support cropping.",
-        ))
+        ).into())
     }
 
     /**
@@ -118,9 +118,9 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Exceptions::unsupported_operation_with(
+        Err(Error::unsupported_operation(
             "This luminance source does not support rotation by 90 degrees.",
-        ))
+        ).into())
     }
 
     /**
@@ -133,9 +133,9 @@ pub trait LuminanceSource {
     where
         Self: Sized,
     {
-        Err(Exceptions::unsupported_operation_with(
+        Err(Error::unsupported_operation(
             "This luminance source does not support rotation by 45 degrees.",
-        ))
+        ).into())
     }
 
     #[inline(always)]

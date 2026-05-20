@@ -1,4 +1,4 @@
-use crate::common::Result;
+use anyhow::Result;
 use crate::{Point, point};
 
 /// Minimum determinant magnitude for `RegressionLineTrait::intersect` to treat

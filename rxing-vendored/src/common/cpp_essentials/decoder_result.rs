@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Exceptions, common::ECIStringBuilder};
+use crate::common::ECIStringBuilder;
 
 use super::StructuredAppendInfo;
 
@@ -18,7 +18,7 @@ where
     structured_append: StructuredAppendInfo,
     is_mirrored: bool, // = false;
     reader_init: bool, // = false;
-    error: Option<Exceptions>,
+    error: Option<String>,
     extra: Arc<T>,
 }
 
@@ -145,13 +145,13 @@ where
         self
     }
 
-    pub fn error(&self) -> &Option<Exceptions> {
-        &self.error
+    pub fn error(&self) -> Option<&str> {
+        self.error.as_deref()
     }
-    pub fn set_error(&mut self, error: Option<Exceptions>) {
-        self.error = error
+    pub fn set_error(&mut self, error: Option<anyhow::Error>) {
+        self.error = error.map(|error| error.to_string())
     }
-    pub fn with_error(mut self, error: Option<Exceptions>) -> DecoderResult<T> {
+    pub fn with_error(mut self, error: Option<anyhow::Error>) -> DecoderResult<T> {
         self.set_error(error);
         self
     }

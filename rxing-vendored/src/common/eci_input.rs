@@ -16,7 +16,7 @@
 
 use std::fmt::Display;
 
-use crate::common::Result;
+use anyhow::Result;
 
 use super::Eci;
 
@@ -44,10 +44,10 @@ pub trait ECIInput: Display {
      *
      * @return  the specified {@code byte} value as character or the FNC1 character
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if the value at the {@code index} argument is an ECI (@see #is_eci)
      */
     fn char_at(&self, index: usize) -> Result<char>;
@@ -65,11 +65,11 @@ pub trait ECIInput: Display {
      *
      * @return  the specified subsequence
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if {@code start} or {@code end} are negative,
      *          if {@code end} is greater than {@code length()},
      *          or if {@code start} is greater than {@code end}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if a value in the range {@code start}-{@code end} is an ECI (@see #is_eci)
      */
     fn sub_sequence(&self, start: usize, end: usize) -> Result<Vec<char>>;
@@ -81,7 +81,7 @@ pub trait ECIInput: Display {
      *
      * @return  true if the value at position {@code index} is an ECI
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      */
@@ -99,10 +99,10 @@ pub trait ECIInput: Display {
      *          The ECI specified the encoding of all bytes with a higher index until the
      *          next ECI or until the end of the input if no other ECI follows.
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if the value at the {@code index} argument is not an ECI (@see #is_eci)
      */
     fn get_ecivalue(&self, index: usize) -> Result<Eci>;

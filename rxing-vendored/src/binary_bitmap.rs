@@ -16,11 +16,12 @@
 
 use std::{borrow::Cow, fmt};
 
+use anyhow::Result;
 use once_cell::sync::OnceCell;
 
 use crate::{
-    Binarizer, Exceptions, LuminanceSource,
-    common::{BitArray, BitMatrix, LineOrientation, Result},
+    Binarizer, Error, LuminanceSource,
+    common::{BitArray, BitMatrix, LineOrientation},
 };
 
 /**
@@ -65,7 +66,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * @param row An optional preallocated array. If null or too small, it will be ignored.
      *            If used, the Binarizer will call BitArray.clear(). Always use the returned object.
      * @return The array of bits for this row (true means black).
-     * @throws NotFoundException if row can't be binarized
+     * Returns a not-found error if row can't be binarized
      */
     pub fn get_black_row(&self, y: usize) -> Result<Cow<'_, BitArray>> {
         self.binarizer.get_black_row(y)
@@ -83,13 +84,14 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * fetched using getBlackRow(), so don't mix and match between them.
      *
      * @return The 2D array of bits for the image (true means black).
-     * @throws NotFoundException if image can't be binarized to make a matrix
+     * Returns a not-found error if image can't be binarized to make a matrix
      */
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.matrix
             .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())?;
         self.matrix.get_mut().ok_or_else(|| {
-            Exceptions::illegal_state_with("black matrix cache was not initialized")
+            Error::invalid_state("black matrix cache was not initialized")
+                .into()
         })
     }
 
@@ -100,7 +102,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * fetched using getBlackRow(), so don't mix and match between them.
      *
      * @return The 2D array of bits for the image (true means black).
-     * @throws NotFoundException if image can't be binarized to make a matrix
+     * Returns a not-found error if image can't be binarized to make a matrix
      */
     pub fn get_black_matrix(&self) -> Result<&BitMatrix> {
         self.matrix

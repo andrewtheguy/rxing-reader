@@ -18,14 +18,13 @@
 
 // import com.google.zxing.Binarizer;
 // import com.google.zxing.LuminanceSource;
-// import com.google.zxing.NotFoundException;
 
 use std::borrow::Cow;
 
 use once_cell::sync::OnceCell;
 
-use crate::common::Result;
-use crate::{Binarizer, Exceptions, LuminanceSource};
+use anyhow::Result;
+use crate::{Binarizer, Error, LuminanceSource};
 
 use super::{BitArray, BitMatrix, LineOrientation};
 
@@ -63,14 +62,14 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
 
     // Applies simple sharpening to the row data to improve performance of the 1D Readers.
     fn get_black_row(&'_ self, y: usize) -> Result<Cow<'_, BitArray>> {
-        let row = self.black_row_cache[y].get_or_try_init(|| {
+        let row = self.black_row_cache[y].get_or_try_init(|| -> Result<BitArray> {
             let source = self.get_luminance_source();
             let width = source.get_width();
             let mut row = BitArray::with_size(width);
 
             let local_luminances = source
                 .get_row(y)
-                .ok_or(Exceptions::index_out_of_bounds_with("row out of bounds"))?;
+                .ok_or(Error::out_of_bounds("row out of bounds"))?;
             let mut local_buckets = [0; LUMINANCE_BUCKETS];
             for x in 0..width {
                 local_buckets[((local_luminances[x]) >> LUMINANCE_SHIFT) as usize] += 1;
@@ -108,7 +107,7 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
         if lt == LineOrientation::Row {
             self.get_black_row(l)
         } else {
-            let col = self.black_column_cache[l].get_or_try_init(|| {
+            let col = self.black_column_cache[l].get_or_try_init(|| -> Result<BitArray> {
                 let source = self.get_luminance_source();
                 let height = source.get_height();
                 let mut col = BitArray::with_size(height);
@@ -203,7 +202,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
             let row = height * y / 5;
             let local_luminances = source
                 .get_row(row)
-                .ok_or(Exceptions::index_out_of_bounds_with("row out of bounds"))?;
+                .ok_or(Error::out_of_bounds("row out of bounds"))?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
                 local_buckets[(pixel >> LUMINANCE_SHIFT) as usize] += 1;
@@ -264,9 +263,9 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
-            return Err(Exceptions::not_found_with(
+            return Err(Error::not_found(
                 "second_peak - first_peak <= numBuckets / 16 ",
-            ));
+            ).into());
         }
 
         // Find a valley between them that is low and closer to the white peak.

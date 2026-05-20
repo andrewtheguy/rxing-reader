@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 /**
  * Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1
@@ -182,7 +182,7 @@ impl CharacterSet {
                 input
                     .to_cp437(&CP437_CONTROL)
                     .map(|data| data.to_vec())
-                    .map_err(|e| Exceptions::format_with(format!("{e:?}")))
+                    .map_err(|e| Error::invalid_format(format!("{e:?}")).into())
             }
             CharacterSet::UTF16BE => {
                 Ok(input.encode_utf16().flat_map(|u| u.to_be_bytes()).collect())
@@ -202,9 +202,9 @@ impl CharacterSet {
                 let mut bytes = Vec::with_capacity(input.len());
                 for c in input.chars() {
                     if c as u32 > 0xFF {
-                        return Err(Exceptions::format_with(
+                        return Err(Error::invalid_format(
                             "Binary/ISO-8859-1 encoding only supports characters up to U+00FF",
-                        ));
+                        ).into());
                     }
                     bytes.push(c as u8);
                 }
@@ -214,9 +214,9 @@ impl CharacterSet {
                 let mut bytes = Vec::with_capacity(input.len());
                 for c in input.chars() {
                     if c as u32 > 0x7F {
-                        return Err(Exceptions::format_with(
+                        return Err(Error::invalid_format(
                             "ASCII encoding only supports characters up to U+007F",
-                        ));
+                        ).into());
                     }
                     bytes.push(c as u8);
                 }
@@ -226,11 +226,11 @@ impl CharacterSet {
                 if let Some(enc) = self.get_encoding() {
                     let (res, _, had_errors) = enc.encode(input);
                     if had_errors {
-                        return Err(Exceptions::format_with("Could not encode character"));
+                        return Err(Error::invalid_format("Could not encode character").into());
                     }
                     Ok(res.into_owned())
                 } else {
-                    Err(Exceptions::format_with("Unsupported encoding"))
+                    Err(Error::invalid_format("Unsupported encoding").into())
                 }
             }
         }
@@ -274,7 +274,7 @@ impl CharacterSet {
                     let (res, _, _) = enc.encode(input);
                     Ok(res.into_owned())
                 } else {
-                    Err(Exceptions::format_with("Unsupported encoding"))
+                    Err(Error::invalid_format("Unsupported encoding").into())
                 }
             }
         }
@@ -290,31 +290,31 @@ impl CharacterSet {
             }
             CharacterSet::UTF32BE => {
                 if !input.len().is_multiple_of(4) {
-                    return Err(Exceptions::format_with(
+                    return Err(Error::invalid_format(
                         "Invalid UTF-32BE: trailing bytes",
-                    ));
+                    ).into());
                 }
                 input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_be_bytes([c[0], c[1], c[2], c[3]]);
                         char::from_u32(val)
-                            .ok_or_else(|| Exceptions::format_with("Invalid UTF-32BE"))
+                            .ok_or_else(|| Error::invalid_format("Invalid UTF-32BE").into())
                     })
                     .collect()
             }
             CharacterSet::UTF32LE => {
                 if !input.len().is_multiple_of(4) {
-                    return Err(Exceptions::format_with(
+                    return Err(Error::invalid_format(
                         "Invalid UTF-32LE: trailing bytes",
-                    ));
+                    ).into());
                 }
                 input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
                         char::from_u32(val)
-                            .ok_or_else(|| Exceptions::format_with("Invalid UTF-32LE"))
+                            .ok_or_else(|| Error::invalid_format("Invalid UTF-32LE").into())
                     })
                     .collect()
             }
@@ -325,7 +325,7 @@ impl CharacterSet {
                 let mut s = String::with_capacity(input.len());
                 for &b in input {
                     if b > 0x7F {
-                        return Err(Exceptions::format_with("Invalid ASCII"));
+                        return Err(Error::invalid_format("Invalid ASCII").into());
                     }
                     s.push(char::from(b));
                 }
@@ -335,11 +335,11 @@ impl CharacterSet {
                 if let Some(enc) = self.get_encoding() {
                     let (res, _, had_errors) = enc.decode(input);
                     if had_errors {
-                        return Err(Exceptions::format_with("Could not decode character"));
+                        return Err(Error::invalid_format("Could not decode character").into());
                     }
                     Ok(res.into_owned())
                 } else {
-                    Err(Exceptions::format_with("Unsupported encoding"))
+                    Err(Error::invalid_format("Unsupported encoding").into())
                 }
             }
         }
@@ -385,7 +385,7 @@ impl CharacterSet {
                     let (res, _, _) = enc.decode(input);
                     Ok(res.into_owned())
                 } else {
-                    Err(Exceptions::format_with("Unsupported encoding"))
+                    Err(Error::invalid_format("Unsupported encoding").into())
                 }
             }
         }

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+use anyhow::Result;
+
 use crate::{
-    Exceptions, PointCallback,
-    common::{BitMatrix, Result},
+    Error, PointCallback,
+    common::BitMatrix,
 };
 
 use super::AlignmentPattern;
@@ -83,7 +85,7 @@ impl<'a> AlignmentPatternFinder<'a> {
      * it's pretty performance-critical and so is written to be fast foremost.</p>
      *
      * @return {@link AlignmentPattern} if found
-     * @throws NotFoundException if not found
+     * Returns a not-found error if not found
      */
     pub fn find(&mut self) -> Result<AlignmentPattern> {
         let start_x = self.start_x;
@@ -162,9 +164,9 @@ impl<'a> AlignmentPatternFinder<'a> {
             Ok(*(self
                 .possible_centers
                 .first()
-                .ok_or(Exceptions::INDEX_OUT_OF_BOUNDS))?)
+                .ok_or(Error::OutOfBounds))?)
         } else {
-            Err(Exceptions::NOT_FOUND)
+            Err(Error::NotFound.into())
         }
     }
 

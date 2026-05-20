@@ -7,8 +7,6 @@ pub mod string_utils;
 mod bit_array;
 pub use bit_array::*;
 
-pub type Result<T, E = crate::Exceptions> = std::result::Result<T, E>;
-
 /// Encapsulates the result of detecting a barcode in an image.
 pub trait DetectorRXingResult {
     fn get_bits(&self) -> &BitMatrix;

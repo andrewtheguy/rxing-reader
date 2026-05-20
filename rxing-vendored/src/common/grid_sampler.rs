@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-use crate::{Exceptions, point};
-use crate::{Point, common::Result};
+use anyhow::Result;
+
+use crate::{Error, Point, point};
 
 use super::{BitMatrix, PerspectiveTransform, Quadrilateral};
 
@@ -59,7 +60,7 @@ pub trait GridSampler {
      * @param p4FromY point 4 image Y
      * @return {@link BitMatrix} representing a grid of points sampled from the image within a region
      *   defined by the "from" parameters
-     * @throws NotFoundException if image can't be sampled, for example, if the transformation defined
+     * Returns a not-found error if image can't be sampled, for example, if the transformation defined
      *   by the given points is invalid or results in sampling outside the image boundaries
      */
     #[allow(clippy::too_many_arguments)]
@@ -89,7 +90,7 @@ pub trait GridSampler {
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Exceptions::NOT_FOUND);
+            return Err(Error::NotFound.into());
         }
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
         let mut points = vec![Point::default(); dimension_x as usize];
@@ -109,7 +110,7 @@ pub trait GridSampler {
             self.check_and_nudge_points(image, &mut points)?;
             for (x, point) in points.iter().enumerate() {
                 if image.try_get(point.x as u32, point.y as u32).ok_or(
-                    Exceptions::not_found_with(
+                    Error::not_found(
                         "index out of bounds, see documentation in file for explanation",
                     ),
                 )? {
@@ -151,7 +152,7 @@ pub trait GridSampler {
      *
      * @param image image into which the points should map
      * @param points actual points in x1,y1,...,xn,yn form
-     * @throws NotFoundException if an endpoint is lies outside the image boundaries
+     * Returns a not-found error if an endpoint is lies outside the image boundaries
      */
     fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
         let width = image.get_width();
@@ -165,7 +166,7 @@ pub trait GridSampler {
         for point in points.iter_mut().take(max_offset) {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
             nudged = false;
             if x == -1 {
@@ -190,7 +191,7 @@ pub trait GridSampler {
         for point in points.iter_mut().rev().take(max_offset).rev() {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
             nudged = false;
             if x == -1 {

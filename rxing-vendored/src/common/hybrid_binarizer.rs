@@ -18,7 +18,7 @@ use std::borrow::Cow;
 
 use once_cell::sync::OnceCell;
 
-use crate::common::Result;
+use anyhow::Result;
 use crate::{Binarizer, LuminanceSource};
 
 use super::{BitArray, BitMatrix, GlobalHistogramBinarizer};

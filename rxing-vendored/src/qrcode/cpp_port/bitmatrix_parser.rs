@@ -4,9 +4,11 @@
 // */
 // // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Result;
+
 use crate::{
-    Exceptions,
-    common::{BitMatrix, Result},
+    Error,
+    common::BitMatrix,
     qrcode::common::{ErrorCorrectionLevel, FormatInformation, Version, VersionRef},
 };
 
@@ -24,7 +26,7 @@ pub fn get_bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -
 
 pub fn read_version(bit_matrix: &BitMatrix, qr_type: Type) -> Result<VersionRef> {
     if !Version::has_valid_size(bit_matrix) {
-        return Err(Exceptions::FORMAT);
+        return Err(Error::InvalidFormat.into());
     }
 
     let number = Version::number(bit_matrix);
@@ -163,7 +165,7 @@ pub fn read_qrcodewords(
         x -= 2;
     }
     if (result.len()) != version.get_total_codewords() as usize {
-        return Err(Exceptions::FORMAT);
+        return Err(Error::InvalidFormat.into());
     }
 
     Ok(result.iter().copied().map(|x| x as u8).collect())
@@ -225,7 +227,7 @@ pub fn read_mqrcodewords(
         x -= 2;
     }
     if (result.len()) != version.get_total_codewords() as usize {
-        return Err(Exceptions::FORMAT);
+        return Err(Error::InvalidFormat.into());
     }
 
     Ok(result.iter().copied().map(|x| x as u8).collect())
@@ -323,7 +325,7 @@ pub fn read_qrcodewords_model1(
 
     result[0] &= 0xf; // ignore corner
     if (result.len()) != version.get_total_codewords() as usize {
-        return Err(Exceptions::FORMAT);
+        return Err(Error::InvalidFormat.into());
     }
 
     Ok(result.iter().copied().map(|x| x as u8).collect())
@@ -372,7 +374,7 @@ pub fn read_rmqrcodewords(
         x -= 2
     }
     if (result.len()) != version.get_total_codewords() as usize {
-        return Err(Exceptions::FORMAT);
+        return Err(Error::InvalidFormat.into());
     }
 
     Ok(result.iter().copied().map(|x| x as u8).collect())

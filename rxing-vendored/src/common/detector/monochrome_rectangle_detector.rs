@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
+use anyhow::Result;
 
 use crate::{
-    Exceptions, Point,
-    common::{BitMatrix, Result},
+    Error, Point,
+    common::BitMatrix,
     point,
 };
 
@@ -49,7 +50,7 @@ impl<'a> MonochromeRectangleDetector<'_> {
      *  last points are opposed on the diagonal, as are the second and third. The first point will be
      *  the topmost point and the last, the bottommost. The second point will be leftmost and the
      *  third, the rightmost
-     * @throws NotFoundException if no Data Matrix Code can be found
+     * Returns a not-found error if no Data Matrix Code can be found
      */
     pub fn detect(&self) -> Result<[Point; 4]> {
         let height = self.image.get_height() as i32;
@@ -144,7 +145,7 @@ impl<'a> MonochromeRectangleDetector<'_> {
      * @param max_white_run maximum run of white pixels that can still be considered to be within
      *  the barcode
      * @return a {@link Point} encapsulating the corner that was found
-     * @throws NotFoundException if such a point cannot be found
+     * Returns a not-found error if such a point cannot be found
      */
     #[allow(clippy::too_many_arguments)]
     fn find_corner_from_center(
@@ -205,10 +206,10 @@ impl<'a> MonochromeRectangleDetector<'_> {
                     }
                 }
             } else {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
         }
-        Err(Exceptions::NOT_FOUND)
+        Err(Error::NotFound.into())
     }
 
     /**

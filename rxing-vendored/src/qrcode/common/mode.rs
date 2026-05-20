@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 use crate::qrcode::cpp_port::Type;
 
 use super::Version;
@@ -45,7 +45,7 @@ impl Mode {
     /**
      * @param bits four bits encoding a QR Code data mode
      * @return Mode encoded by these bits
-     * @throws IllegalArgumentException if bits do not correspond to a known mode
+     * Returns an invalid-argument error if bits do not correspond to a known mode
      */
     pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
@@ -63,9 +63,9 @@ impl Mode {
             {
                 Ok(Self::Hanzi)
             }
-            _ => Err(Exceptions::illegal_argument_with(format!(
+            _ => Err(Error::invalid_argument(format!(
                 "{bits} is not valid"
-            ))),
+            )).into()),
         }
     }
 
@@ -136,7 +136,7 @@ impl Mode {
      * @param bits variable number of bits encoding a QR Code data mode
      * @param is_micro is this a MicroQRCode
      * @return Mode encoded by these bits
-     * @throws FormatError if bits do not correspond to a known mode
+     * Returns an invalid-format error if bits do not correspond to a known mode
      */
     pub fn codec_mode_for_bits(bits: u32, qr_type: Option<Type>) -> Result<Self> {
         let qr_type = qr_type.unwrap_or(Type::Model2);
@@ -166,7 +166,7 @@ impl Mode {
             return Mode::try_from(bits as u32);
         }
 
-        Err(Exceptions::format_with("Invalid codec mode"))
+        Err(Error::invalid_format("Invalid codec mode").into())
     }
 
     /**
@@ -248,7 +248,7 @@ impl From<Mode> for u8 {
 }
 
 impl TryFrom<u8> for Mode {
-    type Error = Exceptions;
+    type Error = anyhow::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Self::for_bits(value)
@@ -256,13 +256,13 @@ impl TryFrom<u8> for Mode {
 }
 
 impl TryFrom<u32> for Mode {
-    type Error = Exceptions;
+    type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value > u32::from(u8::MAX) {
-            return Err(Exceptions::illegal_argument_with(format!(
+            return Err(Error::invalid_argument(format!(
                 "{value} is not valid"
-            )));
+            )).into());
         }
         Self::for_bits(value as u8)
     }

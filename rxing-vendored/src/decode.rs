@@ -1,8 +1,10 @@
 use std::{collections::HashSet, sync::Arc};
 
+use anyhow::Result as RxingResult;
+
 use crate::{
     BarcodeFormat, Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource, RXingResult,
-    common::{GlobalHistogramBinarizer, HybridBinarizer, Result as RxingResult},
+    common::{GlobalHistogramBinarizer, HybridBinarizer},
     downscale_luma_buffer,
     qrcode::cpp_port::QrReader,
 };

@@ -1,5 +1,5 @@
-use crate::common::Result;
-use crate::{Exceptions, Point};
+use anyhow::Result;
+use crate::{Error, Point};
 
 use super::RegressionLineTrait;
 
@@ -71,7 +71,7 @@ impl RegressionLineTrait for RegressionLine {
 
     fn add(&mut self, p: Point) -> Result<()> {
         if self.direction_inward == Point::default() {
-            return Err(Exceptions::ILLEGAL_STATE);
+            return Err(Error::InvalidState.into());
         }
         self.points.push(p);
         if self.points.len() == 1 {

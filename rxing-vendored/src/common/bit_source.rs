@@ -17,8 +17,8 @@
 use std::cmp;
 use std::io::{ErrorKind, Read};
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 /**
  * <p>This provides an easy abstraction to read bits at a time from a sequence of bytes, where the
@@ -66,11 +66,11 @@ impl<'a> BitSource<'a> {
      * @param num_bits number of bits to read
      * @return int representing the bits read. The bits will appear as the least-significant
      *         bits of the int
-     * @throws IllegalArgumentException if num_bits isn't in [1,32] or more than is available
+     * Returns an invalid-argument error if num_bits isn't in [1,32] or more than is available
      */
     pub fn read_bits(&mut self, num_bits: usize) -> Result<u32> {
         if !(1..=32).contains(&num_bits) || num_bits > self.available() {
-            return Err(Exceptions::illegal_argument_with(num_bits.to_string()));
+            return Err(Error::invalid_argument(num_bits.to_string()).into());
         }
 
         let mut result: u32 = 0;
@@ -116,7 +116,7 @@ impl<'a> BitSource<'a> {
 
     pub fn peek_bits(&self, num_bits: usize) -> Result<u32> {
         if !(1..=32).contains(&num_bits) || num_bits > self.available() {
-            return Err(Exceptions::illegal_argument_with(num_bits.to_string()));
+            return Err(Error::invalid_argument(num_bits.to_string()).into());
         }
 
         let mut bit_offset = self.bit_offset;

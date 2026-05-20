@@ -3,9 +3,11 @@
 */
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Result;
+
 use crate::{
-    Exceptions,
-    common::{BitMatrix, Result},
+    Error,
+    common::BitMatrix,
 };
 
 pub type PatternType = u16;
@@ -588,14 +590,14 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
     const PREV_IDX: isize = -1;
 
     if view.size() < min_size {
-        return Err(Exceptions::ILLEGAL_STATE);
+        return Err(Error::InvalidState.into());
     }
 
     let mut window = view.sub_view(0, Some(LEN));
     if window.is_at_first_bar() && is_guard(&window, Some(f32::MAX)) {
         return Ok(window);
     }
-    let end = Into::<usize>::into(view.end().ok_or(Exceptions::INDEX_OUT_OF_BOUNDS)?) - min_size;
+    let end = Into::<usize>::into(view.end().ok_or(Error::OutOfBounds)?) - min_size;
     while (window.start + window.current) < end {
         let prev = window.try_get_index(PREV_IDX).map(|v| v as f32);
         if is_guard(&window, prev) {
@@ -605,7 +607,7 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         window.skip_pair();
     }
 
-    Err(Exceptions::ILLEGAL_STATE)
+    Err(Error::InvalidState.into())
 }
 
 pub fn find_left_guard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: bool>(
@@ -646,7 +648,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
 ) -> Result<[PatternType; LEN]> {
     let module_size: f32 = Into::<usize>::into(view.sum(Some(LEN))) as f32 / SUM as f32;
     if !module_size.is_finite() || module_size <= f32::EPSILON {
-        return Err(Exceptions::NOT_FOUND);
+        return Err(Error::NotFound.into());
     }
     let mut err = SUM as isize;
     let mut is = [PatternType::default(); LEN];
@@ -659,7 +661,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
     }
 
     if err.abs() > 1 {
-        return Err(Exceptions::NOT_FOUND);
+        return Err(Error::NotFound.into());
     }
 
     if err != 0 {
@@ -672,7 +674,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
                 .enumerate()
                 .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         };
-        let (mi, _) = mi.ok_or(Exceptions::ILLEGAL_STATE)?;
+        let (mi, _) = mi.ok_or(Error::InvalidState)?;
         is[mi] += err as PatternType;
     }
 

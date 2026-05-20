@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::Exceptions;
+use crate::Error;
 
 use super::CharacterSet;
 
@@ -49,15 +49,15 @@ impl Eci {
 }
 
 impl TryFrom<u32> for Eci {
-    type Error = Exceptions;
+    type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value <= i32::MAX as u32 {
             Ok((value as i32).into())
         } else {
-            Err(Exceptions::illegal_argument_with(format!(
+            Err(Error::invalid_argument(format!(
                 "ECI value {value} exceeds i32::MAX"
-            )))
+            )).into())
         }
     }
 }

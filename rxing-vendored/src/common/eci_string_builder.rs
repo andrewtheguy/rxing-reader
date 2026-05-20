@@ -105,7 +105,7 @@ impl ECIStringBuilder {
      * Appends ECI value to output.
      *
      * @param value ECI value to append, as an int
-     * @throws FormatException on invalid ECI value
+     * Returns an invalid-format error on invalid ECI value
      */
     pub fn append_eci(&mut self, eci: Eci) {
         self.eci_result = None;

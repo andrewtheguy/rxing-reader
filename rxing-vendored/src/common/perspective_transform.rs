@@ -18,7 +18,9 @@
 
 use std::ops::Mul;
 
-use crate::{Exceptions, Point, common::Result, point};
+use anyhow::Result;
+
+use crate::{Error, Point, point};
 
 use super::Quadrilateral;
 
@@ -73,7 +75,7 @@ impl PerspectiveTransform {
     #[allow(clippy::too_many_arguments)]
     pub fn quadrilateral_to_quadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
         if !src.is_convex() || !dst.is_convex() {
-            return Err(Exceptions::ILLEGAL_STATE);
+            return Err(Error::InvalidState.into());
         }
         let q_to_s = PerspectiveTransform::quadrilateral_to_square(dst)?;
         let s_to_q = PerspectiveTransform::square_to_quadrilateral(src)?;
@@ -95,7 +97,7 @@ impl PerspectiveTransform {
 
     pub fn transform_points_single(&self, points: &mut [Point]) -> Result<()> {
         for point in points.iter_mut() {
-            *point = self.transform_point(*point).ok_or(Exceptions::NOT_FOUND)?;
+            *point = self.transform_point(*point).ok_or(Error::NotFound)?;
         }
         Ok(())
     }
@@ -107,7 +109,7 @@ impl PerspectiveTransform {
             let oy = *y;
             let d = self.a13 * ox + self.a23 * oy + self.a33;
             if d.abs() < DENOMINATOR_EPSILON {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
             *x = (self.a11 * ox + self.a21 * oy + self.a31) / d;
             *y = (self.a12 * ox + self.a22 * oy + self.a32) / d;
@@ -139,7 +141,7 @@ impl PerspectiveTransform {
 
             let denominator = d1.cross(d2);
             if denominator.abs() < DENOMINATOR_EPSILON {
-                return Err(Exceptions::ILLEGAL_STATE);
+                return Err(Error::InvalidState.into());
             }
             let a13 = d3.cross(d2) / denominator;
             let a23 = d1.cross(d3) / denominator;

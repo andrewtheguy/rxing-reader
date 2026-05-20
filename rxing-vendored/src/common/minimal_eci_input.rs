@@ -18,8 +18,8 @@ use std::{fmt, sync::Arc};
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 use super::{CharacterSet, ECIEncoderSet, ECIInput, Eci};
 
@@ -60,22 +60,22 @@ impl ECIInput for MinimalECIInput {
      *
      * @return  the specified {@code byte} value as character or the FNC1 character
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if the value at the {@code index} argument is an ECI (@see #is_eci)
      */
     fn char_at(&self, index: usize) -> Result<char> {
         if index >= self.length() {
-            return Err(Exceptions::index_out_of_bounds_with(index.to_string()));
+            return Err(Error::out_of_bounds(index.to_string()).into());
         }
         if self.is_fnc1(index)? {
             Ok(self.fnc1 as u8 as char)
         } else if self.is_eci(index)? {
-            Err(Exceptions::illegal_argument_with(format!(
+            Err(Error::invalid_argument(format!(
                 "value at {index} is not a character but an ECI"
-            )))
+            )).into())
         } else {
             Ok(self.bytes[index] as u8 as char)
         }
@@ -94,23 +94,23 @@ impl ECIInput for MinimalECIInput {
      *
      * @return  the specified subsequence
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if {@code start} or {@code end} are negative,
      *          if {@code end} is greater than {@code length()},
      *          or if {@code start} is greater than {@code end}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if a value in the range {@code start}-{@code end} is an ECI (@see #is_eci)
      */
     fn sub_sequence(&self, start: usize, end: usize) -> Result<Vec<char>> {
         if start > end || end > self.length() {
-            return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
+            return Err(Error::OutOfBounds.into());
         }
         let mut result = Vec::with_capacity(end - start);
         for i in start..end {
             if self.is_eci(i)? {
-                return Err(Exceptions::illegal_argument_with(format!(
+                return Err(Error::invalid_argument(format!(
                     "value at {i} is not a character but an ECI"
-                )));
+                )).into());
             }
             result.push(self.char_at(i)?);
         }
@@ -124,13 +124,13 @@ impl ECIInput for MinimalECIInput {
      *
      * @return  true if the value at position {@code index} is an ECI
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      */
     fn is_eci(&self, index: usize) -> Result<bool> {
         if index >= self.length() {
-            return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
+            return Err(Error::OutOfBounds.into());
         }
         Ok(self.bytes[index] > 255 && self.bytes[index] != FNC1)
     }
@@ -147,20 +147,20 @@ impl ECIInput for MinimalECIInput {
      *          The ECI specified the encoding of all bytes with a higher index until the
      *          next ECI or until the end of the input if no other ECI follows.
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
-     * @throws  IllegalArgumentException
+     * Returns an invalid-argument error
      *          if the value at the {@code index} argument is not an ECI (@see #is_eci)
      */
     fn get_ecivalue(&self, index: usize) -> Result<Eci> {
         if index >= self.length() {
-            return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
+            return Err(Error::OutOfBounds.into());
         }
         if !self.is_eci(index)? {
-            return Err(Exceptions::illegal_argument_with(format!(
+            return Err(Error::invalid_argument(format!(
                 "value at {index} is not an ECI but a character"
-            )));
+            )).into());
         }
         Eci::try_from(self.bytes[index] as u32 - 256)
     }
@@ -184,19 +184,19 @@ impl MinimalECIInput {
         };
         let mut chars = fnc1.chars();
         let Some(ch) = chars.next() else {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "fnc1 marker cannot be empty",
-            ));
+            ).into());
         };
         if chars.next().is_some() {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "fnc1 marker must be a single character",
-            ));
+            ).into());
         }
         if (ch as u32) > u16::MAX as u32 {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "fnc1 marker must fit in u16",
-            ));
+            ).into());
         }
         Ok(Some(ch as u16))
     }
@@ -205,7 +205,7 @@ impl MinimalECIInput {
         value
             .chars()
             .next()
-            .ok_or_else(|| Exceptions::illegal_argument_with("empty character segment"))
+            .ok_or_else(|| Error::invalid_argument("empty character segment").into())
     }
 
     /**
@@ -260,13 +260,13 @@ impl MinimalECIInput {
      *
      * @return  true if the value at position {@code index} is the FNC1 character
      *
-     * @throws  IndexOutOfBoundsException
+     * Returns an out-of-bounds error
      *          if the {@code index} argument is negative or not less than
      *          {@code length()}
      */
     pub fn is_fnc1(&self, index: usize) -> Result<bool> {
         if index >= self.length() {
-            return Err(Exceptions::INDEX_OUT_OF_BOUNDS);
+            return Err(Error::OutOfBounds.into());
         }
         Ok(self.bytes[index] == FNC1)
     }
@@ -279,7 +279,7 @@ impl MinimalECIInput {
         let slot = edges
             .get_mut(to)
             .and_then(|row| row.get_mut(edge.encoder_index))
-            .ok_or_else(|| Exceptions::index_out_of_bounds_with(to.to_string()))?;
+            .ok_or_else(|| Error::out_of_bounds(to.to_string()))?;
         let should_replace = match slot {
             Some(existing) => existing.cached_total_size > edge.cached_total_size,
             None => true,
@@ -301,7 +301,7 @@ impl MinimalECIInput {
         let ch = string_to_encode
             .get(from)
             .copied()
-            .ok_or_else(|| Exceptions::index_out_of_bounds_with(from.to_string()))?;
+            .ok_or_else(|| Error::out_of_bounds(from.to_string()))?;
 
         let mut start = 0;
         let mut end = encoder_set.len();
@@ -361,10 +361,10 @@ impl MinimalECIInput {
             }
         }
         if minimal_j < 0 {
-            return Err(Exceptions::illegal_state_with(format!(
+            return Err(Error::invalid_state(format!(
                 "internal error: failed to encode \"{}\"",
                 string_to_encode.join("")
-            )));
+            )).into());
         }
         let mut ints_al: Vec<u16> = Vec::new();
         let mut current = edges[input_length][minimal_j as usize].clone();
@@ -421,7 +421,7 @@ impl InputEdge {
             encoder_set
                 .encode_char(c, encoder_index)
                 .map_err(|e| {
-                    Exceptions::illegal_argument_with(format!(
+                    Error::invalid_argument(format!(
                         "failed to encode \"{c}\" with encoder index {encoder_index}: {e}"
                     ))
                 })?

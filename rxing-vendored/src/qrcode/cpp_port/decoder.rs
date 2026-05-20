@@ -4,10 +4,12 @@
  */
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::Exceptions;
+use anyhow::Result;
+
+use crate::Error;
 use crate::common::cpp_essentials::{DecoderResult, StructuredAppendInfo};
 use crate::common::{
-    AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, Result, SymbologyIdentifier,
+    AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
 };
 use crate::qrcode::common::{ErrorCorrectionLevel, Mode, Version};
 use crate::qrcode::cpp_port::bitmatrix_parser::{
@@ -104,9 +106,9 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     ];
 
     if value >= (ALPHANUMERIC_CHARS.len()) {
-        return Err(Exceptions::index_out_of_bounds_with(
+        return Err(Error::out_of_bounds(
             "oAlphaNumericChar: out of range",
-        ));
+        ).into());
     }
 
     Ok(ALPHANUMERIC_CHARS[value])
@@ -137,9 +139,9 @@ pub fn decode_alphanumeric_segment(
         // We need to massage the result a bit if in an FNC1 mode:
         let mut i = 0;
         while i < buffer.len() {
-            if buffer.get(i).ok_or(Exceptions::INDEX_OUT_OF_BOUNDS)? == &'%' {
+            if buffer.get(i).ok_or(Error::OutOfBounds)? == &'%' {
                 if i + 1 < buffer.len()
-                    && buffer.get(i + 1).ok_or(Exceptions::INDEX_OUT_OF_BOUNDS)? == &'%'
+                    && buffer.get(i + 1).ok_or(Error::OutOfBounds)? == &'%'
                 {
                     buffer.remove(i + 1);
                 } else {
@@ -196,7 +198,7 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
         let second_third_bytes = bits.read_bits(16)?;
         return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
-    Err(Exceptions::format_with("parse_ecivalue: invalid value"))
+    Err(Error::invalid_format("parse_ecivalue: invalid value").into())
 }
 
 /**
@@ -249,7 +251,7 @@ pub fn decode_bit_stream(
         bits.read_bits(4)?; /* Model 1 is leading with 4 0-bits -> drop them */
     }
 
-    let res = (|| {
+    let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
             let mode: Mode = if mode_bit_length == 0 {
                 Mode::Numeric // MicroQRCode version 1 is always NUMERIC and mode_bit_length is 0
@@ -267,9 +269,9 @@ pub fn decode_bit_stream(
                 }
                 Mode::Fnc1SecondPosition => {
                     if !result.is_empty() {
-                        return Err(Exceptions::format_with(
+                        return Err(Error::invalid_format(
                             "AIM Application Indicator (FNC1 in second position) at illegal position",
-                        ));
+                        ).into());
                     }
                     result.symbology.modifier = b'5';
                     // ISO/IEC 18004:2015 7.4.8.3 AIM Application Indicator (FNC1 in second position), "00-99" or "A-Za-z"
@@ -282,7 +284,7 @@ pub fn decode_bit_stream(
                         // "A-Za-z"
                         result += (app_ind - 100) as u8;
                     } else {
-                        return Err(Exceptions::format_with("Invalid AIM Application Indicator"));
+                        return Err(Error::invalid_format("Invalid AIM Application Indicator").into());
                     }
                     result.symbology.ai_flag = AIFlag::AIM;
                 }
@@ -303,7 +305,7 @@ pub fn decode_bit_stream(
                     let subset = bits.read_bits(4)?;
                     if subset != 1 {
                         // GB2312_SUBSET is the only supported one right now
-                        return Err(Exceptions::format_with("Unsupported HANZI subset"));
+                        return Err(Error::invalid_format("Unsupported HANZI subset").into());
                     }
                     let count = bits.read_bits(mode.character_count_bits(version) as usize)?;
                     decode_hanzi_segment(&mut bits, count, &mut result)?;
@@ -319,7 +321,7 @@ pub fn decode_bit_stream(
                         }
                         Mode::Byte => decode_byte_segment(&mut bits, count, &mut result)?,
                         Mode::Kanji => decode_kanji_segment(&mut bits, count, &mut result)?,
-                        _ => return Err(Exceptions::format_with("Invalid CodecMode")),
+                        _ => return Err(Error::invalid_format("Invalid CodecMode").into()),
                     };
                 }
             }
@@ -337,27 +339,27 @@ pub fn decode_bit_stream(
 
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     if !Version::has_valid_size(bits) {
-        return Err(Exceptions::format_with("Invalid symbol size"));
+        return Err(Error::invalid_format("Invalid symbol size").into());
     }
     let Ok(format_info) = read_format_information(bits) else {
-        return Err(Exceptions::format_with("Invalid format information"));
+        return Err(Error::invalid_format("Invalid format information").into());
     };
 
     let Ok(version) = read_version(bits, format_info.qr_type()) else {
-        return Err(Exceptions::format_with("Invalid version"));
+        return Err(Error::invalid_format("Invalid version").into());
     };
 
     // Read codewords
     let codewords = read_codewords(bits, version, &format_info)?;
     if codewords.is_empty() {
-        return Err(Exceptions::format_with("Failed to read codewords"));
+        return Err(Error::invalid_format("Failed to read codewords").into());
     }
 
     // Separate into data blocks
     let data_blocks: Vec<DataBlock> =
         DataBlock::get_data_blocks(&codewords, version, format_info.error_correction_level)?;
     if data_blocks.is_empty() {
-        return Err(Exceptions::format_with("Failed to get data blocks"));
+        return Err(Error::invalid_format("Failed to get data blocks").into());
     }
 
     // Count total number of data bytes

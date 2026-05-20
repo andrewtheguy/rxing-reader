@@ -17,8 +17,8 @@
 
 use std::fmt;
 
-use crate::common::Result;
-use crate::{Exceptions, Point, point, point_i};
+use anyhow::Result;
+use crate::{Error, Point, point, point_i};
 
 use super::BitArray;
 
@@ -67,9 +67,9 @@ impl BitMatrix {
      */
     pub fn new(width: u32, height: u32) -> Result<Self> {
         if width < 1 || height < 1 {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "Both dimensions must be greater than 0",
-            ));
+            ).into());
         }
         Ok(Self {
             width,
@@ -151,17 +151,17 @@ impl BitMatrix {
         let mut pos = 0;
         let chars: Vec<char> = string_representation.chars().collect();
         while pos < chars.len() {
-            if chars.get(pos).ok_or(Exceptions::ILLEGAL_STATE)? == &'\n'
-                || chars.get(pos).ok_or(Exceptions::ILLEGAL_STATE)? == &'\r'
+            if chars.get(pos).ok_or(Error::InvalidState)? == &'\n'
+                || chars.get(pos).ok_or(Error::InvalidState)? == &'\r'
             {
                 if bits_pos > row_start_pos {
                     if first_run {
                         first_run = false;
                         row_length = bits_pos - row_start_pos;
                     } else if bits_pos - row_start_pos != row_length {
-                        return Err(Exceptions::illegal_argument_with(
+                        return Err(Error::invalid_argument(
                             "row lengths do not match",
-                        ));
+                        ).into());
                     }
                     row_start_pos = bits_pos;
                     n_rows += 1;
@@ -176,10 +176,10 @@ impl BitMatrix {
                 bits[bits_pos] = false;
                 bits_pos += 1;
             } else {
-                return Err(Exceptions::illegal_argument_with(format!(
+                return Err(Error::invalid_argument(format!(
                     "illegal character encountered: {}",
                     string_representation[pos..].to_owned()
-                )));
+                )).into());
             }
         }
 
@@ -188,9 +188,9 @@ impl BitMatrix {
             if first_run {
                 row_length = bits_pos - row_start_pos;
             } else if bits_pos - row_start_pos != row_length {
-                return Err(Exceptions::illegal_argument_with(
+                return Err(Error::invalid_argument(
                     "row lengths do not match",
-                ));
+                ).into());
             }
             n_rows += 1;
         }
@@ -344,9 +344,9 @@ impl BitMatrix {
     pub fn xor(&mut self, mask: &BitMatrix) -> Result<()> {
         if self.width != mask.width || self.height != mask.height || self.row_size != mask.row_size
         {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "input matrix dimensions do not match",
-            ));
+            ).into());
         }
         for y in 0..self.height {
             let offset = y as usize * self.row_size;
@@ -377,16 +377,16 @@ impl BitMatrix {
      */
     pub fn set_region(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
         if height < 1 || width < 1 {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "height and width must be at least 1",
-            ));
+            ).into());
         }
         let right = left + width;
         let bottom = top + height;
         if bottom > self.height || right > self.width {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "the region must fit inside the matrix",
-            ));
+            ).into());
         }
         for y in top..bottom {
             let offset = y as usize * self.row_size;
@@ -460,9 +460,9 @@ impl BitMatrix {
                 self.rotate180();
                 Ok(())
             }
-            _ => Err(Exceptions::illegal_argument_with(
+            _ => Err(Error::invalid_argument(
                 "degrees must be a multiple of 0, 90, 180, or 270",
-            )),
+            ).into()),
         }
     }
 
@@ -656,16 +656,16 @@ impl BitMatrix {
 
     pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> Result<BitMatrix> {
         if width == 0 || height == 0 {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "crop width and height must be greater than 0",
-            ));
+            ).into());
         }
         if left.saturating_add(width) > self.width as usize
             || top.saturating_add(height) > self.height as usize
         {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "crop region must fit inside the matrix",
-            ));
+            ).into());
         }
         let mut new_bm = BitMatrix::new(width as u32, height as u32)?;
         for y in top..top + height {
@@ -701,7 +701,7 @@ impl fmt::Display for BitMatrix {
 }
 
 impl TryFrom<&str> for BitMatrix {
-    type Error = Exceptions;
+    type Error = anyhow::Error;
 
     fn try_from(value: &str) -> std::prelude::v1::Result<Self, Self::Error> {
         Self::parse_strings(value, "X", " ")

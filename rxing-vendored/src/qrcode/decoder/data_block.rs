@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 use crate::qrcode::common::{ErrorCorrectionLevel, VersionRef};
 
@@ -56,7 +56,7 @@ impl DataBlock {
         ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
         if raw_codewords.len() as u32 != version.get_total_codewords() {
-            return Err(Exceptions::ILLEGAL_ARGUMENT);
+            return Err(Error::InvalidArgument.into());
         }
 
         // Figure out the number and size of data blocks used by this version and
@@ -88,7 +88,7 @@ impl DataBlock {
         // All blocks have the same amount of data, except that the last n
         // (where n may be 0) have 1 more byte. Figure out where these start.
         if result.is_empty() {
-            return Err(Exceptions::ILLEGAL_ARGUMENT);
+            return Err(Error::InvalidArgument.into());
         }
         let shorter_blocks_total_codewords = result[0].codewords.len();
         let mut longer_blocks_start_at = result.len() - 1;

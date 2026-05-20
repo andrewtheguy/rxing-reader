@@ -4,9 +4,9 @@
 */
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::Exceptions;
+use crate::Error;
 use crate::common::BitMatrix;
-use crate::common::Result;
+use anyhow::Result;
 
 /**
 * <p>Encapsulates data masks for the data bits in a QR  and micro QR code, per ISO 18004:2006 6.8.</p>
@@ -19,9 +19,9 @@ pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>
     let mut mask_index = mask_index;
     if is_micro {
         if !(0..4).contains(&mask_index) {
-            return Err(Exceptions::illegal_argument_with(
+            return Err(Error::invalid_argument(
                 "QRCode maskIndex out of range",
-            ));
+            ).into());
         }
         mask_index = [1, 4, 6, 7][mask_index as usize]; // map from MQR to QR indices
     }
@@ -38,9 +38,9 @@ pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>
         _ => {}
     }
 
-    Err(Exceptions::illegal_argument_with(
+    Err(Error::invalid_argument(
         "QRCode maskIndex out of range",
-    ))
+    ).into())
 }
 
 #[allow(dead_code)]

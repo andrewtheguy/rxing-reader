@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::common::Result;
-use crate::{Exceptions, LuminanceSource};
+use anyhow::Result;
+use crate::{Error, LuminanceSource};
 
 /// A simple luma8 source for bytes. Supports cropping and 90° counter-clockwise
 /// rotation; 45° rotation is not supported.
@@ -93,9 +93,10 @@ impl LuminanceSource for Luma8LuminanceSource {
     }
 
     fn rotate_counter_clockwise_45(&self) -> Result<Self> {
-        Err(crate::Exceptions::unsupported_operation_with(
+        Err(crate::Error::unsupported_operation(
             "This luminance source does not support rotation by 45 degrees.",
-        ))
+        )
+        .into())
     }
 
     fn get_luma8_point(&self, column: usize, row: usize) -> u8 {
@@ -174,12 +175,12 @@ impl Luma8LuminanceSource {
         let data = source.into();
         let expected = (width as usize)
             .checked_mul(height as usize)
-            .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+            .ok_or_else(|| Error::invalid_argument("image dimensions overflow"))?;
         if data.len() != expected {
-            return Err(Exceptions::illegal_argument_with(format!(
+            return Err(Error::invalid_argument(format!(
                 "luma length {} != width*height ({expected})",
                 data.len()
-            )));
+            )).into());
         }
         Ok(Self {
             dimensions: (width, height),
@@ -191,7 +192,7 @@ impl Luma8LuminanceSource {
     pub fn with_empty_image(width: usize, height: usize) -> Result<Self> {
         let size = width
             .checked_mul(height)
-            .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+            .ok_or_else(|| Error::invalid_argument("image dimensions overflow"))?;
         Ok(Self {
             dimensions: (width as u32, height as u32),
             data: vec![0u8; size].into(),
@@ -222,18 +223,18 @@ pub fn downscale_luma_buffer(
     factor: u32,
 ) -> Result<(Vec<u8>, u32, u32)> {
     if factor == 0 {
-        return Err(Exceptions::illegal_argument_with(
+        return Err(Error::invalid_argument(
             "downscale factor must be at least 1",
-        ));
+        ).into());
     }
     let expected = (width as usize)
         .checked_mul(height as usize)
-        .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+        .ok_or_else(|| Error::invalid_argument("image dimensions overflow"))?;
     if src.len() != expected {
-        return Err(Exceptions::illegal_argument_with(format!(
+        return Err(Error::invalid_argument(format!(
             "downscale_luma_buffer: src.len() {} must equal width * height ({expected})",
             src.len()
-        )));
+        )).into());
     }
     let new_w = width / factor;
     let new_h = height / factor;

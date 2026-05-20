@@ -17,8 +17,8 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 /**
  * <p>See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
@@ -50,9 +50,9 @@ impl ErrorCorrectionLevel {
             1 => Ok(Self::L),
             2 => Ok(Self::H),
             3 => Ok(Self::Q),
-            _ => Err(Exceptions::illegal_argument_with(format!(
+            _ => Err(Error::invalid_argument(format!(
                 "{bits} is not a valid bit selection"
-            ))),
+            )).into()),
         }
     }
 
@@ -78,7 +78,7 @@ impl ErrorCorrectionLevel {
 }
 
 impl TryFrom<u8> for ErrorCorrectionLevel {
-    type Error = Exceptions;
+    type Error = anyhow::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         ErrorCorrectionLevel::for_bits(value)
@@ -92,7 +92,7 @@ impl From<ErrorCorrectionLevel> for u8 {
 }
 
 impl FromStr for ErrorCorrectionLevel {
-    type Err = Exceptions;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // First try to see if the string is just the name of the value
@@ -114,9 +114,9 @@ impl FromStr for ErrorCorrectionLevel {
             return number_possible.try_into();
         }
 
-        Err(Exceptions::illegal_argument_with(format!(
+        Err(Error::invalid_argument(format!(
             "could not parse {s} into an ec level"
-        )))
+        )).into())
     }
 }
 

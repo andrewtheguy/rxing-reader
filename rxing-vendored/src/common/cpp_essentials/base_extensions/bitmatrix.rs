@@ -1,6 +1,6 @@
 use crate::Point;
 use crate::common::BitMatrix;
-use crate::common::Result;
+use anyhow::Result;
 use crate::point;
 
 impl BitMatrix {

@@ -27,7 +27,7 @@ impl QrReader {
         image: &mut crate::BinaryBitmap<B>,
         hints: &DecodeHints,
         count: u32,
-    ) -> crate::common::Result<Vec<RXingResult>> {
+    ) -> anyhow::Result<Vec<RXingResult>> {
         let bin_img = image.get_black_matrix()?;
         let max_symbols = count;
         let try_harder = hints.try_harder.unwrap_or(false);

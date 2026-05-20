@@ -16,9 +16,10 @@
 
 use std::fmt;
 
+use anyhow::Result;
 use crate::{
-    Exceptions,
-    common::{BitMatrix, Result},
+    Error,
+    common::BitMatrix,
     qrcode::cpp_port::Type,
 };
 
@@ -132,11 +133,12 @@ impl Version {
         self.ec_blocks
             .get(ec_level.get_ordinal() as usize)
             .ok_or_else(|| {
-                Exceptions::illegal_argument_with(format!(
+                Error::invalid_argument(format!(
                     "ErrorCorrectionLevel ordinal {} out of range for {} EC blocks",
                     ec_level.get_ordinal(),
                     self.ec_blocks.len()
                 ))
+                .into()
             })
     }
 
@@ -145,18 +147,18 @@ impl Version {
      *
      * @param dimension dimension in modules
      * @return Version for a QR Code of that dimension
-     * @throws FormatException if dimension is not 1 mod 4 or dimension less than 17
+     * Returns an invalid-format error if dimension is not 1 mod 4 or dimension less than 17
      */
     pub fn get_provisional_version_for_dimension(dimension: u32) -> Result<VersionRef> {
         if dimension % 4 != 1 || dimension < 21 {
-            return Err(Exceptions::format_with("dimension incorrect"));
+            return Err(Error::invalid_format("dimension incorrect").into());
         }
         Self::get_version_for_number((dimension - 17) / 4)
     }
 
     pub fn get_version_for_number(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
-            return Err(Exceptions::illegal_argument_with("version out of spec"));
+            return Err(Error::invalid_argument("version out of spec").into());
         }
         Ok(&VERSIONS[version_number as usize - 1])
     }
@@ -184,7 +186,7 @@ impl Version {
             return Self::get_version_for_number(best_version);
         }
         // If we didn't find a close enough match, fail
-        Err(Exceptions::NOT_FOUND)
+        Err(Error::NotFound.into())
     }
 
     /**

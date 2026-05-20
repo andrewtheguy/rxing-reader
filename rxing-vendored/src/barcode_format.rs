@@ -168,14 +168,15 @@ impl From<&str> for BarcodeFormat {
 }
 
 impl FromStr for BarcodeFormat {
-    type Err = crate::exceptions::Exceptions;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let format = BarcodeFormat::from(s);
         if format == BarcodeFormat::UnsupportedFormat {
-            Err(crate::exceptions::Exceptions::FormatException(format!(
+            Err(crate::Error::invalid_format(format!(
                 "Unsupported barcode format: {s}"
-            )))
+            ))
+            .into())
         } else {
             Ok(format)
         }

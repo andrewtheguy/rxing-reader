@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+use anyhow::Result;
 
 use crate::{
-    Exceptions, Point,
-    common::{BitMatrix, Result},
+    Error, Point,
+    common::BitMatrix,
     point,
 };
 
@@ -44,7 +45,7 @@ pub struct WhiteRectangleDetector<'a> {
 }
 
 impl<'a> WhiteRectangleDetector<'_> {
-    pub const fn new_from_image(image: &'a BitMatrix) -> Result<WhiteRectangleDetector<'a>> {
+    pub fn new_from_image(image: &'a BitMatrix) -> Result<WhiteRectangleDetector<'a>> {
         WhiteRectangleDetector::new(
             image,
             INIT_SIZE,
@@ -58,9 +59,9 @@ impl<'a> WhiteRectangleDetector<'_> {
      * @param init_size initial size of search area around center
      * @param x x position of search center
      * @param y y position of search center
-     * @throws NotFoundException if image is too small to accommodate {@code init_size}
+     * Returns a not-found error if image is too small to accommodate {@code init_size}
      */
-    pub const fn new(
+    pub fn new(
         image: &'a BitMatrix,
         init_size: i32,
         x: i32,
@@ -78,7 +79,7 @@ impl<'a> WhiteRectangleDetector<'_> {
             || down_init >= image.get_height() as i32
             || right_init >= image.get_width() as i32
         {
-            return Err(Exceptions::NOT_FOUND);
+            return Err(Error::NotFound.into());
         }
 
         Ok(WhiteRectangleDetector {
@@ -104,7 +105,7 @@ impl<'a> WhiteRectangleDetector<'_> {
      *         are the second and third. The first point will be the topmost
      *         point and the last, the bottommost. The second point will be
      *         leftmost and the third, the rightmost
-     * @throws NotFoundException if no Data Matrix Code can be found
+     * Returns a not-found error if no Data Matrix Code can be found
      */
     pub fn detect(&self) -> Result<[Point; 4]> {
         let mut left: i32 = self.left_init;
@@ -223,7 +224,7 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if z.is_none() {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
 
             let mut t: Option<Point> = None;
@@ -240,7 +241,7 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if t.is_none() {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
 
             let mut x: Option<Point> = None;
@@ -257,7 +258,7 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if x.is_none() {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
 
             let mut y: Option<Point> = None;
@@ -274,16 +275,16 @@ impl<'a> WhiteRectangleDetector<'_> {
             }
 
             if y.is_none() {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             }
 
             let (Some(y), Some(z), Some(x), Some(t)) = (y, z, x, t) else {
-                return Err(Exceptions::NOT_FOUND);
+                return Err(Error::NotFound.into());
             };
 
             Ok(self.center_edges(y, z, x, t))
         } else {
-            Err(Exceptions::NOT_FOUND)
+            Err(Error::NotFound.into())
         }
     }
 

@@ -1,10 +1,10 @@
 pub mod common;
 pub mod decode;
-mod exceptions;
+mod error;
 
 use std::{collections::HashMap, sync::Arc};
 
-pub use exceptions::Exceptions;
+pub use error::Error;
 
 pub type MetadataDictionary = HashMap<RXingResultMetadataType, RXingResultMetadataValue>;
 

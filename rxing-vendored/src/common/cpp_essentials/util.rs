@@ -1,5 +1,5 @@
-use crate::common::Result;
-use crate::{Exceptions, Point};
+use anyhow::Result;
+use crate::{Error, Point};
 
 use super::{Direction, LINE_INTERSECTION_EPS, RegressionLineTrait};
 
@@ -9,11 +9,11 @@ pub fn intersect<T: RegressionLineTrait, T2: RegressionLineTrait>(
     l2: &T2,
 ) -> Result<Point> {
     if !(l1.is_valid() && l2.is_valid()) {
-        return Err(Exceptions::ILLEGAL_STATE);
+        return Err(Error::InvalidState.into());
     }
     let d = l1.a() * l2.b() - l1.b() * l2.a();
     if d.abs() < LINE_INTERSECTION_EPS {
-        return Err(Exceptions::ILLEGAL_STATE);
+        return Err(Error::InvalidState.into());
     }
     let x = (l1.c() * l2.b() - l1.b() * l2.c()) / d;
     let y = (l1.a() * l2.c() - l1.c() * l2.a()) / d;
@@ -52,7 +52,7 @@ pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
         val /= 10;
     }
     if val != 0 {
-        return Err(Exceptions::format_with("Invalid value"));
+        return Err(Error::invalid_format("Invalid value").into());
     }
 
     Ok(result.iter().collect())

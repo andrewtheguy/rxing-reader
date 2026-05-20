@@ -12,8 +12,8 @@ use std::fmt;
 
 use bitvec::prelude::*;
 
-use crate::Exceptions;
-use crate::common::Result;
+use crate::Error;
+use anyhow::Result;
 
 type BaseType = super::BitFieldBaseType;
 const BASE_BITS: usize = super::BIT_FIELD_BASE_BITS;
@@ -120,7 +120,7 @@ impl BitArray {
 
     pub fn set_range(&mut self, start: usize, end: usize) -> Result<()> {
         if end < start || end > self.bits.len() {
-            return Err(Exceptions::ILLEGAL_ARGUMENT);
+            return Err(Error::InvalidArgument.into());
         }
         if end == start {
             return Ok(());
@@ -135,7 +135,7 @@ impl BitArray {
 
     pub fn is_range(&self, start: usize, end: usize, value: bool) -> Result<bool> {
         if end < start || end > self.bits.len() {
-            return Err(Exceptions::ILLEGAL_ARGUMENT);
+            return Err(Error::InvalidArgument.into());
         }
         if end == start {
             return Ok(true);
@@ -152,10 +152,10 @@ impl BitArray {
     /// least-significant. For example, appending 6 bits from 0x1E appends 0,1,1,1,1,0.
     pub fn append_bits(&mut self, value: BaseType, num_bits: usize) -> Result<()> {
         if num_bits > BASE_BITS {
-            return Err(Exceptions::illegal_argument_with(format!(
+            return Err(Error::invalid_argument(format!(
                 "num bits must be between 0 and {}",
                 BaseType::BITS
-            )));
+            )).into());
         }
         for i in (0..num_bits).rev() {
             self.bits.push((value >> i) & 1 != 0);
@@ -173,7 +173,7 @@ impl BitArray {
 
     pub fn xor(&mut self, other: &BitArray) -> Result<()> {
         if self.bits.len() != other.bits.len() {
-            return Err(Exceptions::illegal_argument_with("Sizes don't match"));
+            return Err(Error::invalid_argument("Sizes don't match").into());
         }
         self.bits ^= &other.bits;
         Ok(())
