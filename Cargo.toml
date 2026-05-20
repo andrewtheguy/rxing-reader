@@ -2,6 +2,7 @@
 members = [
   "rxing-reader",
   "rxing-wasm",
+  "rxing-cli",
 ]
 resolver = "3"
 
