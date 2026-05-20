@@ -12,13 +12,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read version from Cargo.toml
+      - name: Read version from workspace Cargo.toml
         id: version
-        working-directory: rxing-wasm
         run: |
-          version=$(awk -F'"' '/^version[[:space:]]*=/ {print $2; exit}' Cargo.toml)
+          version=$(awk -F'"' '
+            /^\[workspace\.package\]/ { in_section = 1; next }
+            /^\[/ { in_section = 0 }
+            in_section && /^version[[:space:]]*=/ { print $2; exit }
+          ' Cargo.toml)
           if [ -z "$version" ]; then
-            echo "Failed to parse version from rxing-wasm/Cargo.toml" >&2
+            echo "Failed to parse version from workspace Cargo.toml" >&2
             exit 1
           fi
           tag="v${version}"
