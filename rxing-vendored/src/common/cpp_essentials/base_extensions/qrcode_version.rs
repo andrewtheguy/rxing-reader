@@ -56,7 +56,9 @@ impl Version {
     pub fn model1(version_number: u32) -> Result<VersionRef> {
         if !(1..=14).contains(&version_number) {
             Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "Version::model1: version_number {version_number} out of range (expected 1..=14)"
+                ),
             }
             .into())
         } else {
@@ -67,7 +69,9 @@ impl Version {
     pub fn model2(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
             Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "Version::model2: version_number {version_number} out of range (expected 1..=40)"
+                ),
             }
             .into())
         } else {
@@ -78,7 +82,9 @@ impl Version {
     pub fn micro(version_number: u32) -> Result<VersionRef> {
         if !(1..=4).contains(&version_number) {
             Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "Version::micro: version_number {version_number} out of range (expected 1..=4)"
+                ),
             }
             .into())
         } else {
@@ -90,7 +96,10 @@ impl Version {
         let version_number = version_number as usize;
         if version_number < 1 || version_number > (RMQR_VERSIONS.len()) {
             Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "Version::r_mqr: version_number {version_number} out of range (expected 1..={})",
+                    RMQR_VERSIONS.len()
+                ),
             }
             .into())
         } else {

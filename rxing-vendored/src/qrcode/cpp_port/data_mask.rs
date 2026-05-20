@@ -20,7 +20,9 @@ pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>
     if is_micro {
         if !(0..4).contains(&mask_index) {
             return Err(Error::InvalidArgument {
-                message: "QRCode maskIndex out of range".to_owned(),
+                message: format!(
+                    "MicroQR maskIndex {mask_index} out of range (expected 0..=3)"
+                ),
             }
             .into());
         }
@@ -40,7 +42,7 @@ pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>
     }
 
     Err(Error::InvalidArgument {
-        message: "QRCode maskIndex out of range".to_owned(),
+        message: format!("QRCode maskIndex {mask_index} out of range (expected 0..=7)"),
     }
     .into())
 }

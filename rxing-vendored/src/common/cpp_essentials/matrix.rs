@@ -13,11 +13,16 @@ impl<T: Default + Clone + Copy> Matrix<T> {
         let expected = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: "invalid size: width * height overflow".to_owned(),
+                message: format!(
+                    "Matrix::with_data: width * height overflow ({width} x {height})"
+                ),
             })?;
         if data.len() != expected {
             return Err(Error::InvalidArgument {
-                message: "invalid size: data length does not match width * height".to_owned(),
+                message: format!(
+                    "Matrix::with_data: data length {} does not match width*height = {expected} ({width} x {height})",
+                    data.len()
+                ),
             }
             .into());
         }
@@ -32,7 +37,9 @@ impl<T: Default + Clone + Copy> Matrix<T> {
         let size = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: "invalid size: width * height is too big".to_owned(),
+                message: format!(
+                    "Matrix::new: width * height overflow ({width} x {height})"
+                ),
             })?;
         Ok(Self {
             width,

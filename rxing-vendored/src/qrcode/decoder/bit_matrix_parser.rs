@@ -100,7 +100,9 @@ impl BitMatrixParser {
 
         self.parsed_format_info.as_ref().ok_or_else(|| {
             Error::InvalidFormat {
-                message: "QR data is malformed".to_owned(),
+                message: format!(
+                    "QR data is malformed: failed to decode format information (bits1=0x{format_info_bits1:X}, bits2=0x{format_info_bits2:X}, dimension={dimension})"
+                ),
             }
             .into()
         })
@@ -156,7 +158,9 @@ impl BitMatrixParser {
             return Ok(the_parsed_version);
         }
         Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: failed to decode version information (dimension={dimension}, last_version_bits=0x{version_bits:X})"
+            ),
         }
         .into())
     }
@@ -238,9 +242,13 @@ impl BitMatrixParser {
             j -= 2;
         }
 
-        if result_offset != version.get_total_codewords() as usize {
+        let expected_codewords = version.get_total_codewords() as usize;
+        if result_offset != expected_codewords {
             return Err(Error::InvalidFormat {
-                message: "QR data is malformed".to_owned(),
+                message: format!(
+                    "QR data is malformed: read {result_offset} codewords, expected {expected_codewords} (version={}, dimension={dimension})",
+                    version.get_version_number()
+                ),
             }
             .into());
         }

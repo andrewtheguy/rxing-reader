@@ -107,7 +107,10 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
 
     if value >= (ALPHANUMERIC_CHARS.len()) {
         return Err(Error::InvalidFormat {
-            message: "to_alpha_numeric_char: invalid symbol value".to_owned(),
+            message: format!(
+                "to_alpha_numeric_char: value {value} out of range (expected 0..{})",
+                ALPHANUMERIC_CHARS.len()
+            ),
         }
         .into());
     }
@@ -198,7 +201,9 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
         return Eci::try_from(((first_byte & 0x1F) << 16) | second_third_bytes);
     }
     Err(Error::InvalidFormat {
-        message: "parse_ecivalue: invalid value".to_owned(),
+        message: format!(
+            "parse_ecivalue: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
+        ),
     }
     .into())
 }
@@ -285,7 +290,9 @@ pub fn decode_bit_stream(
                         result += (app_ind - 100) as u8;
                     } else {
                         return Err(Error::InvalidFormat {
-                            message: "Invalid AIM Application Indicator".to_owned(),
+                            message: format!(
+                                "Invalid AIM Application Indicator value {app_ind} (expected 0..100, 165..=190, or 197..=222)"
+                            ),
                         }
                         .into());
                     }
@@ -309,7 +316,9 @@ pub fn decode_bit_stream(
                     if subset != 1 {
                         // GB2312_SUBSET is the only supported one right now
                         return Err(Error::InvalidFormat {
-                            message: "Unsupported HANZI subset".to_owned(),
+                            message: format!(
+                                "Unsupported HANZI subset {subset} (only GB2312_SUBSET = 1 is supported)"
+                            ),
                         }
                         .into());
                     }
@@ -327,9 +336,11 @@ pub fn decode_bit_stream(
                         }
                         Mode::Byte => decode_byte_segment(&mut bits, count, &mut result)?,
                         Mode::Kanji => decode_kanji_segment(&mut bits, count, &mut result)?,
-                        _ => {
+                        other => {
                             return Err(Error::InvalidFormat {
-                                message: "Invalid CodecMode".to_owned(),
+                                message: format!(
+                                    "Invalid CodecMode {other:?} encountered in data segment (count={count})"
+                                ),
                             }
                             .into());
                         }
@@ -351,29 +362,41 @@ pub fn decode_bit_stream(
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     if !Version::has_valid_size(bits) {
         return Err(Error::InvalidFormat {
-            message: "Invalid symbol size".to_owned(),
+            message: format!(
+                "Invalid QR symbol size: {}x{}",
+                bits.width(),
+                bits.height()
+            ),
         }
         .into());
     }
-    let Ok(format_info) = read_format_information(bits) else {
-        return Err(Error::InvalidFormat {
-            message: "Invalid format information".to_owned(),
-        }
-        .into());
-    };
+    let format_info = read_format_information(bits).map_err(|e| Error::InvalidFormat {
+        message: format!(
+            "Invalid format information in {}x{} symbol: {e}",
+            bits.width(),
+            bits.height()
+        ),
+    })?;
 
-    let Ok(version) = read_version(bits, format_info.qr_type()) else {
-        return Err(Error::InvalidFormat {
-            message: "Invalid version".to_owned(),
-        }
-        .into());
-    };
+    let version = read_version(bits, format_info.qr_type()).map_err(|e| Error::InvalidFormat {
+        message: format!(
+            "Invalid version in {}x{} symbol (qr_type={:?}): {e}",
+            bits.width(),
+            bits.height(),
+            format_info.qr_type()
+        ),
+    })?;
 
     // Read codewords
     let codewords = read_codewords(bits, version, &format_info)?;
     if codewords.is_empty() {
         return Err(Error::InvalidFormat {
-            message: "Failed to read codewords".to_owned(),
+            message: format!(
+                "Failed to read codewords for version {} ({}x{} symbol)",
+                version.get_version_number(),
+                bits.width(),
+                bits.height()
+            ),
         }
         .into());
     }
@@ -383,7 +406,12 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
         DataBlock::get_data_blocks(&codewords, version, format_info.error_correction_level)?;
     if data_blocks.is_empty() {
         return Err(Error::InvalidFormat {
-            message: "Failed to get data blocks".to_owned(),
+            message: format!(
+                "Failed to get data blocks for version {} (codewords={}, ec_level={:?})",
+                version.get_version_number(),
+                codewords.len(),
+                format_info.error_correction_level
+            ),
         }
         .into());
     }
