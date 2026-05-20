@@ -13,8 +13,8 @@ Standalone Rust workspace providing a trimmed, QR-reading-only fork of
   (not published to the npm registry).
 - `rxing-cli`: command-line wrapper around `rxing-reader`. Decodes QR
   codes from a local image file or an http(s) URL. Prebuilt binaries
-  for `linux-amd64`, `linux-arm64`, and `macos-arm64` are attached to
-  each [GitHub release](https://github.com/andrewtheguy/rxing-reader/releases).
+  for `linux-amd64`, `linux-arm64`, `macos-arm64`, and `windows-amd64`
+  are attached to each [GitHub release](https://github.com/andrewtheguy/rxing-reader/releases).
 
 ## Using `rxing-reader` from Rust
 
