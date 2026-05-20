@@ -18,12 +18,11 @@ pub(super) fn correct_qr_errors(
         return Err(ReedSolomonError::TooManyErrors);
     }
 
-    let field = QrField::new();
-    let poly = poly_new(received.to_vec());
+    let field = &QR_FIELD;
     let mut syndrome_coefficients = vec![0; two_s];
     let mut no_error = true;
     for i in 0..two_s {
-        let eval = poly_eval(&field, &poly, field.exp(i));
+        let eval = poly_eval(field, received, field.exp(i));
         syndrome_coefficients[two_s - 1 - i] = eval;
         no_error &= eval == 0;
     }
@@ -32,9 +31,10 @@ pub(super) fn correct_qr_errors(
     }
 
     let syndrome = poly_new(syndrome_coefficients);
-    let (sigma, omega) = run_euclidean_algorithm(&field, build_monomial(two_s, 1), syndrome, two_s)?;
-    let error_locations = find_error_locations(&field, &sigma)?;
-    let error_magnitudes = find_error_magnitudes(&field, &omega, &error_locations)?;
+    let (sigma, omega) =
+        run_euclidean_algorithm(field, build_monomial(two_s, 1), syndrome, two_s)?;
+    let error_locations = find_error_locations(field, &sigma)?;
+    let error_magnitudes = find_error_magnitudes(field, &omega, &error_locations)?;
 
     for (&location, &magnitude) in error_locations.iter().zip(error_magnitudes.iter()) {
         let log = field.log(location)?;
@@ -45,7 +45,7 @@ pub(super) fn correct_qr_errors(
         received[position] ^= magnitude;
     }
 
-    if has_errors(&field, received, two_s) {
+    if has_errors(field, received, two_s) {
         return Err(ReedSolomonError::TooManyErrors);
     }
 
@@ -55,26 +55,33 @@ pub(super) fn correct_qr_errors(
 const FIELD_SIZE: usize = 256;
 const PRIMITIVE: usize = 0x011D;
 
+static QR_FIELD: QrField = QrField::new();
+
 struct QrField {
     exp_table: [u8; FIELD_SIZE],
     log_table: [u8; FIELD_SIZE],
 }
 
 impl QrField {
-    fn new() -> Self {
+    const fn new() -> Self {
         let mut exp_table = [0; FIELD_SIZE];
         let mut log_table = [0; FIELD_SIZE];
         let mut x = 1;
-        for value in exp_table.iter_mut() {
-            *value = x as u8;
+        let mut i = 0;
+        while i < FIELD_SIZE {
+            exp_table[i] = x as u8;
             x <<= 1;
             if x >= FIELD_SIZE {
                 x ^= PRIMITIVE;
                 x &= FIELD_SIZE - 1;
             }
+            i += 1;
         }
-        for (i, &value) in exp_table.iter().take(FIELD_SIZE - 1).enumerate() {
-            log_table[value as usize] = i as u8;
+        i = 0;
+        while i < FIELD_SIZE - 1 {
+            let value = exp_table[i] as usize;
+            log_table[value] = i as u8;
+            i += 1;
         }
 
         Self {
@@ -111,8 +118,7 @@ impl QrField {
 }
 
 fn has_errors(field: &QrField, received: &[u8], two_s: usize) -> bool {
-    let poly = poly_new(received.to_vec());
-    (0..two_s).any(|i| poly_eval(field, &poly, field.exp(i)) != 0)
+    (0..two_s).any(|i| poly_eval(field, received, field.exp(i)) != 0)
 }
 
 fn run_euclidean_algorithm(
@@ -141,16 +147,18 @@ fn run_euclidean_algorithm(
         }
 
         r = r_last_last;
-        let mut q = vec![0];
+        let quotient_degree = poly_degree(&r) - poly_degree(&r_last);
+        let mut q = vec![0; quotient_degree + 1];
         let denominator_leading_term = poly_coefficient(&r_last, poly_degree(&r_last));
         let dlt_inverse = field.inverse(denominator_leading_term)?;
 
         while !poly_is_zero(&r) && poly_degree(&r) >= poly_degree(&r_last) {
             let degree_diff = poly_degree(&r) - poly_degree(&r_last);
             let scale = field.multiply(poly_coefficient(&r, poly_degree(&r)), dlt_inverse);
-            q = poly_add(&q, &build_monomial(degree_diff, scale));
-            r = poly_add(&r, &poly_multiply_by_monomial(field, &r_last, degree_diff, scale));
+            q[quotient_degree - degree_diff] ^= scale;
+            poly_add_scaled_in_place(field, &mut r, &r_last, scale);
         }
+        poly_trim(&mut q);
 
         t = poly_add(&poly_multiply(field, &q, &t_last), &t_last_last);
         if poly_degree(&r) >= poly_degree(&r_last) {
@@ -170,7 +178,10 @@ fn run_euclidean_algorithm(
     ))
 }
 
-fn find_error_locations(field: &QrField, error_locator: &[u8]) -> Result<Vec<u8>, ReedSolomonError> {
+fn find_error_locations(
+    field: &QrField,
+    error_locator: &[u8],
+) -> Result<Vec<u8>, ReedSolomonError> {
     let num_errors = poly_degree(error_locator);
     if num_errors == 1 {
         return Ok(vec![poly_coefficient(error_locator, 1)]);
@@ -232,10 +243,20 @@ fn poly_new(mut coefficients: Vec<u8>) -> Vec<u8> {
     if coefficients.is_empty() {
         return vec![0];
     }
-    match coefficients.iter().position(|&coefficient| coefficient != 0) {
-        Some(0) => coefficients,
-        Some(first_non_zero) => coefficients.split_off(first_non_zero),
-        None => vec![0],
+    poly_trim(&mut coefficients);
+    coefficients
+}
+
+fn poly_trim(poly: &mut Vec<u8>) {
+    match poly.iter().position(|&coefficient| coefficient != 0) {
+        Some(0) => {}
+        Some(first_non_zero) => {
+            poly.drain(..first_non_zero);
+        }
+        None => {
+            poly.clear();
+            poly.push(0);
+        }
     }
 }
 
@@ -278,7 +299,8 @@ fn poly_add(a: &[u8], b: &[u8]) -> Vec<u8> {
 
     let (smaller, larger) = if a.len() < b.len() { (a, b) } else { (b, a) };
     let length_diff = larger.len() - smaller.len();
-    let mut sum = larger[..length_diff].to_vec();
+    let mut sum = Vec::with_capacity(larger.len());
+    sum.extend_from_slice(&larger[..length_diff]);
     sum.extend(
         smaller
             .iter()
@@ -295,8 +317,13 @@ fn poly_multiply(field: &QrField, a: &[u8], b: &[u8]) -> Vec<u8> {
 
     let mut product = vec![0; a.len() + b.len() - 1];
     for (i, &a_coefficient) in a.iter().enumerate() {
+        if a_coefficient == 0 {
+            continue;
+        }
         for (j, &b_coefficient) in b.iter().enumerate() {
-            product[i + j] ^= field.multiply(a_coefficient, b_coefficient);
+            if b_coefficient != 0 {
+                product[i + j] ^= field.multiply(a_coefficient, b_coefficient);
+            }
         }
     }
     poly_new(product)
@@ -315,21 +342,20 @@ fn poly_multiply_scalar(field: &QrField, poly: &[u8], scalar: u8) -> Vec<u8> {
         .collect()
 }
 
-fn poly_multiply_by_monomial(
-    field: &QrField,
-    poly: &[u8],
-    degree: usize,
-    coefficient: u8,
-) -> Vec<u8> {
-    if coefficient == 0 || poly_is_zero(poly) {
-        return vec![0];
+fn poly_add_scaled_in_place(field: &QrField, target: &mut Vec<u8>, term: &[u8], scale: u8) {
+    if scale == 0 || poly_is_zero(term) {
+        return;
     }
+    debug_assert!(target.len() >= term.len());
 
-    let mut product = vec![0; poly.len() + degree];
-    for (i, &poly_coefficient) in poly.iter().enumerate() {
-        product[i] = field.multiply(poly_coefficient, coefficient);
+    // Multiplication by x^degree_diff appends low-degree zero terms, so the
+    // scaled divisor aligns at the leading coefficient.
+    for (target_coefficient, &term_coefficient) in target.iter_mut().zip(term.iter()) {
+        if term_coefficient != 0 {
+            *target_coefficient ^= field.multiply(term_coefficient, scale);
+        }
     }
-    product
+    poly_trim(target);
 }
 
 #[cfg(test)]
@@ -359,6 +385,37 @@ mod tests {
         correct_qr_errors(&mut codewords, DATA_LEN).unwrap();
 
         assert_eq!(&codewords[..DATA_LEN], b"hello world");
+    }
+
+    #[test]
+    fn corrects_every_single_codeword_error() {
+        for position in 0..ENCODED.len() {
+            for delta in 1..=u8::MAX {
+                let mut codewords = ENCODED;
+                codewords[position] ^= delta;
+
+                correct_qr_errors(&mut codewords, DATA_LEN).unwrap_or_else(|_| {
+                    panic!("failed to correct position={position}, delta=0x{delta:02X}")
+                });
+
+                assert_eq!(
+                    codewords, ENCODED,
+                    "wrong correction for position={position}, delta=0x{delta:02X}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn corrects_max_capacity_mixed_errors() {
+        let mut codewords = ENCODED;
+        for (position, delta) in [(0, 0x55), (5, 0xE3), (11, 0x42), (19, 0x99)] {
+            codewords[position] ^= delta;
+        }
+
+        correct_qr_errors(&mut codewords, DATA_LEN).unwrap();
+
+        assert_eq!(codewords, ENCODED);
     }
 
     #[test]
