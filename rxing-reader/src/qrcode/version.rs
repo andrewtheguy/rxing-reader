@@ -167,15 +167,15 @@ impl Version {
         Self::is_valid_size(point(matrix.width() as i32, matrix.height() as i32))
     }
 
-    pub fn number_from_size(size: PointI) -> u32 {
+    pub fn number_from_size(size: PointI) -> Option<u32> {
         if Self::is_valid_size(size) {
-            ((size.x - 17) / 4) as u32
+            Some(((size.x - 17) / 4) as u32)
         } else {
-            0
+            None
         }
     }
 
-    pub fn number_from_matrix(bit_matrix: &BitMatrix) -> u32 {
+    pub fn number_from_matrix(bit_matrix: &BitMatrix) -> Option<u32> {
         Self::number_from_size(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
     }
 

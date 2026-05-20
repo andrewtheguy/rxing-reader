@@ -9,7 +9,7 @@ use anyhow::Result;
 use crate::Error;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
-    detect::{DecoderResult, to_string as padded_digits},
+    detect::{DecoderResult, to_fixed_len_string as padded_digits},
 };
 use crate::qrcode::reed_solomon::correct_qr_errors;
 use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};

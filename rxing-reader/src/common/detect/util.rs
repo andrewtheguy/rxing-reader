@@ -24,7 +24,7 @@ pub fn update_min_max_float(min: &mut f64, max: &mut f64, val: f64) {
     *max = f64::max(*max, val);
 }
 
-pub fn to_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
+pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
     let mut val: usize = val.into();
     let mut result = vec!['0'; len];
     let mut idx = len;

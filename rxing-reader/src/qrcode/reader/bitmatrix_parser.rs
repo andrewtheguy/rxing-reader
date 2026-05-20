@@ -47,18 +47,14 @@ fn data_mask_bit(mask_index: u32, x: u32, y: u32) -> Result<bool> {
 }
 
 pub fn read_version(bit_matrix: &BitMatrix) -> Result<VersionRef> {
-    if !Version::has_valid_size(bit_matrix) {
-        return Err(Error::InvalidFormat {
-            message: format!(
-                "QR data is malformed: matrix size {}x{} is not a valid QR size",
-                bit_matrix.width(),
-                bit_matrix.height(),
-            ).into(),
-        }
-        .into());
-    }
-
-    let number = Version::number_from_matrix(bit_matrix);
+    let number = Version::number_from_matrix(bit_matrix).ok_or_else(|| Error::InvalidFormat {
+        message: format!(
+            "QR data is malformed: matrix size {}x{} is not a valid QR size",
+            bit_matrix.width(),
+            bit_matrix.height(),
+        )
+        .into(),
+    })?;
 
     Version::for_number(number)
 }
