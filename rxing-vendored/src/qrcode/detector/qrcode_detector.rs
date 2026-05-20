@@ -105,7 +105,10 @@ impl<'a> Detector<'a> {
 
         let mut alignment_pattern = None;
         // Anything above version 1 has an alignment pattern
-        if !provisional_version.get_alignment_pattern_centers().is_empty() {
+        if !provisional_version
+            .get_alignment_pattern_centers()
+            .is_empty()
+        {
             // Guess where a "bottom right" finder pattern would have been
             let bottom_right_x = top_right.point.x - top_left.point.x + bottom_left.point.x;
             let bottom_right_y = top_right.point.y - top_left.point.y + bottom_left.point.y;
@@ -113,17 +116,22 @@ impl<'a> Detector<'a> {
             // Estimate that alignment pattern is closer by 3 modules
             // from "bottom right" to known top left location
             let correction_to_top_left = 1.0 - (3.0 / modules_between_fpcenters as f32);
-            let est_alignment_x =
-                (top_left.point.x + correction_to_top_left * (bottom_right_x - top_left.point.x)) as u32;
-            let est_alignment_y =
-                (top_left.point.y + correction_to_top_left * (bottom_right_y - top_left.point.y)) as u32;
+            let est_alignment_x = (top_left.point.x
+                + correction_to_top_left * (bottom_right_x - top_left.point.x))
+                as u32;
+            let est_alignment_y = (top_left.point.y
+                + correction_to_top_left * (bottom_right_y - top_left.point.y))
+                as u32;
 
             // Kind of arbitrary -- expand search radius before giving up
             let mut i = 4;
             while i <= 16 {
-                if let Ok(ap) =
-                    self.find_alignment_in_region(module_size, est_alignment_x, est_alignment_y, i as f32)
-                {
+                if let Ok(ap) = self.find_alignment_in_region(
+                    module_size,
+                    est_alignment_x,
+                    est_alignment_y,
+                    i as f32,
+                ) {
                     alignment_pattern = Some(ap);
                     break;
                 }
@@ -300,7 +308,13 @@ impl<'a> Detector<'a> {
      * a finder pattern by looking for a black-white-black run from the center in the direction
      * of another point (another finder pattern center), and in the opposite direction too.
      */
-    fn size_of_black_white_black_run_both_ways(&self, from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> f32 {
+    fn size_of_black_white_black_run_both_ways(
+        &self,
+        from_x: u32,
+        from_y: u32,
+        to_x: u32,
+        to_y: u32,
+    ) -> f32 {
         let mut result = self.size_of_black_white_black_run(from_x, from_y, to_x, to_y);
 
         // Now count other way -- don't run off image though of course
@@ -327,7 +341,12 @@ impl<'a> Detector<'a> {
         }
         other_to_x = (from_x as f32 + (other_to_x as f32 - from_x as f32) * scale).floor() as i32;
 
-        result += self.size_of_black_white_black_run(from_x, from_y, other_to_x as u32, other_to_y as u32);
+        result += self.size_of_black_white_black_run(
+            from_x,
+            from_y,
+            other_to_x as u32,
+            other_to_y as u32,
+        );
 
         // Middle pixel is double-counted this way; subtract 1
         result - 1.0
@@ -440,7 +459,8 @@ impl<'a> Detector<'a> {
         }
 
         let alignment_area_top_y = 0.max(est_alignment_y as i32 - allowance as i32) as u32;
-        let alignment_area_bottom_y = (self.image.get_height() - 1).min(est_alignment_y + allowance);
+        let alignment_area_bottom_y =
+            (self.image.get_height() - 1).min(est_alignment_y + allowance);
         let alignment_area_height = alignment_area_bottom_y
             .checked_sub(alignment_area_top_y)
             .ok_or(Error::NotFound)?;

@@ -16,10 +16,7 @@
 
 use anyhow::Result;
 
-use crate::{
-    Error,
-    common::BitMatrix,
-};
+use crate::{Error, common::BitMatrix};
 
 use super::DataMask;
 use crate::qrcode::common::{FormatInformation, Version, VersionRef};
@@ -42,9 +39,10 @@ impl BitMatrixParser {
     pub fn new(bit_matrix: BitMatrix) -> Result<Self> {
         let dimension = bit_matrix.get_height();
         if dimension < 21 || (dimension & 0x03) != 1 {
-            Err(Error::invalid_format(format!(
-                "{dimension} < 21 || ({dimension} & 0x03) != 1"
-            )).into())
+            Err(
+                Error::invalid_format(format!("{dimension} < 21 || ({dimension} & 0x03) != 1"))
+                    .into(),
+            )
         } else {
             Ok(Self {
                 bit_matrix,

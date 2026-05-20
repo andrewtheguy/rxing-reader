@@ -17,11 +17,7 @@
 
 use anyhow::Result;
 
-use crate::{
-    Error, Point,
-    common::BitMatrix,
-    point,
-};
+use crate::{Error, Point, common::BitMatrix, point};
 
 /**
  * <p>A somewhat generic detector that looks for a barcode-like rectangular region within an image.

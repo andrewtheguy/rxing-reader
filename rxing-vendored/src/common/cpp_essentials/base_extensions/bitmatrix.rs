@@ -1,7 +1,7 @@
 use crate::Point;
 use crate::common::BitMatrix;
-use anyhow::Result;
 use crate::point;
+use anyhow::Result;
 
 impl BitMatrix {
     pub fn deflate(

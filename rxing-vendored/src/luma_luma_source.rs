@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
-use anyhow::Result;
 use crate::{Error, LuminanceSource};
+use anyhow::Result;
 
 /// A simple luma8 source for bytes. Supports cropping and 90° counter-clockwise
 /// rotation; 45° rotation is not supported.
@@ -37,13 +37,14 @@ impl LuminanceSource for Luma8LuminanceSource {
     }
 
     fn get_column(&self, x: usize) -> Vec<u8> {
-        self.data
-            .chunks_exact(self.dimensions.0 as usize)
-            .fold(Vec::with_capacity(self.get_height()), |mut acc, e| {
+        self.data.chunks_exact(self.dimensions.0 as usize).fold(
+            Vec::with_capacity(self.get_height()),
+            |mut acc, e| {
                 let byte = e[x];
                 acc.push(Self::invert_if_should(byte, self.inverted));
                 acc
-            })
+            },
+        )
     }
 
     fn get_matrix(&self) -> Cow<'_, [u8]> {
@@ -180,7 +181,8 @@ impl Luma8LuminanceSource {
             return Err(Error::invalid_argument(format!(
                 "luma length {} != width*height ({expected})",
                 data.len()
-            )).into());
+            ))
+            .into());
         }
         Ok(Self {
             dimensions: (width, height),
@@ -223,9 +225,7 @@ pub fn downscale_luma_buffer(
     factor: u32,
 ) -> Result<(Vec<u8>, u32, u32)> {
     if factor == 0 {
-        return Err(Error::invalid_argument(
-            "downscale factor must be at least 1",
-        ).into());
+        return Err(Error::invalid_argument("downscale factor must be at least 1").into());
     }
     let expected = (width as usize)
         .checked_mul(height as usize)
@@ -234,7 +234,8 @@ pub fn downscale_luma_buffer(
         return Err(Error::invalid_argument(format!(
             "downscale_luma_buffer: src.len() {} must equal width * height ({expected})",
             src.len()
-        )).into());
+        ))
+        .into());
     }
     let new_w = width / factor;
     let new_h = height / factor;

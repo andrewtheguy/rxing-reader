@@ -109,11 +109,12 @@ pub trait GridSampler {
             // sufficient to check the endpoints
             self.check_and_nudge_points(image, &mut points)?;
             for (x, point) in points.iter().enumerate() {
-                if image.try_get(point.x as u32, point.y as u32).ok_or(
-                    Error::not_found(
+                if image
+                    .try_get(point.x as u32, point.y as u32)
+                    .ok_or(Error::not_found(
                         "index out of bounds, see documentation in file for explanation",
-                    ),
-                )? {
+                    ))?
+                {
                     // Black(-ish) pixel
                     bits.set(x as u32, y);
                 }
@@ -122,7 +123,10 @@ pub trait GridSampler {
 
         let project_corner = |p: Point| -> Point {
             for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y
+                if p0.x <= p.x
+                    && p.x <= p1.x
+                    && p0.y <= p.y
+                    && p.y <= p1.y
                     && let Some(transformed) = transform.transform_point(p)
                 {
                     return transformed + point(0.5, 0.5);

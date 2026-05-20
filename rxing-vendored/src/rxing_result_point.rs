@@ -647,8 +647,14 @@ mod point_tests {
         assert!((b.x - 1.0).abs() < 1e-6 && (b.y - 1.0 / 3.0).abs() < 1e-6);
 
         // main_direction picks the larger component
-        assert_eq!(PointF::new(5.0, 2.0).main_direction(), PointF::new(5.0, 0.0));
-        assert_eq!(PointF::new(1.0, 4.0).main_direction(), PointF::new(0.0, 4.0));
+        assert_eq!(
+            PointF::new(5.0, 2.0).main_direction(),
+            PointF::new(5.0, 0.0)
+        );
+        assert_eq!(
+            PointF::new(1.0, 4.0).main_direction(),
+            PointF::new(0.0, 4.0)
+        );
     }
 
     #[test]

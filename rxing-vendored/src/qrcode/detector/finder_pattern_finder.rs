@@ -18,11 +18,7 @@ use std::ops::Div;
 
 use anyhow::Result;
 
-use crate::{
-    DecodeHints, Error, Point, PointCallback,
-    common::BitMatrix,
-    result_point_utils,
-};
+use crate::{DecodeHints, Error, Point, PointCallback, common::BitMatrix, result_point_utils};
 
 use super::{FinderPattern, FinderPatternInfo};
 
@@ -116,7 +112,8 @@ impl<'a> FinderPatternFinder<'_> {
                             // A winner?
                             if FinderPatternFinder::found_pattern_cross(&state_count) {
                                 // Yes
-                                let confirmed = self.handle_possible_center(&state_count, i as u32, j);
+                                let confirmed =
+                                    self.handle_possible_center(&state_count, i as u32, j);
                                 if confirmed {
                                     // Start examining every other line. Checking each line turned out to be too
                                     // expensive and didn't improve performance.
@@ -303,12 +300,17 @@ impl<'a> FinderPatternFinder<'_> {
 
         // Now also count down, right from center
         i = 1;
-        while center_i + i < max_i && center_j + i < max_j && self.image.get(center_j + i, center_i + i) {
+        while center_i + i < max_i
+            && center_j + i < max_j
+            && self.image.get(center_j + i, center_i + i)
+        {
             cross_check_state_count[2] += 1;
             i += 1;
         }
 
-        while center_i + i < max_i && center_j + i < max_j && !self.image.get(center_j + i, center_i + i)
+        while center_i + i < max_i
+            && center_j + i < max_j
+            && !self.image.get(center_j + i, center_i + i)
         {
             cross_check_state_count[3] += 1;
             i += 1;
@@ -317,7 +319,10 @@ impl<'a> FinderPatternFinder<'_> {
             return false;
         }
 
-        while center_i + i < max_i && center_j + i < max_j && self.image.get(center_j + i, center_i + i) {
+        while center_i + i < max_i
+            && center_j + i < max_j
+            && self.image.get(center_j + i, center_i + i)
+        {
             cross_check_state_count[4] += 1;
             i += 1;
         }
@@ -358,7 +363,10 @@ impl<'a> FinderPatternFinder<'_> {
         if i < 0 {
             return f32::NAN;
         }
-        while i >= 0 && !self.image.get(center_j, i as u32) && cross_check_state_count[1] <= max_count {
+        while i >= 0
+            && !self.image.get(center_j, i as u32)
+            && cross_check_state_count[1] <= max_count
+        {
             cross_check_state_count[1] += 1;
             i -= 1;
         }
@@ -366,7 +374,10 @@ impl<'a> FinderPatternFinder<'_> {
         if i < 0 || cross_check_state_count[1] > max_count {
             return f32::NAN;
         }
-        while i >= 0 && self.image.get(center_j, i as u32) && cross_check_state_count[0] <= max_count {
+        while i >= 0
+            && self.image.get(center_j, i as u32)
+            && cross_check_state_count[0] <= max_count
+        {
             cross_check_state_count[0] += 1;
             i -= 1;
         }
@@ -383,14 +394,20 @@ impl<'a> FinderPatternFinder<'_> {
         if i == max_i {
             return f32::NAN;
         }
-        while i < max_i && !self.image.get(center_j, i as u32) && cross_check_state_count[3] < max_count {
+        while i < max_i
+            && !self.image.get(center_j, i as u32)
+            && cross_check_state_count[3] < max_count
+        {
             cross_check_state_count[3] += 1;
             i += 1;
         }
         if i == max_i || cross_check_state_count[3] >= max_count {
             return f32::NAN;
         }
-        while i < max_i && self.image.get(center_j, i as u32) && cross_check_state_count[4] < max_count {
+        while i < max_i
+            && self.image.get(center_j, i as u32)
+            && cross_check_state_count[4] < max_count
+        {
             cross_check_state_count[4] += 1;
             i += 1;
         }
@@ -439,7 +456,10 @@ impl<'a> FinderPatternFinder<'_> {
             return f32::NAN;
         }
 
-        while j >= 0 && !self.image.get(j as u32, center_i) && cross_check_state_count[1] <= max_count {
+        while j >= 0
+            && !self.image.get(j as u32, center_i)
+            && cross_check_state_count[1] <= max_count
+        {
             cross_check_state_count[1] += 1;
             j -= 1;
         }
@@ -447,7 +467,10 @@ impl<'a> FinderPatternFinder<'_> {
             return f32::NAN;
         }
 
-        while j >= 0 && self.image.get(j as u32, center_i) && cross_check_state_count[0] <= max_count {
+        while j >= 0
+            && self.image.get(j as u32, center_i)
+            && cross_check_state_count[0] <= max_count
+        {
             cross_check_state_count[0] += 1;
             j -= 1;
         }
@@ -544,8 +567,12 @@ impl<'a> FinderPatternFinder<'_> {
         let state_count_total =
             state_count[0] + state_count[1] + state_count[2] + state_count[3] + state_count[4];
         let mut center_j = Self::center_from_end(state_count, j);
-        let center_i =
-            self.cross_check_vertical(i, center_j.floor() as u32, state_count[2], state_count_total);
+        let center_i = self.cross_check_vertical(
+            i,
+            center_j.floor() as u32,
+            state_count[2],
+            state_count_total,
+        );
         if !center_i.is_nan() {
             // Re-cross check
             center_j = self.cross_check_horizontal(
@@ -562,7 +589,8 @@ impl<'a> FinderPatternFinder<'_> {
                 for center in self.possible_centers.iter_mut() {
                     // Look for about the same center and module size:
                     if center.about_equals(estimated_module_size, center_i, center_j) {
-                        *center = center.combine_estimate(center_i, center_j, estimated_module_size);
+                        *center =
+                            center.combine_estimate(center_i, center_j, estimated_module_size);
                         found = true;
                         break;
                     }

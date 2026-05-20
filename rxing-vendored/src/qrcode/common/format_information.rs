@@ -75,8 +75,8 @@ pub struct FormatInformation {
     pub micro_version: u32,
     pub is_mirrored: bool,
 
-    pub mask: u32,     // = 0
-    pub data: u32,     // = 255
+    pub mask: u32,      // = 0
+    pub data: u32,      // = 255
     pub bits_index: u8, // = 255;
 }
 
@@ -128,7 +128,8 @@ impl FormatInformation {
         masked_format_info1: u32,
         masked_format_info2: u32,
     ) -> Option<FormatInformation> {
-        let format_info = Self::do_decode_format_information(masked_format_info1, masked_format_info2);
+        let format_info =
+            Self::do_decode_format_information(masked_format_info1, masked_format_info2);
         if format_info.is_some() {
             return format_info;
         }

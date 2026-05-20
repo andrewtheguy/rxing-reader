@@ -18,8 +18,8 @@ use std::borrow::Cow;
 
 use once_cell::sync::OnceCell;
 
-use anyhow::Result;
 use crate::{Binarizer, LuminanceSource};
+use anyhow::Result;
 
 use super::{BitArray, BitMatrix, GlobalHistogramBinarizer};
 

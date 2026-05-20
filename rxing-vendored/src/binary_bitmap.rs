@@ -89,10 +89,9 @@ impl<B: Binarizer> BinaryBitmap<B> {
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.matrix
             .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())?;
-        self.matrix.get_mut().ok_or_else(|| {
-            Error::invalid_state("black matrix cache was not initialized")
-                .into()
-        })
+        self.matrix
+            .get_mut()
+            .ok_or_else(|| Error::invalid_state("black matrix cache was not initialized").into())
     }
 
     /**
@@ -126,18 +125,14 @@ impl<B: Binarizer> BinaryBitmap<B> {
      * @param height The height of the rectangle to crop.
      * @return A cropped version of this object, or an error if the luminance source cannot be cropped.
      */
-    pub fn crop(
-        &mut self,
-        left: usize,
-        top: usize,
-        width: usize,
-        height: usize,
-    ) -> Result<Self> {
+    pub fn crop(&mut self, left: usize, top: usize, width: usize, height: usize) -> Result<Self> {
         let new_source = self
             .binarizer
             .get_luminance_source()
             .crop(left, top, width, height)?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
+        Ok(BinaryBitmap::new(
+            self.binarizer.create_binarizer(new_source),
+        ))
     }
 
     /**
@@ -158,7 +153,9 @@ impl<B: Binarizer> BinaryBitmap<B> {
             .binarizer
             .get_luminance_source()
             .rotate_counter_clockwise()?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
+        Ok(BinaryBitmap::new(
+            self.binarizer.create_binarizer(new_source),
+        ))
     }
 
     /**
@@ -172,7 +169,9 @@ impl<B: Binarizer> BinaryBitmap<B> {
             .binarizer
             .get_luminance_source()
             .rotate_counter_clockwise_45()?;
-        Ok(BinaryBitmap::new(self.binarizer.create_binarizer(new_source)))
+        Ok(BinaryBitmap::new(
+            self.binarizer.create_binarizer(new_source),
+        ))
     }
 
     pub fn get_source(&self) -> &B::Source {

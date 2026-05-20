@@ -275,7 +275,9 @@ impl From<super::DecodingHintDictionary> for DecodeHints {
                 DecodeHintValue::NeedResultPointCallback(v) => {
                     new_self.need_result_point_callback = Some(v)
                 }
-                DecodeHintValue::AllowedEanExtensions(v) => new_self.allowed_ean_extensions = Some(v),
+                DecodeHintValue::AllowedEanExtensions(v) => {
+                    new_self.allowed_ean_extensions = Some(v)
+                }
                 DecodeHintValue::TelepenAsNumeric(v) => new_self.telepen_as_numeric = Some(v),
             }
         }
@@ -370,7 +372,9 @@ impl DecodeHints {
             DecodeHintValue::AssumeCode39CheckDigit(v) => self.assume_code_39_check_digit = Some(v),
             DecodeHintValue::AssumeGs1(v) => self.assume_gs1 = Some(v),
             DecodeHintValue::ReturnCodabarStartEnd(v) => self.return_codabar_start_end = Some(v),
-            DecodeHintValue::NeedResultPointCallback(v) => self.need_result_point_callback = Some(v),
+            DecodeHintValue::NeedResultPointCallback(v) => {
+                self.need_result_point_callback = Some(v)
+            }
             DecodeHintValue::AllowedEanExtensions(v) => self.allowed_ean_extensions = Some(v),
             DecodeHintValue::TelepenAsNumeric(v) => self.telepen_as_numeric = Some(v),
         }

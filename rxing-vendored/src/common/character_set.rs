@@ -204,7 +204,8 @@ impl CharacterSet {
                     if c as u32 > 0xFF {
                         return Err(Error::invalid_format(
                             "Binary/ISO-8859-1 encoding only supports characters up to U+00FF",
-                        ).into());
+                        )
+                        .into());
                     }
                     bytes.push(c as u8);
                 }
@@ -216,7 +217,8 @@ impl CharacterSet {
                     if c as u32 > 0x7F {
                         return Err(Error::invalid_format(
                             "ASCII encoding only supports characters up to U+007F",
-                        ).into());
+                        )
+                        .into());
                     }
                     bytes.push(c as u8);
                 }
@@ -290,9 +292,7 @@ impl CharacterSet {
             }
             CharacterSet::UTF32BE => {
                 if !input.len().is_multiple_of(4) {
-                    return Err(Error::invalid_format(
-                        "Invalid UTF-32BE: trailing bytes",
-                    ).into());
+                    return Err(Error::invalid_format("Invalid UTF-32BE: trailing bytes").into());
                 }
                 input
                     .chunks_exact(4)
@@ -305,9 +305,7 @@ impl CharacterSet {
             }
             CharacterSet::UTF32LE => {
                 if !input.len().is_multiple_of(4) {
-                    return Err(Error::invalid_format(
-                        "Invalid UTF-32LE: trailing bytes",
-                    ).into());
+                    return Err(Error::invalid_format("Invalid UTF-32LE: trailing bytes").into());
                 }
                 input
                     .chunks_exact(4)

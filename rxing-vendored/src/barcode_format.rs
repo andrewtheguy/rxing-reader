@@ -173,10 +173,7 @@ impl FromStr for BarcodeFormat {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let format = BarcodeFormat::from(s);
         if format == BarcodeFormat::UnsupportedFormat {
-            Err(crate::Error::invalid_format(format!(
-                "Unsupported barcode format: {s}"
-            ))
-            .into())
+            Err(crate::Error::invalid_format(format!("Unsupported barcode format: {s}")).into())
         } else {
             Ok(format)
         }

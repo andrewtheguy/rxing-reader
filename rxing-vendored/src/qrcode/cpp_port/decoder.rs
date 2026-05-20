@@ -106,9 +106,7 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     ];
 
     if value >= (ALPHANUMERIC_CHARS.len()) {
-        return Err(Error::out_of_bounds(
-            "oAlphaNumericChar: out of range",
-        ).into());
+        return Err(Error::out_of_bounds("oAlphaNumericChar: out of range").into());
     }
 
     Ok(ALPHANUMERIC_CHARS[value])
@@ -140,9 +138,7 @@ pub fn decode_alphanumeric_segment(
         let mut i = 0;
         while i < buffer.len() {
             if buffer.get(i).ok_or(Error::OutOfBounds)? == &'%' {
-                if i + 1 < buffer.len()
-                    && buffer.get(i + 1).ok_or(Error::OutOfBounds)? == &'%'
-                {
+                if i + 1 < buffer.len() && buffer.get(i + 1).ok_or(Error::OutOfBounds)? == &'%' {
                     buffer.remove(i + 1);
                 } else {
                     // In alpha mode, % should be converted to FNC1 separator 0x1D
@@ -284,7 +280,9 @@ pub fn decode_bit_stream(
                         // "A-Za-z"
                         result += (app_ind - 100) as u8;
                     } else {
-                        return Err(Error::invalid_format("Invalid AIM Application Indicator").into());
+                        return Err(
+                            Error::invalid_format("Invalid AIM Application Indicator").into()
+                        );
                     }
                     result.symbology.ai_flag = AIFlag::AIM;
                 }
@@ -363,7 +361,8 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     }
 
     // Count total number of data bytes
-    let op = |total_bytes, data_block: &DataBlock| total_bytes + data_block.get_num_data_codewords();
+    let op =
+        |total_bytes, data_block: &DataBlock| total_bytes + data_block.get_num_data_codewords();
     let total_bytes = data_blocks.iter().fold(0, op);
     let mut result_bytes = vec![0u8; total_bytes as usize];
     let mut result_iterator = 0;

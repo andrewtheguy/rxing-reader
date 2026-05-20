@@ -273,8 +273,8 @@ fn assert_requires_try_harder(rgba: &[u8], w: u32, h: u32, expected: &[u8], labe
         let (try_harder, _, _) = combo;
         let result = decode_combo(rgba, w, h, combo);
         if try_harder {
-            let bytes = result
-                .unwrap_or_else(|| panic!("{label} expected to decode for combo={combo:?}"));
+            let bytes =
+                result.unwrap_or_else(|| panic!("{label} expected to decode for combo={combo:?}"));
             assert_eq!(
                 bytes.as_slice(),
                 expected,
@@ -500,7 +500,10 @@ fn probe_fixture_requirements() {
         ("qr_code_complex.png", b"https://qr-code-styling.com"),
         ("qr_sample_inverted.png", b"jfghjghjghfkghjkghj"),
         ("qr_sample_small_in_canvas.png", b"jfghjghjghfkghjkghj"),
-        ("qr_zoo.jpg", b"https://zoo.sandiegozoo.org/2024-sdmag-pandas"),
+        (
+            "qr_zoo.jpg",
+            b"https://zoo.sandiegozoo.org/2024-sdmag-pandas",
+        ),
         (
             "qr_code_complex_rotated.jpg",
             b"https://nc.cesdk12.org/ncsd/PXP2_Login_Parent.aspx?regenerateSessionId=True",
@@ -523,7 +526,10 @@ fn probe_fixture_requirements() {
                 Some(_) => "WRONG".to_string(),
                 None => "miss".to_string(),
             };
-            println!("  hard={} inv={} hyb={} -> {}", combo.0, combo.1, combo.2, label);
+            println!(
+                "  hard={} inv={} hyb={} -> {}",
+                combo.0, combo.1, combo.2, label
+            );
         }
     }
 }
@@ -692,8 +698,14 @@ fn decodes_three_qr_codes_in_single_image() {
             .map(|v| String::from_utf8_lossy(v).into_owned())
             .collect::<Vec<_>>()
     );
-    let sample_hits = decoded.iter().filter(|v| v.as_slice() == QR_SAMPLE_TEXT).count();
-    let complex_hits = decoded.iter().filter(|v| v.as_slice() == QR_COMPLEX_TEXT).count();
+    let sample_hits = decoded
+        .iter()
+        .filter(|v| v.as_slice() == QR_SAMPLE_TEXT)
+        .count();
+    let complex_hits = decoded
+        .iter()
+        .filter(|v| v.as_slice() == QR_COMPLEX_TEXT)
+        .count();
     assert_eq!(sample_hits, 2, "expected qr_sample payload twice");
     assert_eq!(complex_hits, 1, "expected qr_code_complex payload once");
 }

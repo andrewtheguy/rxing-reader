@@ -20,9 +20,7 @@ use anyhow::Result;
 
 use crate::{
     DecodeHints, Error,
-    common::{
-        BitSource, CharacterSet, DecoderRXingResult, ECIStringBuilder, Eci, string_utils,
-    },
+    common::{BitSource, CharacterSet, DecoderRXingResult, ECIStringBuilder, Eci, string_utils},
 };
 
 use crate::qrcode::common::{ErrorCorrectionLevel, Mode, VersionRef};
@@ -87,7 +85,8 @@ pub fn decode(
                     return Err(Error::invalid_format(format!(
                         "Mode::Structured append expected bits.available() < 16, found bits of {}",
                         bits.available()
-                    )).into());
+                    ))
+                    .into());
                 }
                 // sequence number and parity is added later to the result metadata
                 // Read next 8 bits (symbol sequence #) and 8 bits (parity data), then continue
@@ -99,9 +98,7 @@ pub fn decode(
                 let value = parse_ecivalue(&mut bits)?;
                 current_character_set_eci = CharacterSet::from(value).into(); //CharacterSet::get_character_set_by_eci(value).ok();
                 if current_character_set_eci.is_none() {
-                    return Err(Error::invalid_format(format!(
-                        "Value of {value} not valid"
-                    )).into());
+                    return Err(Error::invalid_format(format!("Value of {value} not valid")).into());
                 }
             }
             Mode::Hanzi => {
@@ -117,7 +114,8 @@ pub fn decode(
             _ => {
                 // "Normal" QR code modes:
                 // How many characters will follow, encoded in this mode?
-                let count = bits.read_bits(mode.get_character_count_bits(version) as usize)? as usize;
+                let count =
+                    bits.read_bits(mode.get_character_count_bits(version) as usize)? as usize;
                 match mode {
                     Mode::Numeric => decode_numeric_segment(&mut bits, &mut result, count)?,
                     Mode::Alphanumeric => {

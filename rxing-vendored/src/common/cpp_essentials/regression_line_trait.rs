@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::{Point, point};
+use anyhow::Result;
 
 /// Minimum determinant magnitude for `RegressionLineTrait::intersect` to treat
 /// two lines as non-parallel. Line coefficients are normalized by

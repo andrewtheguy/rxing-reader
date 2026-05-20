@@ -16,11 +16,7 @@
 
 use anyhow::Result;
 
-use crate::{
-    Error, Point,
-    common::BitMatrix,
-    point,
-};
+use crate::{Error, Point, common::BitMatrix, point};
 
 /**
  * <p>

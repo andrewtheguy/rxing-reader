@@ -55,9 +55,7 @@ impl TryFrom<u32> for Eci {
         if value <= i32::MAX as u32 {
             Ok((value as i32).into())
         } else {
-            Err(Error::invalid_argument(format!(
-                "ECI value {value} exceeds i32::MAX"
-            )).into())
+            Err(Error::invalid_argument(format!("ECI value {value} exceeds i32::MAX")).into())
         }
     }
 }

@@ -113,22 +113,14 @@ impl From<String> for RXingResultMetadataType {
             "OTHER" => RXingResultMetadataType::OTHER,
             "ORIENTATION" => RXingResultMetadataType::ORIENTATION,
             "BYTESEGMENTS" => RXingResultMetadataType::ByteSegments,
-            "ERRORCORRECTIONLEVEL" | "ECLEVEL" => {
-                RXingResultMetadataType::ErrorCorrectionLevel
-            }
+            "ERRORCORRECTIONLEVEL" | "ECLEVEL" => RXingResultMetadataType::ErrorCorrectionLevel,
             "ISSUENUMBER" => RXingResultMetadataType::IssueNumber,
             "SUGGESTEDPRICE" => RXingResultMetadataType::SuggestedPrice,
             "POSSIBLECOUNTRY" => RXingResultMetadataType::PossibleCountry,
             "UPCEANEXTENSION" => RXingResultMetadataType::UpcEanExtension,
-            "STRUCTUREDAPPENDSEQUENCE" => {
-                RXingResultMetadataType::StructuredAppendSequence
-            }
-            "STRUCTUREDAPPENDPARITY" => {
-                RXingResultMetadataType::StructuredAppendParity
-            }
-            "SYMBOLOGYIDENTIFIER" => {
-                RXingResultMetadataType::SymbologyIdentifier
-            }
+            "STRUCTUREDAPPENDSEQUENCE" => RXingResultMetadataType::StructuredAppendSequence,
+            "STRUCTUREDAPPENDPARITY" => RXingResultMetadataType::StructuredAppendParity,
+            "SYMBOLOGYIDENTIFIER" => RXingResultMetadataType::SymbologyIdentifier,
             "ISMIRRORED" => RXingResultMetadataType::IsMirrored,
             "CONTENTTYPE" => RXingResultMetadataType::ContentType,
             "ISINVERTED" => RXingResultMetadataType::IsInverted,

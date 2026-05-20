@@ -6,8 +6,8 @@ use crate::{
     common::{
         DefaultGridSampler, GridSampler, SamplerControl,
         cpp_essentials::{
-            append_bit, center_of_ring, DMRegressionLine, find_concentric_pattern_corners,
-            find_left_guard_by, Matrix, Value,
+            DMRegressionLine, Matrix, Value, append_bit, center_of_ring,
+            find_concentric_pattern_corners, find_left_guard_by,
         },
     },
     point, point_i,
@@ -23,8 +23,8 @@ use crate::{
         BitMatrix, PerspectiveTransform, Quadrilateral,
         cpp_essentials::{
             BitMatrixCursorTrait, ConcentricPattern, Direction, EdgeTracer, FixedPattern,
-            get_pattern_row_tp, is_pattern, locate_concentric_pattern, PatternRow, PatternType,
-            PatternView, read_symmetric_pattern, RegressionLine, RegressionLineTrait,
+            PatternRow, PatternType, PatternView, RegressionLine, RegressionLineTrait,
+            get_pattern_row_tp, is_pattern, locate_concentric_pattern, read_symmetric_pattern,
         },
     },
 };
@@ -257,8 +257,7 @@ pub fn estimate_module_size(
         return Err(Error::NotFound.into());
     }
 
-    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2)
-        .ok_or(Error::NotFound)?;
+    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound)?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
         &PatternView::new(&PatternRow::new(pattern.to_vec())),
@@ -419,8 +418,7 @@ pub fn locate_alignment_pattern(
         }
 
         if let Some(cor1) = center_of_ring(image, cor.floor(), module_size, 1, true)
-            && let Some(cor2) =
-                center_of_ring(image, cor.floor(), module_size * 3, -2, true)
+            && let Some(cor2) = center_of_ring(image, cor.floor(), module_size * 3, -2, true)
             && Point::distance(cor1, cor2) < module_size as f32 / 2.0
         {
             let res = (cor1 + cor2) / 2.0;
@@ -521,7 +519,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         // as the best estimate (see discussion in #199 and test image estimate-tilt.jpg )
         if !image.is_in(br.p)
             && (estimate_tilt(fp) > 1.1
-                || (bl2.is_high_res() && bl3.is_high_res() && tr2.is_high_res() && tr3.is_high_res()))
+                || (bl2.is_high_res()
+                    && bl3.is_high_res()
+                    && tr2.is_high_res()
+                    && tr3.is_high_res()))
         {
             br = br_inter.into();
         }
@@ -567,17 +568,18 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 .ok_or_else(|| Error::NotFound.into())
         };
 
-        let mut find_inner_corner_of_concentric_pattern = |x, y, fp: ConcentricPattern| -> Result<()> {
-            let pc = ap_p.set(x, y, project_m2_p(x, y, &mod_to_pix)?)?;
-            if let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) {
-                for c in fp_quad.0 {
-                    if Point::distance(c, pc) < (fp.size as f32) / 2.0 {
-                        ap_p.set(x, y, c)?;
+        let mut find_inner_corner_of_concentric_pattern =
+            |x, y, fp: ConcentricPattern| -> Result<()> {
+                let pc = ap_p.set(x, y, project_m2_p(x, y, &mod_to_pix)?)?;
+                if let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) {
+                    for c in fp_quad.0 {
+                        if Point::distance(c, pc) < (fp.size as f32) / 2.0 {
+                            ap_p.set(x, y, c)?;
+                        }
                     }
                 }
-            }
-            Ok(())
-        };
+                Ok(())
+            };
 
         find_inner_corner_of_concentric_pattern(0, 0, fp.tl)?;
         find_inner_corner_of_concentric_pattern(0, n, fp.bl)?;
@@ -622,10 +624,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 while i < 2 * n + 2 && hori.len() < 2 {
                     let xi = x as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
                     if 0 <= xi && xi <= n as isize && ap_p.get(xi as usize, y).is_some() {
-                        hori.push(
-                            ap_p.get(xi as usize, y)
-                                .ok_or(Error::OutOfBounds)?,
-                        );
+                        hori.push(ap_p.get(xi as usize, y).ok_or(Error::OutOfBounds)?);
                     }
                     i += 1;
                 }
@@ -633,10 +632,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 while i < 2 * n + 2 && verti.len() < 2 {
                     let yi = y as isize + i as isize / 2 * (if i % 2 != 0 { 1 } else { -1 });
                     if 0 <= yi && yi <= n as isize && ap_p.get(x, yi as usize).is_some() {
-                        verti.push(
-                            ap_p.get(x, yi as usize)
-                                .ok_or(Error::OutOfBounds)?,
-                        );
+                        verti.push(ap_p.get(x, yi as usize).ok_or(Error::OutOfBounds)?);
                     }
                     i += 1;
                 }
@@ -893,7 +889,8 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
             );
         }
 
-        let fi = FormatInformation::decode_rmqr(format_info_bits as u32, 0 /*format_info_bits2*/);
+        let fi =
+            FormatInformation::decode_rmqr(format_info_bits as u32, 0 /*format_info_bits2*/);
         if fi.hamming_distance < best_fi.hamming_distance {
             best_fi = fi;
             best_pt = mod2_pix;
@@ -973,33 +970,33 @@ pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDet
     {
         let mut dest = intersect_quads(&fp_quad, &sp_quad)?;
         if dim.y <= 9 {
-                best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
-                    Quadrilateral::from([
-                        point(6.5, 0.5),
-                        point(dim.x as f32 - 1.5, dim.y as f32 - 3.5),
-                        point(dim.x as f32 - 1.5, dim.y as f32 - 1.5),
-                        point(6.5, 6.5),
-                    ]),
-                    Quadrilateral::from([
-                        *fp_quad.top_right(),
-                        *sp_quad.top_right(),
-                        *sp_quad.bottom_right(),
-                        *fp_quad.bottom_right(),
-                    ]),
-                )?;
-            } else {
-                dest[0] = fp.p;
-                dest[2] = found;
-                best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
-                    Quadrilateral::from([
-                        point(3.5, 3.5),
-                        point(dim.x as f32 - 2.5, 3.5),
-                        point(dim.x as f32 - 2.5, dim.y as f32 - 2.5),
-                        point(3.5, dim.y as f32 - 2.5),
-                    ]),
-                    dest,
-                )?;
-            }
+            best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
+                Quadrilateral::from([
+                    point(6.5, 0.5),
+                    point(dim.x as f32 - 1.5, dim.y as f32 - 3.5),
+                    point(dim.x as f32 - 1.5, dim.y as f32 - 1.5),
+                    point(6.5, 6.5),
+                ]),
+                Quadrilateral::from([
+                    *fp_quad.top_right(),
+                    *sp_quad.top_right(),
+                    *sp_quad.bottom_right(),
+                    *fp_quad.bottom_right(),
+                ]),
+            )?;
+        } else {
+            dest[0] = fp.p;
+            dest[2] = found;
+            best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
+                Quadrilateral::from([
+                    point(3.5, 3.5),
+                    point(dim.x as f32 - 2.5, 3.5),
+                    point(dim.x as f32 - 2.5, dim.y as f32 - 2.5),
+                    point(3.5, dim.y as f32 - 2.5),
+                ]),
+                dest,
+            )?;
+        }
     }
 
     let grid_sampler = DefaultGridSampler;

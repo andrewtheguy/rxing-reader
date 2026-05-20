@@ -5,10 +5,7 @@
 
 use anyhow::Result;
 
-use crate::{
-    Error,
-    common::BitMatrix,
-};
+use crate::{Error, common::BitMatrix};
 
 pub type PatternType = u16;
 pub type Pattern<const N: usize> = [PatternType; N];
@@ -223,9 +220,7 @@ impl<'a> PatternView<'a> {
         }
         let prev_idx = (self.start + self.current).checked_sub(1);
         match prev_idx.and_then(|i| self.data.0.get(i)) {
-            Some(v) => {
-                Into::<f32>::into(*v) >= Into::<f32>::into(self.sum(None)) * scale
-            }
+            Some(v) => Into::<f32>::into(*v) >= Into::<f32>::into(self.sum(None)) * scale,
             None => false,
         }
     }
@@ -235,9 +230,7 @@ impl<'a> PatternView<'a> {
             return true;
         }
         match self.data.0.get(self.start + self.current + self.count) {
-            Some(v) => {
-                Into::<f32>::into(*v) >= Into::<f32>::into(self.sum(None)) * scale
-            }
+            Some(v) => Into::<f32>::into(*v) >= Into::<f32>::into(self.sum(None)) * scale,
             None => false,
         }
     }
@@ -547,8 +540,7 @@ pub fn is_pattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPA
     // TODO: review once we have upsampling in the binarizer in place.
 
     for x in 0..LEN {
-        if (Into::<f32>::into(view_data[x])
-            - Into::<f32>::into(pattern_data[x]) * module_size_ref)
+        if (Into::<f32>::into(view_data[x]) - Into::<f32>::into(pattern_data[x]) * module_size_ref)
             .abs()
             > threshold
         {
@@ -616,16 +608,25 @@ pub fn find_left_guard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: 
     pattern: &FixedPattern<LEN, SUM, IS_SPARCE>,
     min_quiet_zone: f32,
 ) -> Result<PatternView<'a>> {
-    find_left_guard_by::<LEN, _>(view, std::cmp::max(min_size, LEN), |window, space_in_pixel| {
-        // perform a fast plausability test for 1:1:3:1:1 pattern
-        if window[2] < 2 as PatternType * std::cmp::max(window[0], window[4])
-            || window[2] < std::cmp::max(window[1], window[3])
-        {
-            return false;
-        }
-        is_pattern::<false, LEN, SUM, IS_SPARCE>(window, pattern, space_in_pixel, min_quiet_zone, 0.0)
-            != 0.0
-    })
+    find_left_guard_by::<LEN, _>(
+        view,
+        std::cmp::max(min_size, LEN),
+        |window, space_in_pixel| {
+            // perform a fast plausability test for 1:1:3:1:1 pattern
+            if window[2] < 2 as PatternType * std::cmp::max(window[0], window[4])
+                || window[2] < std::cmp::max(window[1], window[3])
+            {
+                return false;
+            }
+            is_pattern::<false, LEN, SUM, IS_SPARCE>(
+                window,
+                pattern,
+                space_in_pixel,
+                min_quiet_zone,
+                0.0,
+            ) != 0.0
+        },
+    )
 }
 
 pub fn normalized_e2_epattern<const LEN: usize, const LEN_MINUS_2: usize, const SUM: usize>(
@@ -747,7 +748,7 @@ pub fn get_pattern_row<T: Into<PatternType> + Copy + Default + From<T>>(
 mod tests {
     use crate::common::cpp_essentials::PatternType;
 
-    use super::{FixedPattern, get_pattern_row, is_pattern, PatternRow, PatternView};
+    use super::{FixedPattern, PatternRow, PatternView, get_pattern_row, is_pattern};
     const N: usize = 33;
 
     #[test]

@@ -76,7 +76,8 @@ impl DataBlock {
         for ec_block in ec_block_array {
             for _i in 0..ec_block.get_count() {
                 let num_data_codewords = ec_block.get_data_codewords();
-                let num_block_codewords = ec_blocks.get_eccodewords_per_block() + num_data_codewords;
+                let num_block_codewords =
+                    ec_blocks.get_eccodewords_per_block() + num_data_codewords;
                 result.push(DataBlock::new(
                     num_data_codewords,
                     vec![0u8; num_block_codewords as usize],

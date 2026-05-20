@@ -15,8 +15,8 @@
  */
 
 use crate::Error;
-use anyhow::Result;
 use crate::qrcode::cpp_port::Type;
+use anyhow::Result;
 
 use super::Version;
 
@@ -63,9 +63,7 @@ impl Mode {
             {
                 Ok(Self::Hanzi)
             }
-            _ => Err(Error::invalid_argument(format!(
-                "{bits} is not valid"
-            )).into()),
+            _ => Err(Error::invalid_argument(format!("{bits} is not valid")).into()),
         }
     }
 
@@ -182,10 +180,7 @@ impl Mode {
                     .get(number.wrapping_sub(1))
                     .copied()
                     .unwrap_or(0),
-                Mode::Alphanumeric => [3, 4, 5]
-                    .get(number.wrapping_sub(2))
-                    .copied()
-                    .unwrap_or(0),
+                Mode::Alphanumeric => [3, 4, 5].get(number.wrapping_sub(2)).copied().unwrap_or(0),
                 Mode::Byte => [4, 5].get(number.wrapping_sub(3)).copied().unwrap_or(0),
                 Mode::Kanji | Mode::Hanzi => {
                     [3, 4].get(number.wrapping_sub(3)).copied().unwrap_or(0)
@@ -260,9 +255,7 @@ impl TryFrom<u32> for Mode {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value > u32::from(u8::MAX) {
-            return Err(Error::invalid_argument(format!(
-                "{value} is not valid"
-            )).into());
+            return Err(Error::invalid_argument(format!("{value} is not valid")).into());
         }
         Self::for_bits(value as u8)
     }

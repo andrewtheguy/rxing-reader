@@ -214,7 +214,9 @@ pub fn read_mqrcodewords(
                     bits_read += 1;
                     // If we've made a whole byte, save it off; save early if 2x2 data block.
                     if bits_read == 8
-                        || (bits_read == 4 && has_d4m_block && (result.len()) == d4m_block_index - 1)
+                        || (bits_read == 4
+                            && has_d4m_block
+                            && (result.len()) == d4m_block_index - 1)
                     {
                         result.push(std::mem::take(&mut current_byte));
                         bits_read = 0;
@@ -257,13 +259,17 @@ pub fn read_qrcodewords_model1(
                 for b in 0..8 {
                     append_bit(
                         &mut current_byte,
-                        get_data_mask_bit(format_info.data_mask as u32, x - b % 2, y - (b / 2), None)?
-                            != get_bit(
-                                bit_matrix,
-                                x - b % 2,
-                                y - (b / 2),
-                                Some(format_info.is_mirrored),
-                            ),
+                        get_data_mask_bit(
+                            format_info.data_mask as u32,
+                            x - b % 2,
+                            y - (b / 2),
+                            None,
+                        )? != get_bit(
+                            bit_matrix,
+                            x - b % 2,
+                            y - (b / 2),
+                            Some(format_info.is_mirrored),
+                        ),
                     );
                 }
                 result.push(current_byte);
@@ -278,13 +284,17 @@ pub fn read_qrcodewords_model1(
                 for b in 0..8 {
                     append_bit(
                         &mut current_byte,
-                        get_data_mask_bit(format_info.data_mask as u32, x - b % 2, y - (b / 2), None)?
-                            != get_bit(
-                                bit_matrix,
-                                x - b % 2,
-                                y - (b / 2),
-                                Some(format_info.is_mirrored),
-                            ),
+                        get_data_mask_bit(
+                            format_info.data_mask as u32,
+                            x - b % 2,
+                            y - (b / 2),
+                            None,
+                        )? != get_bit(
+                            bit_matrix,
+                            x - b % 2,
+                            y - (b / 2),
+                            Some(format_info.is_mirrored),
+                        ),
                     );
                 }
                 result.push(current_byte);
@@ -309,13 +319,17 @@ pub fn read_qrcodewords_model1(
                 for b in 0..8 {
                     append_bit(
                         &mut current_byte,
-                        get_data_mask_bit(format_info.data_mask as u32, x - b % 4, y - (b / 4), None)?
-                            != get_bit(
-                                bit_matrix,
-                                x - b % 4,
-                                y - (b / 4),
-                                Some(format_info.is_mirrored),
-                            ),
+                        get_data_mask_bit(
+                            format_info.data_mask as u32,
+                            x - b % 4,
+                            y - (b / 4),
+                            None,
+                        )? != get_bit(
+                            bit_matrix,
+                            x - b % 4,
+                            y - (b / 4),
+                            Some(format_info.is_mirrored),
+                        ),
                     );
                 }
                 result.push(current_byte);

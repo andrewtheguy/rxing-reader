@@ -73,9 +73,10 @@ impl ECIInput for MinimalECIInput {
         if self.is_fnc1(index)? {
             Ok(self.fnc1 as u8 as char)
         } else if self.is_eci(index)? {
-            Err(Error::invalid_argument(format!(
-                "value at {index} is not a character but an ECI"
-            )).into())
+            Err(
+                Error::invalid_argument(format!("value at {index} is not a character but an ECI"))
+                    .into(),
+            )
         } else {
             Ok(self.bytes[index] as u8 as char)
         }
@@ -110,7 +111,8 @@ impl ECIInput for MinimalECIInput {
             if self.is_eci(i)? {
                 return Err(Error::invalid_argument(format!(
                     "value at {i} is not a character but an ECI"
-                )).into());
+                ))
+                .into());
             }
             result.push(self.char_at(i)?);
         }
@@ -160,7 +162,8 @@ impl ECIInput for MinimalECIInput {
         if !self.is_eci(index)? {
             return Err(Error::invalid_argument(format!(
                 "value at {index} is not an ECI but a character"
-            )).into());
+            ))
+            .into());
         }
         Eci::try_from(self.bytes[index] as u32 - 256)
     }
@@ -184,19 +187,13 @@ impl MinimalECIInput {
         };
         let mut chars = fnc1.chars();
         let Some(ch) = chars.next() else {
-            return Err(Error::invalid_argument(
-                "fnc1 marker cannot be empty",
-            ).into());
+            return Err(Error::invalid_argument("fnc1 marker cannot be empty").into());
         };
         if chars.next().is_some() {
-            return Err(Error::invalid_argument(
-                "fnc1 marker must be a single character",
-            ).into());
+            return Err(Error::invalid_argument("fnc1 marker must be a single character").into());
         }
         if (ch as u32) > u16::MAX as u32 {
-            return Err(Error::invalid_argument(
-                "fnc1 marker must fit in u16",
-            ).into());
+            return Err(Error::invalid_argument("fnc1 marker must fit in u16").into());
         }
         Ok(Some(ch as u16))
     }
@@ -225,7 +222,9 @@ impl MinimalECIInput {
         fnc1: Option<&str>,
     ) -> Result<Self> {
         let fnc1_value = Self::fnc1_value(fnc1)?;
-        let string_to_encode = string_to_encode_input.graphemes(true).collect::<Vec<&str>>();
+        let string_to_encode = string_to_encode_input
+            .graphemes(true)
+            .collect::<Vec<&str>>();
         let encoder_set = ECIEncoderSet::new(string_to_encode_input, priority_charset, fnc1);
         let bytes = if encoder_set.len() == 1 {
             //optimization for the case when all can be encoded without ECI in ISO-8859-1)
@@ -313,14 +312,9 @@ impl MinimalECIInput {
         }
 
         for i in start..end {
-            if fnc1.is_some_and(|fnc1| ch == fnc1) || encoder_set.can_encode(ch, i)?
-            {
+            if fnc1.is_some_and(|fnc1| ch == fnc1) || encoder_set.can_encode(ch, i)? {
                 let edge = InputEdge::new(ch, encoder_set, i, previous.clone(), fnc1)?;
-                Self::add_edge(
-                    edges,
-                    from + 1,
-                    Arc::new(edge),
-                )?;
+                Self::add_edge(edges, from + 1, Arc::new(edge))?;
             }
         }
         Ok(())
@@ -352,7 +346,11 @@ impl MinimalECIInput {
         }
         let mut minimal_j: i32 = -1;
         let mut minimal_size: i32 = i32::MAX;
-        for (j, slot) in edges[input_length].iter().enumerate().take(encoder_set.len()) {
+        for (j, slot) in edges[input_length]
+            .iter()
+            .enumerate()
+            .take(encoder_set.len())
+        {
             if let Some(edge) = slot
                 && (edge.cached_total_size as i32) < minimal_size
             {
@@ -364,7 +362,8 @@ impl MinimalECIInput {
             return Err(Error::invalid_state(format!(
                 "internal error: failed to encode \"{}\"",
                 string_to_encode.join("")
-            )).into());
+            ))
+            .into());
         }
         let mut ints_al: Vec<u16> = Vec::new();
         let mut current = edges[input_length][minimal_j as usize].clone();

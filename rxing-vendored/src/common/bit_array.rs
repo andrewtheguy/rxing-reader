@@ -155,7 +155,8 @@ impl BitArray {
             return Err(Error::invalid_argument(format!(
                 "num bits must be between 0 and {}",
                 BaseType::BITS
-            )).into());
+            ))
+            .into());
         }
         for i in (0..num_bits).rev() {
             self.bits.push((value >> i) & 1 != 0);
@@ -313,9 +314,11 @@ impl std::io::Seek for BitArray {
             std::io::SeekFrom::End(e) => size.checked_add(e).ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::InvalidInput, "seek offset overflow")
             })?,
-            std::io::SeekFrom::Current(c) => (self.read_offset as i64).checked_add(c).ok_or_else(
-                || std::io::Error::new(std::io::ErrorKind::InvalidInput, "seek offset overflow"),
-            )?,
+            std::io::SeekFrom::Current(c) => {
+                (self.read_offset as i64).checked_add(c).ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "seek offset overflow")
+                })?
+            }
         };
         if target < 0 || target > size {
             return Err(std::io::Error::new(

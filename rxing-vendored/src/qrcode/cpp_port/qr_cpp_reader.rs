@@ -12,7 +12,9 @@ use crate::{
 
 use super::{
     decoder::decode,
-    detector::{find_finder_patterns, generate_finder_pattern_sets, sample_mqr, sample_qr, sample_rmqr},
+    detector::{
+        find_finder_patterns, generate_finder_pattern_sets, sample_mqr, sample_qr, sample_rmqr,
+    },
 };
 
 #[derive(Default)]

@@ -130,7 +130,9 @@ fn is_invalid_format(error: &anyhow::Error) -> bool {
 }
 
 fn is_checksum(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<Error>().is_some_and(Error::is_checksum)
+    error
+        .downcast_ref::<Error>()
+        .is_some_and(Error::is_checksum)
 }
 
 fn is_retryable_decode_error(error: &anyhow::Error) -> bool {
@@ -142,7 +144,9 @@ fn decode_bitmatrix_parser_with_hints(
     hints: &DecodeHints,
 ) -> Result<DecoderRXingResult> {
     let version = parser.read_version()?;
-    let ec_level = parser.read_format_information()?.get_error_correction_level();
+    let ec_level = parser
+        .read_format_information()?
+        .get_error_correction_level();
 
     // Read codewords
     let codewords = parser.read_codewords()?;

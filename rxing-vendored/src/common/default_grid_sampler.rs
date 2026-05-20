@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use anyhow::Result;
 use crate::{Error, Point, point};
+use anyhow::Result;
 
 use super::{BitMatrix, GridSampler, SamplerControl};
 
@@ -80,7 +80,10 @@ impl GridSampler for DefaultGridSampler {
 
         let project_corner = |p: Point| -> Point {
             for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x && p.x <= p1.x && p0.y <= p.y && p.y <= p1.y
+                if p0.x <= p.x
+                    && p.x <= p1.x
+                    && p0.y <= p.y
+                    && p.y <= p1.y
                     && let Some(transformed) = transform.transform_point(p)
                 {
                     return transformed + point(0.5, 0.5);

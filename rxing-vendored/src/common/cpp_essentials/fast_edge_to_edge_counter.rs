@@ -1,9 +1,6 @@
 use anyhow::Result;
 
-use crate::{
-    Error,
-    common::BitMatrix,
-};
+use crate::{Error, common::BitMatrix};
 
 use super::BitMatrixCursorTrait;
 
@@ -24,13 +21,14 @@ impl FastEdgeToEdgeCounter<'_> {
         let width = cur.img().width() as isize;
         let height = cur.img().height() as isize;
         let p = cur.p().y as isize * width + cur.p().x as isize;
-        let image_len = width.checked_mul(height).ok_or_else(|| {
-            Error::invalid_argument("FastEdgeToEdgeCounter: image size overflow")
-        })?;
+        let image_len = width
+            .checked_mul(height)
+            .ok_or_else(|| Error::invalid_argument("FastEdgeToEdgeCounter: image size overflow"))?;
         if !(0..image_len).contains(&p) {
             return Err(Error::out_of_bounds(
                 "FastEdgeToEdgeCounter: cursor position is outside the image",
-            ).into());
+            )
+            .into());
         }
         let p = p as u32;
 

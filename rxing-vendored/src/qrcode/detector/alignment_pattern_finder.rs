@@ -16,10 +16,7 @@
 
 use anyhow::Result;
 
-use crate::{
-    Error, PointCallback,
-    common::BitMatrix,
-};
+use crate::{Error, PointCallback, common::BitMatrix};
 
 use super::AlignmentPattern;
 
@@ -161,10 +158,7 @@ impl<'a> AlignmentPatternFinder<'a> {
         // Hmm, nothing we saw was observed and confirmed twice. If we had
         // any guess at all, return it.
         if !self.possible_centers.is_empty() {
-            Ok(*(self
-                .possible_centers
-                .first()
-                .ok_or(Error::OutOfBounds))?)
+            Ok(*(self.possible_centers.first().ok_or(Error::OutOfBounds))?)
         } else {
             Err(Error::NotFound.into())
         }
@@ -238,7 +232,9 @@ impl<'a> AlignmentPatternFinder<'a> {
 
         // Now also count down from center
         i = start_i as i32 + 1;
-        while i < max_i as i32 && image.get(center_j, i as u32) && cross_check_state_count[1] <= max_count
+        while i < max_i as i32
+            && image.get(center_j, i as u32)
+            && cross_check_state_count[1] <= max_count
         {
             cross_check_state_count[1] += 1;
             i += 1;
@@ -302,11 +298,16 @@ impl<'a> AlignmentPatternFinder<'a> {
         );
 
         if !center_i.is_nan() {
-            let estimated_module_size = (state_count[0] + state_count[1] + state_count[2]) as f32 / 3.0;
+            let estimated_module_size =
+                (state_count[0] + state_count[1] + state_count[2]) as f32 / 3.0;
             for center in &self.possible_centers {
                 // Look for about the same center and module size:
                 if center.about_equals(estimated_module_size, center_i, center_j) {
-                    return Some(center.combine_estimate(center_i, center_j, estimated_module_size));
+                    return Some(center.combine_estimate(
+                        center_i,
+                        center_j,
+                        estimated_module_size,
+                    ));
                 }
             }
             // Hadn't found this before; save it

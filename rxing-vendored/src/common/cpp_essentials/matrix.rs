@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::{Error, Point};
+use anyhow::Result;
 
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct Matrix<T: Default + Clone + Copy> {
@@ -10,13 +10,14 @@ pub struct Matrix<T: Default + Clone + Copy> {
 
 impl<T: Default + Clone + Copy> Matrix<T> {
     pub fn with_data(width: usize, height: usize, data: Vec<Option<T>>) -> Result<Matrix<T>> {
-        let expected = width.checked_mul(height).ok_or_else(|| {
-            Error::invalid_argument("invalid size: width * height overflow")
-        })?;
+        let expected = width
+            .checked_mul(height)
+            .ok_or_else(|| Error::invalid_argument("invalid size: width * height overflow"))?;
         if data.len() != expected {
             return Err(Error::invalid_argument(
                 "invalid size: data length does not match width * height",
-            ).into());
+            )
+            .into());
         }
         Ok(Self {
             width,
@@ -26,9 +27,9 @@ impl<T: Default + Clone + Copy> Matrix<T> {
     }
 
     pub fn new(width: usize, height: usize) -> Result<Matrix<T>> {
-        let size = width.checked_mul(height).ok_or_else(|| {
-            Error::invalid_argument("invalid size: width * height is too big")
-        })?;
+        let size = width
+            .checked_mul(height)
+            .ok_or_else(|| Error::invalid_argument("invalid size: width * height is too big"))?;
         Ok(Self {
             width,
             height,
@@ -67,7 +68,8 @@ impl<T: Default + Clone + Copy> Matrix<T> {
             return Err(Error::out_of_bounds(format!(
                 "set: coordinates ({x}, {y}) outside {}x{} matrix",
                 self.width, self.height
-            )).into());
+            ))
+            .into());
         }
         let offset = Self::get_offset(x, y, self.width);
         self.data[offset] = Some(value);
@@ -83,13 +85,15 @@ impl<T: Default + Clone + Copy> Matrix<T> {
             return Err(Error::invalid_argument(format!(
                 "set_point: non-finite coordinates ({}, {})",
                 p.x, p.y
-            )).into());
+            ))
+            .into());
         }
         if p.x < 0.0 || p.y < 0.0 {
             return Err(Error::out_of_bounds(format!(
                 "set_point: negative coordinates ({}, {})",
                 p.x, p.y
-            )).into());
+            ))
+            .into());
         }
         let x = f64::from(p.x);
         let y = f64::from(p.y);
@@ -97,13 +101,15 @@ impl<T: Default + Clone + Copy> Matrix<T> {
             return Err(Error::out_of_bounds(format!(
                 "set_point: coordinates ({}, {}) outside {}x{} matrix",
                 p.x, p.y, self.width, self.height
-            )).into());
+            ))
+            .into());
         }
         if x > usize::MAX as f64 || y > usize::MAX as f64 {
             return Err(Error::out_of_bounds(format!(
                 "set_point: coordinates ({}, {}) cannot be represented as usize",
                 p.x, p.y
-            )).into());
+            ))
+            .into());
         }
         self.set(x as usize, y as usize, value)
     }

@@ -16,12 +16,8 @@
 
 use std::fmt;
 
+use crate::{Error, common::BitMatrix, qrcode::cpp_port::Type};
 use anyhow::Result;
-use crate::{
-    Error,
-    common::BitMatrix,
-    qrcode::cpp_port::Type,
-};
 
 use super::{ErrorCorrectionLevel, FormatInformation};
 
@@ -92,8 +88,8 @@ impl Version {
         let ec_codewords = ec_blocks[0].get_eccodewords_per_block();
         let ecb_array = ec_blocks[0].get_ecblocks();
         for ecb_array_element in ecb_array {
-            total +=
-                ecb_array_element.get_count() * (ecb_array_element.get_data_codewords() + ec_codewords);
+            total += ecb_array_element.get_count()
+                * (ecb_array_element.get_data_codewords() + ec_codewords);
         }
 
         let symbol_type = if ec_blocks[0].get_eccodewords_per_block() < 7
@@ -174,7 +170,8 @@ impl Version {
             }
             // Otherwise see if this is the closest to a real version info bit string
             // we have seen so far
-            let bits_difference = FormatInformation::num_bits_differing(version_bits, target_version);
+            let bits_difference =
+                FormatInformation::num_bits_differing(version_bits, target_version);
             if bits_difference < best_difference {
                 best_version = i + 7;
                 best_difference = bits_difference;

@@ -23,8 +23,8 @@ use std::borrow::Cow;
 
 use once_cell::sync::OnceCell;
 
-use anyhow::Result;
 use crate::{Binarizer, Error, LuminanceSource};
+use anyhow::Result;
 
 use super::{BitArray, BitMatrix, LineOrientation};
 
@@ -227,7 +227,9 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         Ok(matrix)
     }
 
-    fn estimate_black_point<const BUCKET_COUNT: usize>(buckets: &[u32; BUCKET_COUNT]) -> Result<u32> {
+    fn estimate_black_point<const BUCKET_COUNT: usize>(
+        buckets: &[u32; BUCKET_COUNT],
+    ) -> Result<u32> {
         // Find the tallest peak in the histogram.
         let mut max_bucket_count = 0;
         let mut first_peak = 0;
@@ -263,9 +265,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
-            return Err(Error::not_found(
-                "second_peak - first_peak <= numBuckets / 16 ",
-            ).into());
+            return Err(Error::not_found("second_peak - first_peak <= numBuckets / 16 ").into());
         }
 
         // Find a valley between them that is low and closer to the white peak.

@@ -3,7 +3,7 @@ use crate::{
     common::{
         BitMatrix, Quadrilateral,
         cpp_essentials::{
-            Direction, FixedPattern, is_pattern, PatternRow, PatternType, PatternView,
+            Direction, FixedPattern, PatternRow, PatternType, PatternView, is_pattern,
         },
     },
     point,
@@ -177,8 +177,10 @@ pub fn center_of_double_cross(
         point(1.0, 1.0),
         point(1.0, -1.0),
     ] {
-        let avr1 = average_edge_pixels(&mut EdgeTracer::new(image, center, d), range, num_of_edges)?;
-        let avr2 = average_edge_pixels(&mut EdgeTracer::new(image, center, -d), range, num_of_edges)?;
+        let avr1 =
+            average_edge_pixels(&mut EdgeTracer::new(image, center, d), range, num_of_edges)?;
+        let avr2 =
+            average_edge_pixels(&mut EdgeTracer::new(image, center, -d), range, num_of_edges)?;
 
         sum += avr1 + avr2;
     }
@@ -571,7 +573,8 @@ pub fn locate_concentric_pattern<const E2E: bool, const LEN: usize, const SUM: u
 
     for d in [point(1.0, 1.0), point(1.0, -1.0)] {
         cur.set_direction(d); // THIS COULD POSSIBLY BE WRONG, WE MIGHT MEAN TO CLONE cur EACH RUN?
-        let spread = check_symmetric_pattern::<E2E, LEN, SUM, _>(&mut cur, pattern, range * 2, false);
+        let spread =
+            check_symmetric_pattern::<E2E, LEN, SUM, _>(&mut cur, pattern, range * 2, false);
         if spread != 0 {
             update_min_max(&mut min_spread, &mut max_spread, spread);
         } else {
@@ -586,7 +589,8 @@ pub fn locate_concentric_pattern<const E2E: bool, const LEN: usize, const SUM: u
         return None;
     }
 
-    let new_center = finetune_concentric_pattern_center(image, cur.p(), range, pattern.len() as u32)?;
+    let new_center =
+        finetune_concentric_pattern_center(image, cur.p(), range, pattern.len() as u32)?;
 
     Some(ConcentricPattern {
         p: new_center,

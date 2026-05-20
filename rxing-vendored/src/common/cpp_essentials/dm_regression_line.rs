@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::{Error, Point};
+use anyhow::Result;
 
 use super::RegressionLineTrait;
 
@@ -245,15 +245,8 @@ impl DMRegressionLine {
 
         // calculate the (expected average) distance of two adjacent pixels
         let unit_pixel_dist = Point::length(Point::bresenham_direction(
-            self.points
-                .last()
-                .copied()
-                .ok_or(Error::OutOfBounds)?
-                - self
-                    .points
-                    .first()
-                    .copied()
-                    .ok_or(Error::OutOfBounds)?,
+            self.points.last().copied().ok_or(Error::OutOfBounds)?
+                - self.points.first().copied().ok_or(Error::OutOfBounds)?,
         )) as f64;
 
         // calculate the width of 2 modules (first black pixel to first black pixel)
@@ -275,12 +268,7 @@ impl DMRegressionLine {
             sum_front
                 + Point::distance(
                     end,
-                    self.project(
-                        self.points
-                            .last()
-                            .copied()
-                            .ok_or(Error::OutOfBounds)?,
-                    ),
+                    self.project(self.points.last().copied().ok_or(Error::OutOfBounds)?),
                 ) as f64,
         );
         mod_sizes[0] = 0.0; // the first element is an invalid sum_back value, would be pop_front() if vector supported this

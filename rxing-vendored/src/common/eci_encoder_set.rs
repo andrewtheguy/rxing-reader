@@ -166,7 +166,8 @@ impl ECIEncoderSet {
         if eci == Eci::Unknown {
             return Err(Error::invalid_state(format!(
                 "no ECI assignment for encoder index {encoder_index}"
-            )).into());
+            ))
+            .into());
         }
         Ok(eci)
     }

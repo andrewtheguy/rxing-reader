@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::{Error, Point};
+use anyhow::Result;
 
 use super::RegressionLineTrait;
 

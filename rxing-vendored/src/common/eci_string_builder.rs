@@ -201,7 +201,8 @@ impl ECIStringBuilder {
                 return None;
             }
         } else if eci == Eci::Unknown
-            && let Some(found_encoding) = string_utils::guess_charset(bytes, &DecodeHints::default())
+            && let Some(found_encoding) =
+                string_utils::guess_charset(bytes, &DecodeHints::default())
             && let Ok(found_encoded_str) = found_encoding.decode(bytes)
         {
             encoded_string.push_str(&found_encoded_str);

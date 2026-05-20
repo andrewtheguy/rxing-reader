@@ -2,10 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 
-use crate::{
-    Error, Point,
-    common::BitMatrix,
-};
+use crate::{Error, Point, common::BitMatrix};
 
 use crate::common::cpp_essentials::ByteMatrix;
 
@@ -214,9 +211,7 @@ impl<'a> EdgeTracer<'_> {
                                 if history
                                     .read()
                                     .map_err(|_| {
-                                        Error::invalid_state(
-                                            "Failed to acquire read lock",
-                                        )
+                                        Error::invalid_state("Failed to acquire read lock")
                                     })?
                                     .get(self.p.x as u32, self.p.y as u32)
                                     == self.state as u8
@@ -226,9 +221,7 @@ impl<'a> EdgeTracer<'_> {
                                 history
                                     .write()
                                     .map_err(|_| {
-                                        Error::invalid_state(
-                                            "Failed to acquire write lock",
-                                        )
+                                        Error::invalid_state("Failed to acquire write lock")
                                     })?
                                     .set(self.p.x as u32, self.p.y as u32, self.state as u8);
                             }
@@ -282,11 +275,7 @@ impl<'a> EdgeTracer<'_> {
                 }
                 if !self.update_direction_from_origin(
                     self.p - line.project(self.p)
-                        + **line
-                            .points()
-                            .first()
-                            .as_ref()
-                            .ok_or(Error::OutOfBounds)?,
+                        + **line.points().first().as_ref().ok_or(Error::OutOfBounds)?,
                 ) {
                     return Ok(false);
                 }
@@ -322,12 +311,7 @@ impl<'a> EdgeTracer<'_> {
             }
 
             if !line.points().is_empty()
-                && &&self.p
-                    == line
-                        .points()
-                        .last()
-                        .as_ref()
-                        .ok_or(Error::OutOfBounds)?
+                && &&self.p == line.points().last().as_ref().ok_or(Error::OutOfBounds)?
             {
                 return Ok(false);
             }
@@ -366,12 +350,7 @@ impl<'a> EdgeTracer<'_> {
                 // to prevent a dead lock. see #245.png
                 while Point::distance(
                     np,
-                    line.project(
-                        line.points()
-                            .last()
-                            .copied()
-                            .ok_or(Error::OutOfBounds)?,
-                    ),
+                    line.project(line.points().last().copied().ok_or(Error::OutOfBounds)?),
                 ) < 1.0
                 {
                     np += self.d;
@@ -383,12 +362,7 @@ impl<'a> EdgeTracer<'_> {
                 } else {
                     Point::dot(
                         Point::main_direction(self.d),
-                        self.p
-                            - line
-                                .points()
-                                .last()
-                                .copied()
-                                .ok_or(Error::OutOfBounds)?,
+                        self.p - line.points().last().copied().ok_or(Error::OutOfBounds)?,
                     )
                 };
                 line.add(self.p)?;
@@ -401,11 +375,7 @@ impl<'a> EdgeTracer<'_> {
                         }
                         if !self.update_direction_from_origin(
                             self.p - line.project(self.p)
-                                + line
-                                    .points()
-                                    .first()
-                                    .copied()
-                                    .ok_or(Error::OutOfBounds)?,
+                                + line.points().first().copied().ok_or(Error::OutOfBounds)?,
                         ) {
                             return Ok(false);
                         }
