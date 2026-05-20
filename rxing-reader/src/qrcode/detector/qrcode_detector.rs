@@ -31,12 +31,8 @@ use super::{
     QRCodeDetectorResult,
 };
 
-/**
- * <p>Encapsulates logic that can detect a QR Code in an image, even if the QR Code
- * is rotated or skewed, or partially obscured.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates logic that can detect a QR Code in an image, even if the QR Code
+/// is rotated or skewed, or partially obscured.
 pub struct Detector<'a> {
     image: &'a BitMatrix,
 }
@@ -52,25 +48,22 @@ impl<'a> Detector<'a> {
         self.image
     }
 
-    /**
-     * <p>Detects a QR Code in an image.</p>
-     *
-     * @return {@link DetectorRXingResult} encapsulating results of detecting a QR Code
-     * Returns a not-found error if QR Code cannot be found
-     * Returns an invalid-format error if a QR Code cannot be decoded
-     */
+    /// Detects a QR Code in an image.
+    ///
+    /// Returns [`QRCodeDetectorResult`] encapsulating results of detecting a QR Code.
+    /// Returns a not-found error if QR Code cannot be found
+    /// Returns an invalid-format error if a QR Code cannot be decoded
     pub fn detect(&mut self) -> Result<QRCodeDetectorResult> {
         self.detect_with_hints(&DecodeHints::default())
     }
 
-    /**
-     * <p>Detects a QR Code in an image.</p>
-     *
-     * @param hints optional hints to detector
-     * @return {@link DetectorRXingResult} encapsulating results of detecting a QR Code
-     * Returns a not-found error if QR Code cannot be found
-     * Returns an invalid-format error if a QR Code cannot be decoded
-     */
+    /// Detects a QR Code in an image.
+    ///
+    /// - `hints`: optional hints to detector
+    ///
+    /// Returns [`QRCodeDetectorResult`] encapsulating results of detecting a QR Code.
+    /// Returns a not-found error if QR Code cannot be found
+    /// Returns an invalid-format error if a QR Code cannot be decoded
     pub fn detect_with_hints(&mut self, hints: &DecodeHints) -> Result<QRCodeDetectorResult> {
         let result_point_callback = hints.need_result_point_callback.as_ref();
 
@@ -232,10 +225,8 @@ impl<'a> Detector<'a> {
         Ok(res)
     }
 
-    /**
-     * <p>Computes the dimension (number of modules on a size) of the QR Code based on the position
-     * of the finder patterns and estimated module size.</p>
-     */
+    /// Computes the dimension (number of modules on a size) of the QR Code based on the position
+    /// of the finder patterns and estimated module size.
     fn compute_dimension<T: Into<Point> + Copy>(
         top_left: T,
         top_right: T,
@@ -261,15 +252,14 @@ impl<'a> Detector<'a> {
         Ok(dimension as u32)
     }
 
-    /**
-     * <p>Computes an average estimated module size based on estimated derived from the positions
-     * of the three finder patterns.</p>
-     *
-     * @param top_left detected top-left finder pattern center
-     * @param top_right detected top-right finder pattern center
-     * @param bottom_left detected bottom-left finder pattern center
-     * @return estimated module size
-     */
+    /// Computes an average estimated module size based on estimated derived from the positions
+    /// of the three finder patterns.
+    ///
+    /// - `top_left`: detected top-left finder pattern center
+    /// - `top_right`: detected top-right finder pattern center
+    /// - `bottom_left`: detected bottom-left finder pattern center
+    ///
+    /// Returns estimated module size.
     pub fn calculate_module_size<T: Into<Point> + Copy>(
         &self,
         top_left: T,
@@ -282,11 +272,9 @@ impl<'a> Detector<'a> {
             / 2.0
     }
 
-    /**
-     * <p>Estimates module size based on two finder patterns -- it uses
-     * {@link #size_of_black_white_black_run_both_ways(int, int, int, int)} to figure the
-     * width of each, measuring along the axis between their centers.</p>
-     */
+    /// Estimates module size based on two finder patterns -- it uses
+    /// [`int, int, int)`] to figure the
+    /// width of each, measuring along the axis between their centers.
     fn calculate_module_size_one_way<T: Into<Point>>(&self, pattern: T, other_pattern: T) -> f32 {
         let pattern: Point = pattern.into();
         let other_pattern: Point = other_pattern.into();
@@ -314,11 +302,9 @@ impl<'a> Detector<'a> {
         (module_size_est1 + module_size_est2) / 14.0
     }
 
-    /**
-     * See {@link #size_of_black_white_black_run(int, int, int, int)}; computes the total width of
-     * a finder pattern by looking for a black-white-black run from the center in the direction
-     * of another point (another finder pattern center), and in the opposite direction too.
-     */
+    /// See [`int, int, int)`]; computes the total width of
+    /// a finder pattern by looking for a black-white-black run from the center in the direction
+    /// of another point (another finder pattern center), and in the opposite direction too.
     fn size_of_black_white_black_run_both_ways(
         &self,
         from_x: u32,
@@ -363,14 +349,12 @@ impl<'a> Detector<'a> {
         result - 1.0
     }
 
-    /**
-     * <p>This method traces a line from a point in the image, in the direction towards another point.
-     * It begins in a black region, and keeps going until it finds white, then black, then white again.
-     * It reports the distance from the start to this point.</p>
-     *
-     * <p>This is used when figuring out how wide a finder pattern is, when the finder pattern
-     * may be skewed or rotated.</p>
-     */
+    /// This method traces a line from a point in the image, in the direction towards another point.
+    /// It begins in a black region, and keeps going until it finds white, then black, then white again.
+    /// It reports the distance from the start to this point.
+    ///
+    /// This is used when figuring out how wide a finder pattern is, when the finder pattern
+    /// may be skewed or rotated.
     fn size_of_black_white_black_run(&self, from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> f32 {
         let mut from_x = from_x;
         let mut from_y = from_y;
@@ -438,17 +422,17 @@ impl<'a> Detector<'a> {
         f32::NAN
     }
 
-    /**
-     * <p>Attempts to locate an alignment pattern in a limited region of the image, which is
-     * guessed to contain it. This method uses {@link AlignmentPattern}.</p>
-     *
-     * @param overall_est_module_size estimated module size so far
-     * @param est_alignment_x x coordinate of center of area probably containing alignment pattern
-     * @param est_alignment_y y coordinate of above
-     * @param allowance_factor number of pixels in all directions to search from the center
-     * @return {@link AlignmentPattern} if found, or null otherwise
-     * Returns a not-found error if an unexpected error occurs during detection
-     */
+    /// Attempts to locate an alignment pattern in a limited region of the image, which is
+    /// guessed to contain it. This method uses [`AlignmentPattern`].
+    ///
+    /// - `overall_est_module_size`: estimated module size so far
+    /// - `est_alignment_x`: x coordinate of center of area probably containing alignment pattern
+    /// - `est_alignment_y`: y coordinate of above
+    /// - `allowance_factor`: number of pixels in all directions to search from the center
+    ///
+    /// Returns the alignment pattern if one is found.
+    ///
+    /// Returns a not-found error if an unexpected error occurs during detection.
     pub fn find_alignment_in_region(
         &self,
         overall_est_module_size: f32,

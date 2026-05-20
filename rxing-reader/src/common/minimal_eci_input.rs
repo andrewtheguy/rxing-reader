@@ -267,7 +267,7 @@ impl MinimalECIInput {
         Ok(())
     }
 
-    /// Minimially encode a string with the given characterset.
+    /// Finds the lowest-cost sequence of bytes and ECI designators for the input graphemes.
     ///
     /// Returns an error if the string cannot be encoded.
     pub fn encode_minimally(

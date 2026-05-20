@@ -21,9 +21,6 @@ use crate::{Error, common::BitMatrix};
 use super::DataMask;
 use crate::qrcode::common::{FormatInformation, Version, VersionRef};
 
-/**
- * @author Sean Owen
- */
 pub struct BitMatrixParser {
     bit_matrix: BitMatrix,
     parsed_version: Option<VersionRef>,
@@ -32,10 +29,9 @@ pub struct BitMatrixParser {
 }
 
 impl BitMatrixParser {
-    /**
-     * @param bit_matrix {@link BitMatrix} to parse
-     * Returns an invalid-format error if dimension is not >= 21 and 1 mod 4
-     */
+    /// - `bit_matrix`: [`BitMatrix`] to parse
+    ///
+    /// Returns an invalid-format error if dimension is not >= 21 and 1 mod 4
     pub fn new(bit_matrix: BitMatrix) -> Result<Self> {
         let dimension = bit_matrix.get_height();
         if dimension < 21 || (dimension & 0x03) != 1 {
@@ -53,13 +49,11 @@ impl BitMatrixParser {
         }
     }
 
-    /**
-     * <p>Reads format information from one of its two locations within the QR Code.</p>
-     *
-     * @return {@link FormatInformation} encapsulating the QR Code's format info
-     * Returns an invalid-format error if both format information locations cannot be parsed as
-     * the valid encoding of format information
-     */
+    /// Reads format information from one of its two locations within the QR Code.
+    ///
+    /// Returns [`FormatInformation`] encapsulating the QR Code's format info.
+    /// Returns an invalid-format error if both format information locations cannot be parsed as
+    /// the valid encoding of format information
     pub fn read_format_information(&mut self) -> Result<&FormatInformation> {
         if self.parsed_format_info.is_some() {
             return self.parsed_format_info.as_ref().ok_or_else(|| {
@@ -108,13 +102,11 @@ impl BitMatrixParser {
         })
     }
 
-    /**
-     * <p>Reads version information from one of its two locations within the QR Code.</p>
-     *
-     * @return {@link Version} encapsulating the QR Code's version
-     * Returns an invalid-format error if both version information locations cannot be parsed as
-     * the valid encoding of version information
-     */
+    /// Reads version information from one of its two locations within the QR Code.
+    ///
+    /// Returns [`Version`] encapsulating the QR Code's version.
+    /// Returns an invalid-format error if both version information locations cannot be parsed as
+    /// the valid encoding of version information
     pub fn read_version(&mut self) -> Result<VersionRef> {
         if let Some(pv) = self.parsed_version {
             return Ok(pv);
@@ -179,14 +171,12 @@ impl BitMatrixParser {
         }
     }
 
-    /**
-     * <p>Reads the bits in the {@link BitMatrix} representing the finder pattern in the
-     * correct order in order to reconstruct the codewords bytes contained within the
-     * QR Code.</p>
-     *
-     * @return bytes encoded within the QR Code
-     * Returns an invalid-format error if the exact number of bytes expected is not read
-     */
+    /// Reads the bits in the [`BitMatrix`] representing the finder pattern in the
+    /// correct order in order to reconstruct the codewords bytes contained within the
+    /// QR Code.
+    ///
+    /// Returns bytes encoded within the QR Code.
+    /// Returns an invalid-format error if the exact number of bytes expected is not read
     pub fn read_codewords(&mut self) -> Result<Vec<u8>> {
         let version = self.read_version()?;
 
@@ -255,9 +245,7 @@ impl BitMatrixParser {
         Ok(result)
     }
 
-    /**
-     * Revert the mask removal done while reading the code words. The bit matrix should revert to its original state.
-     */
+    /// Revert the mask removal done while reading the code words. The bit matrix should revert to its original state.
     pub fn remask(&mut self) -> Result<()> {
         if let Some(pfi) = &self.parsed_format_info {
             let data_mask: DataMask = pfi.get_data_mask().try_into()?;
@@ -269,21 +257,19 @@ impl BitMatrixParser {
         Ok(())
     }
 
-    /**
-     * Prepare the parser for a mirrored operation.
-     * This flag has effect only on the {@link #read_format_information()} and the
-     * {@link #read_version()}. Before proceeding with {@link #read_codewords()} the
-     * {@link #mirror()} method should be called.
-     *
-     * @param mirror Whether to read version and format information mirrored.
-     */
+    /// Prepare the parser for a mirrored operation.
+    /// This flag has effect only on [`Self::read_format_information`] and
+    /// [`Self::read_version`]. Before proceeding with
+    /// [`Self::read_codewords`], call [`Self::mirror`].
+    ///
+    /// - `mirror`: Whether to read version and format information mirrored.
     pub fn set_mirror(&mut self, mirror: bool) {
         self.parsed_version = None;
         self.parsed_format_info = None;
         self.mirror = mirror;
     }
 
-    /** Mirror the bit matrix in order to attempt a second reading. */
+    /// Mirror the bit matrix in order to attempt a second reading.
     pub fn mirror(&mut self) {
         for x in 0..self.bit_matrix.get_width() {
             for y in (x + 1)..self.bit_matrix.get_height() {

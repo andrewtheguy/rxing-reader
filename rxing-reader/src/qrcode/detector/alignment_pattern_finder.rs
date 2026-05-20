@@ -20,20 +20,19 @@ use crate::{Error, PointCallback, common::BitMatrix};
 
 use super::AlignmentPattern;
 
-/**
- * <p>This class attempts to find alignment patterns in a QR Code. Alignment patterns look like finder
- * patterns but are smaller and appear at regular intervals throughout the image.</p>
- *
- * <p>At the moment this only looks for the bottom-right alignment pattern.</p>
- *
- * <p>This is mostly a simplified copy of {@link FinderPatternFinder}. It is copied,
- * pasted and stripped down here for maximum performance but does unfortunately duplicate
- * some code.</p>
- *
- * <p>This class is thread-safe but not reentrant. Each thread must allocate its own object.</p>
- *
- * @author Sean Owen
- */
+/// Finds alignment patterns in a QR Code image.
+///
+/// Alignment patterns look like finder patterns but are smaller and appear at
+/// regular intervals throughout the image.
+///
+/// At the moment this only looks for the bottom-right alignment pattern.
+///
+/// This is mostly a simplified copy of [`super::FinderPatternFinder`]. It is copied,
+/// pasted and stripped down here for maximum performance but does unfortunately duplicate
+/// some code.
+///
+/// The finder borrows its input image and stores scan state, so use one finder
+/// per detection attempt.
 pub struct AlignmentPatternFinder<'a> {
     image: &'a BitMatrix,
     possible_centers: Vec<AlignmentPattern>,
@@ -46,16 +45,14 @@ pub struct AlignmentPatternFinder<'a> {
 }
 
 impl<'a> AlignmentPatternFinder<'a> {
-    /**
-     * <p>Creates a finder that will look in a portion of the whole image.</p>
-     *
-     * @param image image to search
-     * @param start_x left column from which to start searching
-     * @param start_y top row from which to start searching
-     * @param width width of region to search
-     * @param height height of region to search
-     * @param module_size estimated module size so far
-     */
+    /// Creates a finder that will look in a portion of the whole image.
+    ///
+    /// - `image`: image to search
+    /// - `start_x`: left column from which to start searching
+    /// - `start_y`: top row from which to start searching
+    /// - `width`: width of region to search
+    /// - `height`: height of region to search
+    /// - `module_size`: estimated module size so far
     pub fn new(
         image: &'a BitMatrix,
         start_x: u32,
@@ -77,13 +74,10 @@ impl<'a> AlignmentPatternFinder<'a> {
         }
     }
 
-    /**
-     * <p>This method attempts to find the bottom-right alignment pattern in the image. It is a bit messy since
-     * it's pretty performance-critical and so is written to be fast foremost.</p>
-     *
-     * @return {@link AlignmentPattern} if found
-     * Returns a not-found error if not found
-     */
+    /// This method attempts to find the bottom-right alignment pattern in the image. It is a bit messy since
+    /// it's pretty performance-critical and so is written to be fast foremost.
+    ///
+    /// Returns the alignment pattern, or a not-found error if no pattern is found.
     pub fn find(&mut self) -> Result<AlignmentPattern> {
         let start_x = self.start_x;
         let height = self.height;
@@ -167,20 +161,16 @@ impl<'a> AlignmentPatternFinder<'a> {
         }
     }
 
-    /**
-     * Given a count of black/white/black pixels just seen and an end position,
-     * figures the location of the center of this black/white/black run.
-     */
+    /// Given a count of black/white/black pixels just seen and an end position,
+    /// figures the location of the center of this black/white/black run.
     #[inline]
     fn center_from_end(state_count: &[u32], end: u32) -> f32 {
         (end as f32 - state_count[2] as f32) - state_count[1] as f32 / 2.0
     }
 
-    /**
-     * @param state_count count of black/white/black pixels just read
-     * @return true iff the proportions of the counts is close enough to the 1/1/1 ratios
-     *         used by alignment patterns to be considered a match
-     */
+    /// - `state_count`: count of black/white/black pixels just read
+    ///
+    /// Returns `true` when the counts are close enough to the 1/1/1 alignment-pattern ratio.
     fn found_pattern_cross(&self, state_count: &[u32]) -> bool {
         let module_size = self.module_size;
         let max_variance = module_size / 2.0;
@@ -192,17 +182,16 @@ impl<'a> AlignmentPatternFinder<'a> {
         true
     }
 
-    /**
-     * <p>After a horizontal scan finds a potential alignment pattern, this method
-     * "cross-checks" by scanning down vertically through the center of the possible
-     * alignment pattern to see if the same proportion is detected.</p>
-     *
-     * @param start_i row where an alignment pattern was detected
-     * @param center_j center of the section that appears to cross an alignment pattern
-     * @param max_count maximum reasonable number of modules that should be
-     * observed in any reading state, based on the results of the horizontal scan
-     * @return vertical center of alignment pattern, or {@link Float#NaN} if not found
-     */
+    /// After a horizontal scan finds a potential alignment pattern, this method
+    /// "cross-checks" by scanning down vertically through the center of the possible
+    /// alignment pattern to see if the same proportion is detected.
+    ///
+    /// - `start_i`: row where an alignment pattern was detected
+    /// - `center_j`: center of the section that appears to cross an alignment pattern
+    /// - `max_count`: maximum reasonable number of modules that should be
+    ///   observed in any reading state, based on the results of the horizontal scan
+    ///
+    /// Returns vertical center of alignment pattern, or [`Float::NaN`] if not found.
     fn cross_check_vertical(
         &self,
         start_i: u32,
@@ -274,17 +263,16 @@ impl<'a> AlignmentPatternFinder<'a> {
         }
     }
 
-    /**
-     * <p>This is called when a horizontal scan finds a possible alignment pattern. It will
-     * cross check with a vertical scan, and if successful, will see if this pattern had been
-     * found on a previous horizontal scan. If so, we consider it confirmed and conclude we have
-     * found the alignment pattern.</p>
-     *
-     * @param state_count reading state module counts from horizontal scan
-     * @param i row where alignment pattern may be found
-     * @param j end of possible alignment pattern in row
-     * @return {@link AlignmentPattern} if we have found the same pattern twice, or null if not
-     */
+    /// This is called when a horizontal scan finds a possible alignment pattern. It will
+    /// cross check with a vertical scan, and if successful, will see if this pattern had been
+    /// found on a previous horizontal scan. If so, we consider it confirmed and conclude we have
+    /// found the alignment pattern.
+    ///
+    /// - `state_count`: reading state module counts from horizontal scan
+    /// - `i`: row where alignment pattern may be found
+    /// - `j`: end of possible alignment pattern in row
+    ///
+    /// Returns an alignment pattern once the same center has been seen twice.
     fn handle_possible_center(
         &mut self,
         state_count: &[u32],

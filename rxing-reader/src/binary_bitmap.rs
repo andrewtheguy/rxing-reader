@@ -23,12 +23,9 @@ use crate::{
     common::{BitArray, BitMatrix, LineOrientation},
 };
 
-/**
- * This class is the core bitmap class used by ZXing to represent 1 bit data. Reader objects
- * accept a BinaryBitmap and attempt to decode it.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// One-bit view of an image produced by a [`Binarizer`].
+///
+/// Readers consume `BinaryBitmap` values when searching for barcodes.
 pub struct BinaryBitmap<B: Binarizer> {
     binarizer: B,
 }
@@ -38,83 +35,71 @@ impl<B: Binarizer> BinaryBitmap<B> {
         Self { binarizer }
     }
 
-    /**
-     * @return The width of the bitmap.
-     */
+    /// Returns the width of the bitmap.
     pub fn get_width(&self) -> usize {
         self.binarizer.get_width()
     }
 
-    /**
-     * @return The height of the bitmap.
-     */
+    /// Returns the height of the bitmap.
     pub fn get_height(&self) -> usize {
         self.binarizer.get_height()
     }
 
-    /**
-     * Converts one row of luminance data to 1 bit data. May actually do the conversion, or return
-     * cached data. Callers should assume this method is expensive and call it as seldom as possible.
-     * This method is intended for decoding 1D barcodes and may choose to apply sharpening.
-     *
-     * @param y The row to fetch, which must be in [0, bitmap height)
-     * @param row An optional preallocated array. If null or too small, it will be ignored.
-     *            If used, the Binarizer will call BitArray.clear(). Always use the returned object.
-     * @return The array of bits for this row (true means black).
-     * Returns a not-found error if row can't be binarized
-     */
+    /// Converts one row of luminance data to 1 bit data. May actually do the conversion, or return
+    /// cached data. Callers should assume this method is expensive and call it as seldom as possible.
+    /// This method is intended for decoding 1D barcodes and may choose to apply sharpening.
+    ///
+    /// - `y`: The row to fetch, which must be in `[0, height)`.
+    ///
+    /// Returns the row bits, where `true` means black.
+    /// Returns an error if the row cannot be binarized.
     pub fn get_black_row(&self, y: usize) -> Result<Cow<'_, BitArray>> {
         self.binarizer.get_black_row(y)
     }
 
-    /// Get a row or column of the image
+    /// Returns a black-pixel row or column from the underlying binarizer.
     pub fn get_black_line(&self, l: usize, lt: LineOrientation) -> Result<Cow<'_, BitArray>> {
         self.binarizer.get_black_line(l, lt)
     }
 
-    /**
-     * Converts a 2D array of luminance data to 1 bit. As above, assume this method is expensive
-     * and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
-     * may not apply sharpening. Therefore, a row from this matrix may not be identical to one
-     * fetched using getBlackRow(), so don't mix and match between them.
-     *
-     * @return The 2D array of bits for the image (true means black).
-     * Returns a not-found error if image can't be binarized to make a matrix
-     */
+    /// Converts a 2D array of luminance data to 1 bit. As above, assume this method is expensive
+    /// and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
+    /// may not apply sharpening. Therefore, a row from this matrix may not be identical to one
+    /// fetched using `get_black_row()`, so don't mix and match between them.
+    ///
+    /// Returns the mutable image matrix, where `true` means black.
+    /// Returns an error if the image cannot be binarized into a matrix.
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.binarizer.get_black_matrix_mut()
     }
 
-    /**
-     * Converts a 2D array of luminance data to 1 bit. As above, assume this method is expensive
-     * and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
-     * may not apply sharpening. Therefore, a row from this matrix may not be identical to one
-     * fetched using getBlackRow(), so don't mix and match between them.
-     *
-     * @return The 2D array of bits for the image (true means black).
-     * Returns a not-found error if image can't be binarized to make a matrix
-     */
+    /// Converts a 2D array of luminance data to 1 bit. As above, assume this method is expensive
+    /// and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
+    /// may not apply sharpening. Therefore, a row from this matrix may not be identical to one
+    /// fetched using `get_black_row()`, so don't mix and match between them.
+    ///
+    /// Returns the image matrix, where `true` means black.
+    /// Returns an error if the image cannot be binarized into a matrix.
     pub fn get_black_matrix(&self) -> Result<&BitMatrix> {
         self.binarizer.get_black_matrix()
     }
 
-    /**
-     * @return Whether this bitmap can be cropped.
-     */
+    /// Returns whether this bitmap can be cropped.
     pub fn is_crop_supported(&self) -> bool {
         self.binarizer.get_luminance_source().is_crop_supported()
     }
 
-    /**
-     * Returns a new object with cropped image data. Implementations may keep a reference to the
-     * original data rather than a copy. Only callable if isCropSupported() is true.
-     *
-     * @param left The left coordinate, which must be in [0,get_width())
-     * @param top The top coordinate, which must be in [0,get_height())
-     * @param width The width of the rectangle to crop.
-     * @param height The height of the rectangle to crop.
-     * @return A cropped version of this object, or an error if the luminance source cannot be cropped.
-     */
+    /// Returns a bitmap over cropped image data.
+    ///
+    /// Implementations may keep a reference to the original data rather than
+    /// copying it. Only call this when [`Self::is_crop_supported`] returns `true`.
+    ///
+    /// - `left`: The left coordinate, which must be in [0,get_width())
+    /// - `top`: The top coordinate, which must be in [0,get_height())
+    /// - `width`: The width of the rectangle to crop.
+    /// - `height`: The height of the rectangle to crop.
+    ///
+    /// Returns the cropped bitmap, or an error if the luminance source cannot be cropped.
     pub fn crop(&mut self, left: usize, top: usize, width: usize, height: usize) -> Result<Self> {
         let new_source = self
             .binarizer
@@ -125,19 +110,16 @@ impl<B: Binarizer> BinaryBitmap<B> {
         ))
     }
 
-    /**
-     * @return Whether this bitmap supports counter-clockwise rotation.
-     */
+    /// Returns whether this bitmap supports counter-clockwise rotation.
     pub fn is_rotate_supported(&self) -> bool {
         self.binarizer.get_luminance_source().is_rotate_supported()
     }
 
-    /**
-     * Returns a new object with rotated image data by 90 degrees counterclockwise.
-     * Only callable if {@link #isRotateSupported()} is true.
-     *
-     * @return A rotated version of this object, or an error if the luminance source cannot be rotated.
-     */
+    /// Returns a bitmap over image data rotated 90 degrees counter-clockwise.
+    ///
+    /// Only call this when [`Self::is_rotate_supported`] returns `true`.
+    ///
+    /// Returns the rotated bitmap, or an error if the luminance source cannot be rotated.
     pub fn rotate_counter_clockwise(&mut self) -> Result<Self> {
         let new_source = self
             .binarizer
@@ -148,12 +130,11 @@ impl<B: Binarizer> BinaryBitmap<B> {
         ))
     }
 
-    /**
-     * Returns a new object with rotated image data by 45 degrees counterclockwise.
-     * Only callable if {@link #isRotateSupported()} is true.
-     *
-     * @return A rotated version of this object, or an error if the luminance source cannot be rotated.
-     */
+    /// Returns a bitmap over image data rotated 45 degrees counter-clockwise.
+    ///
+    /// Only call this when [`Self::is_rotate_supported`] returns `true`.
+    ///
+    /// Returns the rotated bitmap, or an error if the luminance source cannot be rotated.
     pub fn rotate_counter_clockwise_45(&self) -> Result<Self> {
         let new_source = self
             .binarizer

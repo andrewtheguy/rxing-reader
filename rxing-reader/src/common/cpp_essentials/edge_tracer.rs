@@ -121,13 +121,11 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
         }
     }
 
-    /**
-     * @brief step_to_edge advances cursor to one step behind the next (or n-th) edge.
-     * @param nth number of edges to pass
-     * @param range max number of steps to take
-     * @param backup whether or not to backup one step so we land in front of the edge
-     * @return number of steps taken or 0 if moved outside of range/image
-     */
+    /// - `nth`: number of edges to pass
+    /// - `range`: max number of steps to take
+    /// - `backup`: whether or not to backup one step so we land in front of the edge
+    ///
+    /// Returns number of steps taken or 0 if moved outside of range/image.
     fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32 {
         let mut nth = nth.unwrap_or(1);
         let range = range.unwrap_or(0);

@@ -20,30 +20,25 @@ use std::str::FromStr;
 use crate::Error;
 use anyhow::Result;
 
-/**
- * <p>See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
- * defined by the QR code standard.</p>
- *
- * @author Sean Owen
- */
+/// See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
+/// defined by the QR code standard.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ErrorCorrectionLevel {
-    /** L = ~7% correction */
+    /// L = ~7% correction
     L, //0x01
-    /** M = ~15% correction */
+    /// M = ~15% correction
     M, //0x00
-    /** Q = ~25% correction */
+    /// Q = ~25% correction
     Q, //0x03
-    /** H = ~30% correction */
+    /// H = ~30% correction
     H, //0x02
     Invalid,
 }
 
 impl ErrorCorrectionLevel {
-    /**
-     * @param bits int containing the two bits encoding a QR Code's error correction level
-     * @return ErrorCorrectionLevel representing the encoded error correction level
-     */
+    /// - `bits`: int containing the two bits encoding a QR Code's error correction level
+    ///
+    /// Returns ErrorCorrectionLevel representing the encoded error correction level.
     pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
             0 => Ok(Self::M),

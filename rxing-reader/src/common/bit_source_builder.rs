@@ -16,11 +16,7 @@
 
 use std::io::Write;
 
-/**
- * Class that lets one easily build an array of bytes by appending bits at a time.
- *
- * @author Sean Owen
- */
+/// Builds a byte array by appending individual bit fields.
 pub struct BitSourceBuilder {
     output: Vec<u8>,
     next_byte: u32,

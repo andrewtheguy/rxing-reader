@@ -32,17 +32,12 @@ const LUMINANCE_BITS: usize = 5;
 const LUMINANCE_SHIFT: usize = 8 - LUMINANCE_BITS;
 const LUMINANCE_BUCKETS: usize = 1 << LUMINANCE_BITS;
 
-/**
- * This Binarizer implementation uses the old ZXing global histogram approach. It is suitable
- * for low-end mobile devices which don't have enough CPU or memory to use a local thresholding
- * algorithm. However, because it picks a global black point, it cannot handle difficult shadows
- * and gradients.
- *
- * Faster mobile devices and all desktop applications should probably use HybridBinarizer instead.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- * @author Sean Owen
- */
+/// This Binarizer implementation uses the old ZXing global histogram approach. It is suitable
+/// for low-end mobile devices which don't have enough CPU or memory to use a local thresholding
+/// algorithm. However, because it picks a global black point, it cannot handle difficult shadows
+/// and gradients.
+///
+/// Faster mobile devices and all desktop applications should probably use HybridBinarizer instead.
 pub struct GlobalHistogramBinarizer<LS: LuminanceSource> {
     //_luminances: Vec<u8>,
     width: usize,

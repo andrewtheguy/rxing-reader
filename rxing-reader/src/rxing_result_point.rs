@@ -4,12 +4,8 @@ use std::hash::Hash;
 
 use crate::ResultPoint;
 
-/**
- * <p>Encapsulates a point of interest in an image containing a barcode. Typically, this
- * would be the location of a finder pattern or the corner of the barcode, for example.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates a point of interest in an image containing a barcode. Typically, this
+/// would be the location of a finder pattern or the corner of the barcode, for example.
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, PartialOrd)]
 pub struct PointT<T> {
     pub x: T,
@@ -57,7 +53,7 @@ impl From<PointU> for Point {
     }
 }
 
-/** An alias for `Point::new`. */
+/// An alias for `Point::new`.
 #[inline]
 pub const fn point<T>(x: T, y: T) -> PointT<T>
 where
@@ -114,7 +110,7 @@ where
     }
 }
 
-/** This impl is temporary and is there to ease refactoring. */
+/// This impl is temporary and is there to ease refactoring.
 impl<T> ResultPoint for PointT<T>
 where
     T: Into<f32> + Copy,
@@ -363,9 +359,7 @@ where
         }
     }
 
-    /**
-     * Returns the z component of the cross product between vectors BC and BA.
-     */
+    /// Returns the z component of the cross product between vectors BC and BA.
     pub fn cross_product_z(a: PointT<T>, b: PointT<T>, c: PointT<T>) -> T {
         ((c.x - b.x) * (a.y - b.y)) - ((c.y - b.y) * (a.x - b.x))
     }

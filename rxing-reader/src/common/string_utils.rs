@@ -18,24 +18,17 @@ use crate::DecodeHints;
 
 use super::CharacterSet;
 
-/*
- * Common string-related functions.
- *
- * @author Sean Owen
- * @author Alex Dupre
- */
-
 const ASSUME_SHIFT_JIS: bool = false;
 
 pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::ShiftJis;
 
-/**
- * @param bytes bytes encoding a string, whose encoding should be guessed
- * @param hints decode hints if applicable
- * @return name of guessed encoding; at the moment will only guess one of:
- *  "SJIS", "UTF8", "ISO8859_1", or the platform default encoding if none
- *  of these can possibly be correct
- */
+/// - `bytes`: bytes encoding a string, whose encoding should be guessed
+/// - `hints`: decode hints if applicable
+///
+/// Returns the name of the guessed encoding.
+///
+/// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1, and
+/// encodings explicitly supplied in `hints`.
 pub fn guess_encoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> {
     let c = guess_charset(bytes, hints)?;
     if c == CharacterSet::ShiftJis {
@@ -49,15 +42,13 @@ pub fn guess_encoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str>
     }
 }
 
-/**
- * @param bytes bytes encoding a string, whose encoding should be guessed
- * @param hints decode hints if applicable
- * @return Charset of guessed encoding; at the moment will only guess one of:
- *  {@link #SHIFT_JIS_CHARSET}, {@link StandardCharsets#UTF_8},
- *  {@link StandardCharsets#ISO_8859_1}, {@link StandardCharsets#UTF_16},
- *  or the platform default encoding if
- *  none of these can possibly be correct
- */
+/// - `bytes`: bytes encoding a string, whose encoding should be guessed
+/// - `hints`: decode hints if applicable
+///
+/// Returns the guessed character set.
+///
+/// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1,
+/// UTF-16 via byte-order mark, and encodings explicitly supplied in `hints`.
 pub fn guess_charset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
     if let Some(cs_name) = &hints.character_set {
         return CharacterSet::get_character_set_by_name(cs_name);

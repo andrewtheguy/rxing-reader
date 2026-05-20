@@ -18,239 +18,137 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{BarcodeFormat, PointCallback};
 
-/**
- * Encapsulates a type of hint that a caller may pass to a barcode reader to help it
- * more quickly or accurately decode it. It is up to implementations to decide what,
- * if anything, to do with the information that is supplied.
- *
- * @author Sean Owen
- * @author dswitkin@google.com (Daniel Switkin)
- * @see Reader#decode(BinaryBitmap,java.util.Map)
- */
+/// Identifies a hint that can be passed to a barcode reader.
+///
+/// Hints let callers trade speed for accuracy, restrict the expected formats,
+/// provide character-set information, or request callbacks while decoding a
+/// [`crate::BinaryBitmap`]. Each reader decides which hints it understands.
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
 pub enum DecodeHintType {
-    /**
-     * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
-     */
+    /// Unspecified, application-specific hint. Maps to an unspecified value.
     OTHER,
 
-    /**
-     * Image is known to be of one of a few possible formats.
-     * Maps to a {@link List} of {@link BarcodeFormat}s.
-     */
+    /// Image is known to be of one of a few possible formats.
+    /// Maps to a [`Vec`] of [`BarcodeFormat`]s.
     PossibleFormats,
 
-    /**
-     * Spend more time to try to find a barcode; optimize for accuracy, not speed.
-     * Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Spend more time looking for a barcode; optimize for accuracy rather than speed.
+    /// The associated value is a boolean flag.
     TryHarder,
 
-    /**
-     * Specifies what character encoding to use when decoding, where applicable (type String)
-     */
+    /// Character encoding to use when decoding, where applicable.
     CharacterSet,
 
-    /**
-     * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
-     */
+    /// Allowed encoded-data lengths; reject anything else.
     AllowedLengths,
 
-    /**
-     * Assume Code 39 codes employ a check digit. Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Assume Code 39 symbols include a check digit.
     AssumeCode39CheckDigit,
 
-    /**
-     * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
-     * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Treat the barcode as GS1 data and adjust format-specific behavior as needed.
+    /// For example, this affects FNC1 handling for Code 128 (GS1-128).
     AssumeGs1,
 
-    /**
-     * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
-     * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
-     * to not be. Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Return the alphabetic Codabar start/end guards instead of stripping them.
     ReturnCodabarStartEnd,
 
-    /**
-     * The caller needs to be notified via callback when a possible {@link Point}
-     * is found. Maps to a {@link PointCallback}.
-     */
+    /// The caller needs to be notified via callback when a possible [`crate::Point`]
+    /// is found. Maps to a [`PointCallback`].
     NeedResultPointCallback,
 
-    /**
-     * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
-     * Maps to an {@code int[]} of the allowed extension lengths, for example [2], [5], or [2, 5].
-     * If it is optional to have an extension, do not set this hint. If this is set,
-     * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
-     * at all.
-     */
+    /// Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
+    /// The value contains allowed extension lengths such as `[2]`, `[5]`, or `[2, 5]`.
+    /// If it is optional to have an extension, do not set this hint. If this is set,
+    /// and a UPC or EAN barcode is found but an extension is not, then no result will be returned
+    /// at all.
     AllowedEanExtensions,
 
-    /*
-     * Will translate the ASCII values parsed by the Telepen reader into the Telepen Numeric form.
-     */
+    /// Translate ASCII values parsed by the Telepen reader into Telepen Numeric form.
     TelepenAsNumeric,
-    /*
-     * Data type the hint is expecting.
-     * Among the possible values the {@link Void} stands out as being used for
-     * hints that do not expect a value to be supplied (flag hints). Such hints
-     * will possibly have their value ignored, or replaced by a
-     * {@link Boolean#TRUE}. Hint suppliers should probably use
-     * {@link Boolean#TRUE} as directed by the actual hint documentation.
-     */
-    /*
-    private final Class<?> valueType;
-
-    DecodeHintType(Class<?> valueType) {
-      this.valueType = valueType;
-    }
-
-    public Class<?> getValueType() {
-      return valueType;
-    }*/
 }
 
 pub enum DecodeHintValue {
-    /**
-     * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
-     */
+    /// Unspecified, application-specific hint. Maps to an unspecified value.
     Other(String),
 
-    /**
-     * Image is known to be of one of a few possible formats.
-     * Maps to a {@link List} of {@link BarcodeFormat}s.
-     */
+    /// Image is known to be of one of a few possible formats.
+    /// Maps to a [`Vec`] of [`BarcodeFormat`]s.
     PossibleFormats(HashSet<BarcodeFormat>),
 
-    /**
-     * Spend more time to try to find a barcode; optimize for accuracy, not speed.
-     * Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Spend more time looking for a barcode; optimize for accuracy rather than speed.
     TryHarder(bool),
 
-    /**
-     * Specifies what character encoding to use when decoding, where applicable (type String)
-     */
+    /// Character encoding to use when decoding, where applicable.
     CharacterSet(String),
 
-    /**
-     * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
-     */
+    /// Allowed encoded-data lengths; reject anything else.
     AllowedLengths(Vec<u32>),
 
-    /**
-     * Assume Code 39 codes employ a check digit. Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Assume Code 39 symbols include a check digit.
     AssumeCode39CheckDigit(bool),
 
-    /**
-     * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
-     * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Treat the barcode as GS1 data and adjust format-specific behavior as needed.
+    /// For example, this affects FNC1 handling for Code 128 (GS1-128).
     AssumeGs1(bool),
 
-    /**
-     * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
-     * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
-     * to not be. Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Return the alphabetic Codabar start/end guards instead of stripping them.
     ReturnCodabarStartEnd(bool),
 
-    /**
-     * The caller needs to be notified via callback when a possible {@link Point}
-     * is found. Maps to a {@link PointCallback}.
-     */
+    /// The caller needs to be notified via callback when a possible [`crate::Point`]
+    /// is found. Maps to a [`PointCallback`].
     NeedResultPointCallback(PointCallback),
 
-    /**
-     * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
-     * Maps to an {@code int[]} of the allowed extension lengths, for example [2], [5], or [2, 5].
-     * If it is optional to have an extension, do not set this hint. If this is set,
-     * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
-     * at all.
-     */
+    /// Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
+    /// The value contains allowed extension lengths such as `[2]`, `[5]`, or `[2, 5]`.
+    /// If it is optional to have an extension, do not set this hint. If this is set,
+    /// and a UPC or EAN barcode is found but an extension is not, then no result will be returned
+    /// at all.
     AllowedEanExtensions(Vec<u32>),
 
-    /**
-     * Translate the ASCII values parsed by the Telepen reader into the Telepen Numeric form; use {@link Boolean#TRUE}.
-     */
+    /// Translate ASCII values parsed by the Telepen reader into Telepen Numeric form.
     TelepenAsNumeric(bool),
 }
 
 #[derive(Default)]
 pub struct DecodeHints {
-    /**
-     * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
-     */
+    /// Unspecified, application-specific hint. Maps to an unspecified value.
     pub other: Option<String>,
 
-    /**
-     * Image is known to be of one of a few possible formats.
-     * Maps to a {@link List} of {@link BarcodeFormat}s.
-     */
+    /// Image is known to be of one of a few possible formats.
+    /// Maps to a [`Vec`] of [`BarcodeFormat`]s.
     pub possible_formats: Option<HashSet<BarcodeFormat>>,
 
-    /**
-     * Spend more time to try to find a barcode; optimize for accuracy, not speed.
-     * Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Spend more time looking for a barcode; optimize for accuracy rather than speed.
     pub try_harder: Option<bool>,
 
-    /**
-     * Specifies what character encoding to use when decoding, where applicable (type String)
-     */
+    /// Character encoding to use when decoding, where applicable.
     pub character_set: Option<String>,
 
-    /**
-     * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
-     */
+    /// Allowed encoded-data lengths; reject anything else.
     pub allowed_lengths: Option<Vec<u32>>,
 
-    /**
-     * Assume Code 39 codes employ a check digit. Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Assume Code 39 symbols include a check digit.
     pub assume_code_39_check_digit: Option<bool>,
 
-    /**
-     * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
-     * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn't matter what it maps to;
-     * use {@link Boolean#TRUE}.
-     */
+    /// Treat the barcode as GS1 data and adjust format-specific behavior as needed.
+    /// For example, this affects FNC1 handling for Code 128 (GS1-128).
     pub assume_gs1: Option<bool>,
 
-    /**
-     * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
-     * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
-     * to not be. Doesn't matter what it maps to; use {@link Boolean#TRUE}.
-     */
+    /// Return the alphabetic Codabar start/end guards instead of stripping them.
     pub return_codabar_start_end: Option<bool>,
 
-    /**
-     * The caller needs to be notified via callback when a possible {@link Point}
-     * is found. Maps to a {@link PointCallback}.
-     */
+    /// The caller needs to be notified via callback when a possible [`crate::Point`]
+    /// is found. Maps to a [`PointCallback`].
     pub need_result_point_callback: Option<PointCallback>,
 
-    /**
-     * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
-     * Maps to an {@code int[]} of the allowed extension lengths, for example [2], [5], or [2, 5].
-     * If it is optional to have an extension, do not set this hint. If this is set,
-     * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
-     * at all.
-     */
+    /// Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
+    /// The value contains allowed extension lengths such as `[2]`, `[5]`, or `[2, 5]`.
+    /// If it is optional to have an extension, do not set this hint. If this is set,
+    /// and a UPC or EAN barcode is found but an extension is not, then no result will be returned
+    /// at all.
     pub allowed_ean_extensions: Option<Vec<u32>>,
 
-    /**
-     * Translate the ASCII values parsed by the Telepen reader into the Telepen Numeric form; use {@link Boolean#TRUE}.
-     */
+    /// Translate ASCII values parsed by the Telepen reader into Telepen Numeric form.
     pub telepen_as_numeric: Option<bool>,
 }
 

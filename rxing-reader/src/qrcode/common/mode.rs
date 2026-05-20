@@ -20,12 +20,8 @@ use anyhow::Result;
 
 use super::Version;
 
-/**
- * <p>See ISO 18004:2006, 6.4.1, Tables 2 and 3. This enum encapsulates the various modes in which
- * data can be encoded to bits in the QR code standard.</p>
- *
- * @author Sean Owen
- */
+/// See ISO 18004:2006, 6.4.1, Tables 2 and 3. This enum encapsulates the various modes in which
+/// data can be encoded to bits in the QR code standard.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Mode {
     Terminator,
@@ -37,16 +33,16 @@ pub enum Mode {
     Kanji,
     Fnc1FirstPosition,
     Fnc1SecondPosition,
-    /** See GBT 18284-2000; "Hanzi" is a transliteration of this mode name. */
+    /// See GBT 18284-2000; "Hanzi" is a transliteration of this mode name.
     Hanzi,
 }
 
 impl Mode {
-    /**
-     * @param bits four bits encoding a QR Code data mode
-     * @return Mode encoded by these bits
-     * Returns an invalid-argument error if bits do not correspond to a known mode
-     */
+    /// Converts the four-bit QR Code mode indicator into a [`Mode`].
+    ///
+    /// - `bits`: four bits encoding a QR Code data mode.
+    ///
+    /// Returns an invalid-argument error if `bits` does not correspond to a known mode.
     pub fn for_bits(bits: u8) -> Result<Self> {
         match bits {
             0x0 => Ok(Self::Terminator),
@@ -70,11 +66,10 @@ impl Mode {
         }
     }
 
-    /**
-     * @param version version in question
-     * @return number of bits used, in this QR Code symbol {@link Version}, to encode the
-     *         count of characters that will follow encoded in this Mode
-     */
+    /// Returns the character-count field width for this mode and QR version.
+    ///
+    /// The returned value is the number of bits used to encode the count of
+    /// characters that follow this mode indicator.
     pub fn get_character_count_bits(&self, version: &Version) -> u8 {
         let number = version.get_version_number();
 
@@ -133,12 +128,12 @@ impl Mode {
             4 - u32::from(version.is_rmqr())
         }) as u8
     }
-    /**
-     * @param bits variable number of bits encoding a QR Code data mode
-     * @param is_micro is this a MicroQRCode
-     * @return Mode encoded by these bits
-     * Returns an invalid-format error if bits do not correspond to a known mode
-     */
+    /// Converts a QR, Micro QR, or rMQR mode indicator into a [`Mode`].
+    ///
+    /// - `bits`: variable-width mode indicator.
+    /// - `qr_type`: QR symbol family that determines the mode table.
+    ///
+    /// Returns an invalid-format error if `bits` does not correspond to a known mode.
     pub fn codec_mode_for_bits(bits: u32, qr_type: Option<Type>) -> Result<Self> {
         let qr_type = qr_type.unwrap_or(Type::Model2);
         let bits = bits as usize;
@@ -175,11 +170,10 @@ impl Mode {
         .into())
     }
 
-    /**
-     * @param version version in question
-     * @return number of bits used, in this QR Code symbol {@link Version}, to encode the
-     *         count of characters that will follow encoded in this Mode
-     */
+    /// Returns the character-count field width for this mode and symbol version.
+    ///
+    /// The returned value is the number of bits used to encode the count of
+    /// characters that follow this mode indicator.
     pub fn character_count_bits(&self, version: &Version) -> u32 {
         let number = version.get_version_number() as usize;
         if version.is_micro() {

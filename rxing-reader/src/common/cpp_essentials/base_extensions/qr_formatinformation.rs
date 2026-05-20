@@ -11,10 +11,8 @@ pub const FORMAT_INFO_MASK_RMQR: u32 = 0x1FAB2; // Finder pattern side
 pub const FORMAT_INFO_MASK_RMQR_SUB: u32 = 0x20A7B; // Finder sub pattern side
 
 impl FormatInformation {
-    /**
-     * @param format_info_bits1 format info indicator, with mask still applied
-     * @param format_info_bits2 second copy of same info; both are checked at the same time to establish best match
-     */
+    /// - `format_info_bits1`: format info indicator, with mask still applied
+    /// - `format_info_bits2`: second copy of same info; both are checked at the same time to establish best match
     pub fn decode_qr(format_info_bits1: u32, format_info_bits2: u32) -> Self {
         // maks out the 'Dark Module' for mirrored and non-mirrored case (see Figure 25 in ISO/IEC 18004:2015)
         let mirrored_format_info_bits2 = Self::mirror_bits(
@@ -61,10 +59,8 @@ impl FormatInformation {
         fi
     }
 
-    /**
-     * @param format_info_bits1 format info indicator, with mask still applied
-     * @param format_info_bits2 second copy of same info; both are checked at the same time to establish best match
-     */
+    /// - `format_info_bits1`: format info indicator, with mask still applied
+    /// - `format_info_bits2`: second copy of same info; both are checked at the same time to establish best match
     pub fn decode_rmqr(format_info_bits1: u32, format_info_bits2: u32) -> Self {
         let mut fi = if format_info_bits2 != 0 {
             Self::find_best_format_info_rmqr(&[format_info_bits1], &[format_info_bits2])

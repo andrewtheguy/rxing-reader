@@ -21,9 +21,7 @@ use super::ErrorCorrectionLevel;
 pub const FORMAT_INFO_MASK_QR: u32 = 0x5412;
 pub const FORMAT_INFO_MASK_MODEL2: u32 = FORMAT_INFO_MASK_QR;
 
-/**
- * See ISO 18004:2006, Annex C, Table C.1
- */
+/// See ISO 18004:2006, Annex C, Table C.1
 pub const FORMAT_INFO_DECODE_LOOKUP: [[u32; 2]; 32] = [
     [0x5412, 0x00],
     [0x5125, 0x01],
@@ -59,14 +57,11 @@ pub const FORMAT_INFO_DECODE_LOOKUP: [[u32; 2]; 32] = [
     [0x2BED, 0x1F],
 ];
 
-/**
- * <p>Encapsulates a QR Code's format information, including the data mask used and
- * error correction level.</p>
- *
- * @author Sean Owen
- * @see DataMask
- * @see ErrorCorrectionLevel
- */
+/// Encapsulates a QR Code's format information, including the data mask used and
+/// error correction level.
+///
+/// See DataMask.
+/// See ErrorCorrectionLevel.
 #[derive(Hash, Eq, PartialEq, Debug)]
 pub struct FormatInformation {
     pub hamming_distance: u32,
@@ -117,13 +112,12 @@ impl FormatInformation {
         (a ^ b).count_ones()
     }
 
-    /**
-     * @param maskedFormatInfo1 format info indicator, with mask still applied
-     * @param maskedFormatInfo2 second copy of same info; both are checked at the same time
-     *  to establish best match
-     * @return information about the format it specifies, or {@code null}
-     *  if doesn't seem to match any known pattern
-     */
+    /// - `maskedFormatInfo1`: format info indicator, with mask still applied
+    /// - `maskedFormatInfo2`: second copy of same info; both are checked at the same time
+    ///   to establish best match
+    ///
+    /// Returns information about the format it specifies, or `None`.
+    /// if doesn't seem to match any known pattern
     pub fn decode_format_information(
         masked_format_info1: u32,
         masked_format_info2: u32,

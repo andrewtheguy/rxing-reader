@@ -8,12 +8,10 @@ use crate::Error;
 use crate::common::BitMatrix;
 use anyhow::Result;
 
-/**
-* <p>Encapsulates data masks for the data bits in a QR  and micro QR code, per ISO 18004:2006 6.8.</p>
-*
-* <p>Note that the diagram in section 6.8.1 is misleading since it indicates that i is column position
-* and j is row position. In fact, as the text says, i is row position and j is column position.</p>
-*/
+/// Encapsulates data masks for the data bits in a QR  and micro QR code, per ISO 18004:2006 6.8.
+///
+/// Note that the diagram in section 6.8.1 is misleading since it indicates that i is column position
+/// and j is row position. In fact, as the text says, i is row position and j is column position.
 pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32, is_micro: Option<bool>) -> Result<bool> {
     let is_micro = is_micro.unwrap_or(false);
     let mut mask_index = mask_index;

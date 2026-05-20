@@ -16,9 +16,7 @@
 
 use std::fmt;
 
-/**
- * Simply encapsulates a width and height.
- */
+/// Simply encapsulates a width and height.
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub struct Dimension(usize, usize);
 

@@ -366,11 +366,7 @@ impl<'a> From<&PatternView<'a>> for &'a [PatternType] {
     }
 }
 
-/**
- * @brief The BarAndSpace struct is a simple 2 element data structure to hold information about bar(s) and space(s).
- *
- * The operator[](int) can be used in combination with a PatternView
- */
+/// The indexed operator can be used in combination with a `PatternView`.
 #[derive(Default, Clone)]
 pub struct BarAndSpace<T: Default + std::cmp::PartialEq> {
     bar: T,
@@ -409,13 +405,9 @@ impl<T: Default + std::cmp::PartialEq> std::ops::IndexMut<usize> for BarAndSpace
     }
 }
 
-/**
- * @brief FixedPattern describes a compile-time constant (start/stop) pattern.
- *
- * @param N  number of bars/spaces
- * @param SUM  sum over all N elements (size of pattern in modules)
- * @param IS_SPARCE  whether or not the pattern contains '0's denoting 'wide' bars/spaces
- */
+/// - `N`: number of bars/spaces
+/// - `SUM`: sum over all N elements (size of pattern in modules)
+/// - `IS_SPARCE`: whether or not the pattern contains '0's denoting 'wide' bars/spaces
 pub struct FixedPattern<const N: usize, const SUM: usize, const IS_SPARCE: bool = false> {
     data: [PatternType; N],
 }

@@ -16,13 +16,9 @@
 
 use std::any::Any;
 
-/**
- * <p>Encapsulates the result of decoding a matrix of bits. This typically
- * applies to 2D barcode formats. For now it contains the raw bytes obtained,
- * as well as a String interpretation of those bytes, if applicable.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates the result of decoding a matrix of bits. This typically
+/// applies to 2D barcode formats. For now it contains the raw bytes obtained,
+/// as well as a String interpretation of those bytes, if applicable.
 pub struct DecoderRXingResult {
     raw_bytes: Vec<u8>,
     num_bits: usize,
@@ -130,53 +126,37 @@ impl DecoderRXingResult {
         }
     }
 
-    /**
-     * @return raw bytes representing the result, or {@code null} if not applicable
-     */
+    /// Returns raw bytes representing the result, or `None` if not applicable.
     pub const fn get_raw_bytes(&self) -> &Vec<u8> {
         &self.raw_bytes
     }
 
-    /**
-     * @return how many bits of {@link #get_raw_bytes()} are valid; typically 8 times its length
-     * @since 3.3.0
-     */
+    /// Returns how many bits of [`Self::get_raw_bytes`] are valid; typically 8 times its length.
     pub const fn get_num_bits(&self) -> usize {
         self.num_bits
     }
 
-    /**
-     * @param num_bits overrides the number of bits that are valid in {@link #get_raw_bytes()}
-     * @since 3.3.0
-     */
+    /// - `num_bits`: overrides the number of bits that are valid in [`Self::get_raw_bytes`]
     pub const fn set_num_bits(&mut self, num_bits: usize) {
         self.num_bits = num_bits;
     }
 
-    /**
-     * @return text representation of the result
-     */
+    /// Returns text representation of the result.
     pub fn get_text(&self) -> &str {
         &self.text
     }
 
-    /**
-     * @return list of byte segments in the result, or {@code null} if not applicable
-     */
+    /// Returns list of byte segments in the result, or `None` if not applicable.
     pub const fn get_byte_segments(&self) -> &Vec<Vec<u8>> {
         &self.byte_segments
     }
 
-    /**
-     * @return name of error correction level used, or {@code null} if not applicable
-     */
+    /// Returns name of error correction level used, or `None` if not applicable.
     pub fn get_eclevel(&self) -> &str {
         &self.ec_level
     }
 
-    /**
-     * @return number of errors corrected, or {@code null} if not applicable
-     */
+    /// Returns number of errors corrected, or `None` if not applicable.
     pub const fn get_errors_corrected(&self) -> usize {
         self.errors_corrected
     }
@@ -185,9 +165,7 @@ impl DecoderRXingResult {
         self.errors_corrected = errors_corrected;
     }
 
-    /**
-     * @return number of erasures corrected, or {@code null} if not applicable
-     */
+    /// Returns number of erasures corrected, or `None` if not applicable.
     pub const fn get_erasures(&self) -> usize {
         self.erasures
     }
@@ -196,9 +174,7 @@ impl DecoderRXingResult {
         self.erasures = erasures
     }
 
-    /**
-     * @return arbitrary additional metadata
-     */
+    /// Returns arbitrary additional metadata.
     pub fn get_other(&self) -> Option<&(dyn Any + Send + Sync)> {
         self.other.as_deref()
     }

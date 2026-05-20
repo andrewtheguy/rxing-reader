@@ -23,11 +23,7 @@ use crate::{
 
 pub type RXingResultMetaDataDictionary = HashMap<RXingResultMetadataType, RXingResultMetadataValue>;
 
-/**
- * <p>Encapsulates the result of decoding a barcode within an image.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates the result of decoding a barcode within an image.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RXingResult {
     text: String,
@@ -137,7 +133,7 @@ impl RXingResult {
         new_res
     }
 
-    /// Like [`with_decoder_result`] but skips the `res.text()` UTF-8 build.
+    /// Like [`Self::with_decoder_result`] but skips the `res.text()` UTF-8 build.
     /// Use when the caller only consumes `get_raw_bytes()` — saves an
     /// `ECIStringBuilder::to_string()` per frame.
     pub fn with_decoder_result_bytes_only<T>(
@@ -178,33 +174,24 @@ impl RXingResult {
         new_res
     }
 
-    /**
-     * @return raw text encoded by the barcode
-     */
+    /// Returns raw text encoded by the barcode.
     pub fn get_text(&self) -> &str {
         &self.text
     }
 
-    /**
-     * @return raw bytes encoded by the barcode, if applicable, otherwise {@code null}
-     */
+    /// Returns raw bytes encoded by the barcode, if applicable, otherwise `None`.
     pub fn get_raw_bytes(&self) -> &[u8] {
         &self.raw_bytes
     }
 
-    /**
-     * @return how many bits of {@link #get_raw_bytes()} are valid; typically 8 times its length
-     * @since 3.3.0
-     */
+    /// Returns how many bits of [`Self::get_raw_bytes`] are valid; typically 8 times its length.
     pub fn get_num_bits(&self) -> usize {
         self.num_bits
     }
 
-    /**
-     * @return points related to the barcode in the image. These are typically points
-     *         identifying finder patterns or the corners of the barcode. The exact meaning is
-     *         specific to the type of barcode that was decoded.
-     */
+    /// Returns points related to the barcode in the image. These are typically points.
+    /// identifying finder patterns or the corners of the barcode. The exact meaning is
+    /// specific to the type of barcode that was decoded.
     pub fn get_points(&self) -> &[Point] {
         &self.result_points
     }
@@ -213,28 +200,24 @@ impl RXingResult {
         &mut self.result_points
     }
 
-    /** Currently necessary because the external OneDReader proc macro uses it. */
+    /// Currently necessary because the external OneDReader proc macro uses it.
     pub fn get_rxing_result_points(&self) -> &[Point] {
         &self.result_points
     }
 
-    /** Currently necessary because the external OneDReader proc macro uses it. */
+    /// Currently necessary because the external OneDReader proc macro uses it.
     pub fn get_rxing_result_points_mut(&mut self) -> &mut [Point] {
         &mut self.result_points
     }
 
-    /**
-     * @return {@link BarcodeFormat} representing the format of the barcode that was decoded
-     */
+    /// Returns [`BarcodeFormat`] representing the format of the barcode that was decoded.
     pub fn get_barcode_format(&self) -> &BarcodeFormat {
         &self.format
     }
 
-    /**
-     * @return {@link Map} mapping {@link RXingResultMetadataType} keys to values. May be
-     *   {@code null}. This contains optional metadata about what was detected about the barcode,
-     *   like orientation.
-     */
+    /// Returns [`HashMap`] mapping [`RXingResultMetadataType`] keys to values. May be.
+    /// `None`. This contains optional metadata about what was detected about the barcode,
+    /// like orientation.
     pub fn get_rxing_result_metadata(&self) -> &RXingResultMetaDataDictionary {
         &self.result_metadata
     }

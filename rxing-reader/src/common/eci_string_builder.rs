@@ -23,11 +23,7 @@ use crate::DecodeHints;
 
 use super::{CharacterSet, Eci, string_utils};
 
-/**
- * Class that converts a sequence of ECIs and bytes into a string
- *
- * @author Alex Geller
- */
+/// Builds decoded text from byte ranges annotated with ECI character sets.
 #[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub struct ECIStringBuilder {
     pub has_eci: bool,
@@ -54,21 +50,13 @@ impl ECIStringBuilder {
         &self.bytes
     }
 
-    /**
-     * Appends {@code value} as a byte value
-     *
-     * @param value character whose lowest byte is to be appended
-     */
+    /// Appends the low byte of `value`.
     pub fn append_char(&mut self, value: char) {
         self.eci_result = None;
         self.bytes.push(value as u8);
     }
 
-    /**
-     * Appends {@code value} as a byte value
-     *
-     * @param value byte to append
-     */
+    /// Appends one raw byte.
     pub fn append_byte(&mut self, value: u8) {
         self.eci_result = None;
         self.bytes.push(value)
@@ -79,11 +67,7 @@ impl ECIStringBuilder {
         self.bytes.extend_from_slice(value)
     }
 
-    /**
-     * Appends the characters in {@code value} as bytes values
-     *
-     * @param value string to append
-     */
+    /// Appends the UTF-8 bytes for `value`.
     pub fn append_string(&mut self, value: &str) {
         if !value.is_ascii() {
             self.append_eci(Eci::UTF8);
@@ -92,21 +76,15 @@ impl ECIStringBuilder {
         self.bytes.extend_from_slice(value.as_bytes());
     }
 
-    /**
-     * Append the string repesentation of {@code value} (short for {@code append(String.valueOf(value))})
-     *
-     * @param value int to append as a string
-     */
+    /// Appends the decimal string representation of `value`.
     pub fn append(&mut self, value: i32) {
         self.append_string(&format!("{value}"));
     }
 
-    /**
-     * Appends ECI value to output.
-     *
-     * @param value ECI value to append, as an int
-     * Returns an invalid-format error on invalid ECI value
-     */
+    /// Marks the current byte position with a new ECI designator.
+    ///
+    /// Bytes appended after this call are decoded with `eci` until another ECI
+    /// designator is appended.
     pub fn append_eci(&mut self, eci: Eci) {
         self.eci_result = None;
 
@@ -130,7 +108,10 @@ impl ECIStringBuilder {
         }
     }
 
-    /// Change the current encoding characterset, finding an eci to do so
+    /// Starts a new encoding range for `charset`.
+    ///
+    /// When `is_eci` is `true`, the range came from an explicit ECI marker in
+    /// the symbol; otherwise it is an internal decoder hint.
     pub fn switch_encoding(&mut self, charset: CharacterSet, is_eci: bool) {
         if is_eci && !self.has_eci {
             self.eci_positions.clear();
@@ -147,9 +128,7 @@ impl ECIStringBuilder {
         self.has_eci |= is_eci;
     }
 
-    /// Finishes encoding anything in the buffer using the current ECI and resets.
-    ///
-    /// This function can panic
+    /// Decodes the buffered bytes using their ECI ranges.
     pub fn encode_current_bytes_if_any(&self) -> String {
         let mut encoded_string = String::with_capacity(self.bytes.len());
         // First encode the first set
@@ -222,33 +201,24 @@ impl ECIStringBuilder {
         }
     }
 
-    /**
-     * Appends the characters from {@code value} (unlike all other append methods of this class who append bytes)
-     *
-     * @param value characters to append
-     */
+    /// Appends the characters from `value`.
     pub fn append_characters(&mut self, value: &str) {
         self.append_string(value);
     }
 
-    /**
-     * Length of the underlying byte buffer (not the decoded character count).
-     * If possible, use {@link #isEmpty()} instead.
-     *
-     * @return length of byte buffer in bytes
-     */
+    /// Returns the length of the underlying byte buffer, not the decoded character count.
+    ///
+    /// Prefer [`Self::is_empty`] when only checking for emptiness.
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
 
-    /// Reserve an additional number of bytes for storage
+    /// Reserves capacity for at least `additional` more bytes.
     pub fn reserve(&mut self, additional: usize) {
         self.bytes.reserve(additional);
     }
 
-    /**
-     * @return true iff nothing has been appended
-     */
+    /// Returns `true` when no bytes have been appended.
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }

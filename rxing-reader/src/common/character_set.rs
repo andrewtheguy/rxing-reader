@@ -17,12 +17,8 @@
 use crate::Error;
 use anyhow::Result;
 
-/**
- * Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1
- * of ISO 18004.
- *
- * @author Sean Owen
- */
+/// Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1
+/// of ISO 18004.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CharacterSet {
     Cp437,

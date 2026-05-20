@@ -23,63 +23,54 @@ use crate::{
     common::{BitArray, BitMatrix, LineOrientation},
 };
 
-/**
- * This class hierarchy provides a set of methods to convert luminance data to 1 bit data.
- * It allows the algorithm to vary polymorphically, for example allowing a very expensive
- * thresholding technique for servers and a fast one for mobile. It also permits the implementation
- * to vary, e.g. a JNI version for Android and a Java fallback version for other platforms.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// Converts greyscale luminance data into one-bit black/white barcode data.
+///
+/// Implementations can choose different thresholding strategies while exposing
+/// the same row, line, and matrix accessors to readers.
 pub trait Binarizer {
     type Source: LuminanceSource;
 
     fn get_luminance_source(&self) -> &Self::Source;
 
-    /**
-     * Converts one row of luminance data to 1 bit data. May actually do the conversion, or return
-     * cached data. Callers should assume this method is expensive and call it as seldom as possible.
-     * This method is intended for decoding 1D barcodes and may choose to apply sharpening.
-     * For callers which only examine one row of pixels at a time, the same BitArray should be reused
-     * and passed in with each call for performance. However it is legal to keep more than one row
-     * at a time if needed.
-     *
-     * @param y The row to fetch, which must be in [0, bitmap height)
-     * @param row An optional preallocated array. If null or too small, it will be ignored.
-     *            If used, the Binarizer will call BitArray.clear(). Always use the returned object.
-     * @return The array of bits for this row (true means black).
-     * Returns a not-found error if row can't be binarized
-     */
+    /// Converts one row of luminance data to 1 bit data. May actually do the conversion, or return
+    /// cached data. Callers should assume this method is expensive and call it as seldom as possible.
+    /// This method is intended for decoding 1D barcodes and may choose to apply sharpening.
+    /// Callers should avoid repeated calls for the same row unless the
+    /// implementation documents cheap caching.
+    ///
+    /// - `y`: The row to fetch, which must be in `[0, height)`.
+    ///
+    /// Returns the row bits, where `true` means black.
+    /// Returns an error if the row cannot be binarized.
     fn get_black_row(&self, y: usize) -> Result<Cow<'_, BitArray>>;
 
     // An alternate version of get_black_row that fetches the line from the matrix if
     // it has already been generated, falling back to get_black_row if it hasn't.
     fn get_black_row_from_matrix(&self, y: usize) -> Result<Cow<'_, BitArray>>;
 
-    /**
-     * Converts a 2D array of luminance data to 1 bit data. As above, assume this method is expensive
-     * and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
-     * may not apply sharpening. Therefore, a row from this matrix may not be identical to one
-     * fetched using getBlackRow(), so don't mix and match between them.
-     *
-     * @return The 2D array of bits for the image (true means black).
-     * Returns a not-found error if image can't be binarized to make a matrix
-     */
+    /// Converts a 2D array of luminance data to 1 bit data. As above, assume this method is expensive
+    /// and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
+    /// may not apply sharpening. Therefore, a row from this matrix may not be identical to one
+    /// fetched using `get_black_row()`, so don't mix and match between them.
+    ///
+    /// Returns the image bits, where `true` means black.
+    /// Returns an error if the image cannot be binarized into a matrix.
     fn get_black_matrix(&self) -> Result<&BitMatrix>;
 
     fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix>;
 
-    /// Get a row or column of the image
+    /// Returns a black-pixel line in the requested orientation.
+    ///
+    /// `l` is interpreted as a row index for horizontal lines and a column
+    /// index for vertical lines.
     fn get_black_line(&self, l: usize, lt: LineOrientation) -> Result<Cow<'_, BitArray>>;
 
-    /**
-     * Creates a new object with the same type as this Binarizer implementation, but with pristine
-     * state. This is needed because Binarizer implementations may be stateful, e.g. keeping a cache
-     * of 1 bit data. See Effective Java for why we can't use Java's clone() method.
-     *
-     * @param source The LuminanceSource this Binarizer will operate on.
-     * @return A new concrete Binarizer implementation object.
-     */
+    /// Creates a fresh binarizer of the same concrete type for `source`.
+    ///
+    /// This is used when a luminance source is cropped or rotated and any
+    /// cached one-bit data from the previous source must be discarded.
+    ///
+    /// Returns a new binarizer implementation object.
     fn create_binarizer(&self, source: Self::Source) -> Self
     where
         Self: Sized;

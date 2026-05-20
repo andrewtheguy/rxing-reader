@@ -16,74 +16,73 @@
 
 use std::{fmt::Display, str::FromStr};
 
-/**
- * Enumerates barcode formats known to this package. Please keep alphabetized.
- *
- * @author Sean Owen
- */
+/// Enumerates barcode formats known to this package. Please keep alphabetized.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum BarcodeFormat {
-    /** Aztec 2D barcode format. */
+    /// Aztec 2D barcode format.
     Aztec,
 
-    /** CODABAR 1D format. */
+    /// CODABAR 1D format.
     Codabar,
 
-    /** Code 39 1D format. */
+    /// Code 39 1D format.
     Code39,
 
-    /** Code 93 1D format. */
+    /// Code 93 1D format.
     Code93,
 
-    /** Code 128 1D format. */
+    /// Code 128 1D format.
     Code128,
 
-    /** Data Matrix 2D barcode format. */
+    /// Data Matrix 2D barcode format.
     DataMatrix,
 
-    /** EAN-8 1D format. */
+    /// EAN-8 1D format.
     Ean8,
 
-    /** EAN-13 1D format. */
+    /// EAN-13 1D format.
     Ean13,
 
-    /** ITF (Interleaved Two of Five) 1D format. */
+    /// ITF (Interleaved Two of Five) 1D format.
     Itf,
 
-    /** MaxiCode 2D barcode format. */
+    /// MaxiCode 2D barcode format.
     Maxicode,
 
-    /** PDF417 format. */
+    /// PDF417 format.
     Pdf417,
 
-    /** QR Code 2D barcode format. */
+    /// QR Code 2D barcode format.
     QrCode,
 
+    /// Micro QR Code 2D barcode format.
     MicroQrCode,
 
+    /// Rectangular Micro QR Code 2D barcode format.
     RectangularMicroQrCode,
 
-    /** RSS 14 */
+    /// RSS 14 1D barcode format.
     Rss14,
 
-    /** RSS EXPANDED */
+    /// RSS Expanded 1D barcode format.
     RssExpanded,
 
-    /** TELEPEN */
+    /// Telepen 1D barcode format.
     Telepen,
 
-    /** UPC-A 1D format. */
+    /// UPC-A 1D format.
     UpcA,
 
-    /** UPC-E 1D format. */
+    /// UPC-E 1D format.
     UpcE,
 
-    /** UPC/EAN extension format. Not a stand-alone format. */
+    /// UPC/EAN extension format. Not a stand-alone format.
     UpcEanExtension,
 
+    /// DX film edge barcode format.
     DxFilmEdge,
 
-    /// format not supported
+    /// Placeholder for unsupported or unknown barcode formats.
     UnsupportedFormat,
 }
 

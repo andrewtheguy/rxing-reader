@@ -25,24 +25,18 @@ use crate::{
 
 use crate::qrcode::common::{ErrorCorrectionLevel, Mode, VersionRef};
 
-/*
- * <p>QR Codes can encode text as bits in one of several modes, and can use multiple modes
- * in one QR Code. This class decodes the bits back into text.</p>
- *
- * <p>See ISO 18004:2006, 6.4.3 - 6.4.7</p>
- *
- * @author Sean Owen
- */
-
-/**
- * See ISO 18004:2006, 6.4.4 Table 5
- */
+/// See ISO 18004:2006, 6.4.4 Table 5
 const ALPHANUMERIC_CHARS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 const GB2312_SUBSET: u32 = 1;
 
 static CACHED_ALPHANUMERIC_CHARS: Lazy<Vec<char>> =
     Lazy::new(|| ALPHANUMERIC_CHARS.chars().collect());
 
+/// Decodes QR Code data codewords into bytes, text, and result metadata.
+///
+/// QR Codes can combine multiple encoding modes in one symbol. This parser
+/// follows ISO 18004:2006 sections 6.4.3 through 6.4.7 to consume those mode
+/// segments from the bit stream.
 pub fn decode(
     bytes: &[u8],
     version: VersionRef,
@@ -185,9 +179,7 @@ fn get_symbology_identifier(has_charset: bool, has_fnc1first: bool, has_fnc1seco
     }
 }
 
-/**
- * See specification GBT 18284-2000
- */
+/// See specification GBT 18284-2000
 fn decode_hanzi_segment(
     bits: &mut BitSource,
     result: &mut ECIStringBuilder,

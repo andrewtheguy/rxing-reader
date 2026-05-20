@@ -16,12 +16,8 @@
 
 use anyhow::Result;
 
-/**
- * <p>The main class which implements QR Code decoding -- as opposed to locating and extracting
- * the QR Code from an image.</p>
- *
- * @author Sean Owen
- */
+/// The main class which implements QR Code decoding -- as opposed to locating and extracting
+/// the QR Code from an image.
 use crate::{
     DecodeHints, Error,
     common::{BitMatrix, DecoderRXingResult},
@@ -33,16 +29,15 @@ pub fn decode_bool_array(image: &[Vec<bool>]) -> Result<DecoderRXingResult> {
     decode_bool_array_with_hints(image, &DecodeHints::default())
 }
 
-/**
- * <p>Convenience method that can decode a QR Code represented as a 2D array of booleans.
- * "true" is taken to mean a black module.</p>
- *
- * @param image booleans representing white/black QR Code modules
- * @param hints decoding hints that should be used to influence decoding
- * @return text and bytes encoded within the QR Code
- * Returns an invalid-format error if the QR Code cannot be decoded
- * Returns a checksum error if error correction fails
- */
+/// Convenience method that can decode a QR Code represented as a 2D array of booleans.
+/// "true" is taken to mean a black module.
+///
+/// - `image`: booleans representing white/black QR Code modules
+/// - `hints`: decoding hints that should be used to influence decoding
+///
+/// Returns text and bytes encoded within the QR Code.
+/// Returns an invalid-format error if the QR Code cannot be decoded
+/// Returns a checksum error if error correction fails
 pub fn decode_bool_array_with_hints(
     image: &[Vec<bool>],
     hints: &DecodeHints,
@@ -54,15 +49,14 @@ pub fn decode_bitmatrix(bits: BitMatrix) -> Result<DecoderRXingResult> {
     decode_bitmatrix_with_hints(bits, &DecodeHints::default())
 }
 
-/**
- * <p>Decodes a QR Code represented as a {@link BitMatrix}. A 1 or "true" is taken to mean a black module.</p>
- *
- * @param bits booleans representing white/black QR Code modules
- * @param hints decoding hints that should be used to influence decoding
- * @return text and bytes encoded within the QR Code
- * Returns an invalid-format error if the QR Code cannot be decoded
- * Returns a checksum error if error correction fails
- */
+/// Decodes a QR Code represented as a [`BitMatrix`]. A 1 or "true" is taken to mean a black module.
+///
+/// - `bits`: booleans representing white/black QR Code modules
+/// - `hints`: decoding hints that should be used to influence decoding
+///
+/// Returns text and bytes encoded within the QR Code.
+/// Returns an invalid-format error if the QR Code cannot be decoded
+/// Returns a checksum error if error correction fails
 pub fn decode_bitmatrix_with_hints(
     bits: BitMatrix,
     hints: &DecodeHints,
@@ -179,14 +173,13 @@ fn decode_bitmatrix_parser_with_hints(
     decoded_bit_stream_parser::decode(&result_bytes, version, ec_level, hints)
 }
 
-/**
- * <p>Given data and error-correction codewords received, possibly corrupted by errors, attempts to
- * correct the errors in-place using Reed-Solomon error correction.</p>
- *
- * @param codeword_bytes data and error correction codewords
- * @param num_data_codewords number of codewords that are data bytes
- * Returns a checksum error if error correction fails
- */
+/// Given data and error-correction codewords received, possibly corrupted by errors, attempts to
+/// correct the errors in-place using Reed-Solomon error correction.
+///
+/// - `codeword_bytes`: data and error correction codewords
+/// - `num_data_codewords`: number of codewords that are data bytes
+///
+/// Returns a checksum error if error correction fails
 pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
     let ecc_len = codeword_bytes.len() - num_data_codewords;
     let buf = reed_solomon::Decoder::new(ecc_len)

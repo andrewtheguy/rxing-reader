@@ -18,12 +18,7 @@ use std::fmt;
 
 use crate::common::BitMatrix;
 
-/**
- * JAVAPORT: The original code was a 2D array of ints, but since it only ever gets assigned
- * -1, 0, and 1, I'm going to use less memory and go with bytes.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// Compact byte-backed matrix for values that only need the states `-1`, `0`, and `1`.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ByteMatrix {
     bytes: Vec<Vec<u8>>,
@@ -52,9 +47,9 @@ impl ByteMatrix {
         self.bytes[y as usize][x as usize]
     }
 
-    /**
-     * @return an internal representation as bytes, in row-major order. array[y][x] represents point (x,y)
-     */
+    /// Returns the internal row-major byte representation.
+    ///
+    /// `array[y][x]` represents point `(x, y)`.
     pub fn get_array(&self) -> &Vec<Vec<u8>> {
         &self.bytes
     }

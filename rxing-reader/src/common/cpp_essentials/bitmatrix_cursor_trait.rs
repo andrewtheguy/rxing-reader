@@ -2,12 +2,9 @@ use crate::{Point, common::BitMatrix};
 
 use super::{Direction, Value, util::opposite};
 
-/**
- * @brief The BitMatrixCursor represents a current position inside an image and current direction it can advance towards.
- *
- * The current position and direction is a PointT<T>. So depending on the type it can be used to traverse the image
- * in a Bresenham style (PointF) or in a discrete way (step only horizontal/vertical/diagonal (PointI)).
- */
+/// The current position and direction are `PointT<T>` values. Depending on the
+/// concrete point type, this can traverse the image in Bresenham style
+/// (`PointF`) or in discrete horizontal, vertical, and diagonal steps (`PointI`).
 pub trait BitMatrixCursorTrait {
     fn test_at(&self, p: Point) -> Value;
 
@@ -61,13 +58,11 @@ pub trait BitMatrixCursorTrait {
     fn moved_by(self, d: Point) -> Self;
     fn turned_back(&self) -> Self;
 
-    /**
-     * @brief step_to_edge advances cursor to one step behind the next (or n-th) edge.
-     * @param nth number of edges to pass
-     * @param range max number of steps to take
-     * @param backup whether or not to backup one step so we land in front of the edge
-     * @return number of steps taken or 0 if moved outside of range/image
-     */
+    /// - `nth`: number of edges to pass
+    /// - `range`: max number of steps to take
+    /// - `backup`: whether or not to backup one step so we land in front of the edge
+    ///
+    /// Returns number of steps taken or 0 if moved outside of range/image.
     fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32;
 
     fn step_along_edge(&mut self, dir: Direction, skip_corner: Option<bool>) -> bool {

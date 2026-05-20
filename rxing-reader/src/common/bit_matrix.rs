@@ -25,21 +25,16 @@ type BaseType = super::BitFieldBaseType;
 const BASE_BITS: usize = super::BIT_FIELD_BASE_BITS;
 const BASE_SHIFT: usize = super::BIT_FIELD_SHIFT_BITS;
 
-/**
- * <p>Represents a 2D matrix of bits. In function arguments below, and throughout the common
- * module, x is the column position, and y is the row position. The ordering is always x, y.
- * The origin is at the top-left.</p>
- *
- * <p>Internally the bits are represented in a 1-D array of 32-bit ints. However, each row begins
- * with a new int. This is done intentionally so that we can copy out a row into a BitArray very
- * efficiently.</p>
- *
- * <p>The ordering of bits is row-major. Within each int, the least significant bits are used first,
- * meaning they represent lower x values. This is compatible with BitArray's implementation.</p>
- *
- * @author Sean Owen
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// Represents a 2D matrix of bits. In function arguments below, and throughout the common
+/// module, x is the column position, and y is the row position. The ordering is always x, y.
+/// The origin is at the top-left.
+///
+/// Internally the bits are represented in a 1-D array of 32-bit ints. However, each row begins
+/// with a new int. This is done intentionally so that we can copy out a row into a BitArray very
+/// efficiently.
+///
+/// The ordering of bits is row-major. Within each int, the least significant bits are used first,
+/// meaning they represent lower x values. This is compatible with BitArray's implementation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BitMatrix {
     width: u32,
@@ -49,21 +44,17 @@ pub struct BitMatrix {
 }
 
 impl BitMatrix {
-    /**
-     * Creates an empty square {@code BitMatrix}.
-     *
-     * @param dimension height and width
-     */
+    /// Creates an empty square `BitMatrix`.
+    ///
+    /// - `dimension`: height and width
     pub fn with_single_dimension(dimension: u32) -> Result<Self> {
         Self::new(dimension, dimension)
     }
 
-    /**
-     * Creates an empty {@code BitMatrix}.
-     *
-     * @param width bit matrix width
-     * @param height bit matrix height
-     */
+    /// Creates an empty `BitMatrix`.
+    ///
+    /// - `width`: bit matrix width
+    /// - `height`: bit matrix height
     pub fn new(width: u32, height: u32) -> Result<Self> {
         if width < 1 || height < 1 {
             return Err(Error::InvalidArgument {
@@ -106,12 +97,11 @@ impl BitMatrix {
         }
     }
 
-    /**
-     * Interprets a 2D array of booleans as a {@code BitMatrix}, where "true" means an "on" bit.
-     *
-     * @param image bits of the image, as a row-major 2D array. Elements are arrays representing rows
-     * @return {@code BitMatrix} representation of image
-     */
+    /// Interprets a 2D array of booleans as a `BitMatrix`, where "true" means an "on" bit.
+    ///
+    /// - `image`: bits of the image, as a row-major 2D array. Elements are arrays representing rows
+    ///
+    /// Returns `BitMatrix` representation of image.
     pub fn parse_bools(image: &[Vec<bool>]) -> Self {
         let Some(first_row) = image.first() else {
             return Self::empty();
@@ -215,13 +205,11 @@ impl BitMatrix {
         Ok(matrix)
     }
 
-    /**
-     * Gets the requested bit, where true means black.
-     *
-     * x The horizontal component (i.e. which column)
-     * y The vertical component (i.e. which row)
-     * returns the value of given bit in matrix, or false if the requested point is out of bounds of the image
-     */
+    /// Gets the requested bit, where true means black.
+    ///
+    /// x The horizontal component (i.e. which column)
+    /// y The vertical component (i.e. which row)
+    /// returns the value of given bit in matrix, or false if the requested point is out of bounds of the image
     #[inline(always)]
     pub fn get(&self, x: u32, y: u32) -> bool {
         let offset = self.get_offset(y, x);
@@ -297,12 +285,10 @@ impl BitMatrix {
         self.check_in_bounds(point.x as u32, point.y as u32)
     }
 
-    /**
-     * <p>Sets the given bit to true.</p>
-     *
-     * @param x The horizontal component (i.e. which column)
-     * @param y The vertical component (i.e. which row)
-     */
+    /// Sets the given bit to true.
+    ///
+    /// - `x`: The horizontal component (i.e. which column)
+    /// - `y`: The vertical component (i.e. which row)
     #[inline(always)]
     pub fn set(&mut self, x: u32, y: u32) {
         let offset = self.get_offset(y, x);
@@ -324,21 +310,17 @@ impl BitMatrix {
         self.bits[offset] &= !(1 << (x as usize & BASE_SHIFT));
     }
 
-    /**
-     * <p>Flips the given bit.</p>
-     *
-     * @param x The horizontal component (i.e. which column)
-     * @param y The vertical component (i.e. which row)
-     */
+    /// Flips the given bit.
+    ///
+    /// - `x`: The horizontal component (i.e. which column)
+    /// - `y`: The vertical component (i.e. which row)
     #[inline(always)]
     pub fn flip_coords(&mut self, x: u32, y: u32) {
         let offset = self.get_offset(y, x);
         self.bits[offset] ^= 1 << (x as usize & BASE_SHIFT);
     }
 
-    /**
-     * <p>Flips every bit in the matrix.</p>
-     */
+    /// Flips every bit in the matrix.
     pub fn flip_self(&mut self) {
         let max = self.bits.len();
         for bit_set in self.bits.iter_mut().take(max) {
@@ -346,12 +328,10 @@ impl BitMatrix {
         }
     }
 
-    /**
-     * Exclusive-or (XOR): Flip the bit in this {@code BitMatrix} if the corresponding
-     * mask bit is set.
-     *
-     * @param mask XOR mask
-     */
+    /// Exclusive-or (XOR): Flip the bit in this `BitMatrix` if the corresponding
+    /// mask bit is set.
+    ///
+    /// - `mask`: XOR mask
     pub fn xor(&mut self, mask: &BitMatrix) -> Result<()> {
         if self.width != mask.width || self.height != mask.height || self.row_size != mask.row_size
         {
@@ -375,22 +355,18 @@ impl BitMatrix {
         Ok(())
     }
 
-    /**
-     * Clears all bits (sets to false).
-     */
+    /// Clears all bits (sets to false).
     #[inline(always)]
     pub fn clear(&mut self) {
         self.bits.fill(0);
     }
 
-    /**
-     * <p>Sets a square region of the bit matrix to true.</p>
-     *
-     * @param left The horizontal position to begin at (inclusive)
-     * @param top The vertical position to begin at (inclusive)
-     * @param width The width of the region
-     * @param height The height of the region
-     */
+    /// Sets a square region of the bit matrix to true.
+    ///
+    /// - `left`: The horizontal position to begin at (inclusive)
+    /// - `top`: The vertical position to begin at (inclusive)
+    /// - `width`: The width of the region
+    /// - `height`: The height of the region
     pub fn set_region(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
         if height < 1 || width < 1 {
             return Err(Error::InvalidArgument {
@@ -420,14 +396,11 @@ impl BitMatrix {
         Ok(())
     }
 
-    /**
-     * A fast method to retrieve one row of data from the matrix as a BitArray.
-     *
-     * @param y The row to retrieve
-     * @param row An optional caller-allocated BitArray, will be allocated if null or too small
-     * @return The resulting BitArray - this reference should always be used even when passing
-     *         your own row
-     */
+    /// A fast method to retrieve one row of data from the matrix as a BitArray.
+    ///
+    /// - `y`: The row to retrieve
+    ///
+    /// Returns the requested row as a new [`BitArray`].
     pub fn get_row(&self, y: u32) -> BitArray {
         let mut rw = BitArray::with_size(self.width as usize);
 
@@ -438,7 +411,7 @@ impl BitMatrix {
         rw
     }
 
-    /// This method returns a column of the bitmatrix.
+    /// Returns a column of the bit matrix.
     ///
     /// The current implementation may be very slow.
     pub fn get_col(&self, x: u32) -> BitArray {
@@ -453,20 +426,16 @@ impl BitMatrix {
         cw
     }
 
-    /**
-     * @param y row to set
-     * @param row {@link BitArray} to copy from
-     */
+    /// - `y`: row to set
+    /// - `row`: [`BitArray`] to copy from
     pub fn set_row(&mut self, y: u32, row: &BitArray) {
         self.bits[y as usize * self.row_size..y as usize * self.row_size + self.row_size]
             .clone_from_slice(&row.get_bit_array()[0..self.row_size])
     }
 
-    /**
-     * Modifies this {@code BitMatrix} to represent the same but rotated the given degrees (0, 90, 180, 270)
-     *
-     * @param degrees number of degrees to rotate through counter-clockwise (0, 90, 180, 270)
-     */
+    /// Modifies this `BitMatrix` to represent the same but rotated the given degrees (0, 90, 180, 270)
+    ///
+    /// - `degrees`: number of degrees to rotate through counter-clockwise (0, 90, 180, 270)
     pub fn rotate(&mut self, degrees: u32) -> Result<()> {
         match degrees % 360 {
             0 => Ok(()),
@@ -492,9 +461,7 @@ impl BitMatrix {
         }
     }
 
-    /**
-     * Modifies this {@code BitMatrix} to represent the same but rotated 180 degrees
-     */
+    /// Modifies this `BitMatrix` to represent the same but rotated 180 degrees
     pub fn rotate180(&mut self) {
         let max_height = self.height.div_ceil(2);
         for i in 0..max_height {
@@ -508,9 +475,7 @@ impl BitMatrix {
         }
     }
 
-    /**
-     * Modifies this {@code BitMatrix} to represent the same but rotated 90 degrees counterclockwise
-     */
+    /// Modifies this `BitMatrix` to represent the same but rotated 90 degrees counterclockwise
     pub fn rotate90(&mut self) {
         let new_width = self.height;
         let new_height = self.width;
@@ -533,11 +498,11 @@ impl BitMatrix {
         self.bits = new_bits;
     }
 
-    /**
-     * This is useful in detecting the enclosing rectangle of a 'pure' barcode.
-     *
-     * @return {@code left,top,width,height} enclosing rectangle of all 1 bits, or null if it is all white
-     */
+    /// This is useful in detecting the enclosing rectangle of a 'pure' barcode.
+    ///
+    /// Returns the `left, top, width, height` rectangle enclosing all set bits.
+    ///
+    /// Returns `None` when the matrix is all white.
     pub fn get_enclosing_rectangle(&self) -> Option<[u32; 4]> {
         let mut left = self.width;
         let mut top = self.height;
@@ -567,11 +532,11 @@ impl BitMatrix {
         Some([left, top, right - left + 1, bottom - top + 1])
     }
 
-    /**
-     * This is useful in detecting a corner of a 'pure' barcode.
-     *
-     * @return {@code x,y} coordinate of top-left-most 1 bit, or null if it is all white
-     */
+    /// This is useful in detecting a corner of a 'pure' barcode.
+    ///
+    /// Returns the coordinate of the top-left-most set bit.
+    ///
+    /// Returns `None` when the matrix is all white.
     pub fn get_top_left_on_bit(&self) -> Option<Point> {
         let mut bits_offset = 0;
         while bits_offset < self.bits.len() && self.bits[bits_offset] == 0 {
@@ -614,9 +579,7 @@ impl BitMatrix {
         Some(point(x as f32, y as f32))
     }
 
-    /**
-     * @return The width of the matrix
-     */
+    /// Returns the width of the matrix.
     #[inline(always)]
     pub const fn get_width(&self) -> u32 {
         self.width()
@@ -627,9 +590,7 @@ impl BitMatrix {
         self.width
     }
 
-    /**
-     * @return The height of the matrix
-     */
+    /// Returns the height of the matrix.
     #[inline(always)]
     pub const fn get_height(&self) -> u32 {
         self.height()
@@ -640,30 +601,25 @@ impl BitMatrix {
         self.height
     }
 
-    /**
-     * @return The row size of the matrix
-     */
+    /// Returns the row size of the matrix.
     #[inline(always)]
     pub fn get_row_size(&self) -> usize {
         self.row_size
     }
 
-    /**
-     * @param set_string representation of a set bit
-     * @param unset_string representation of an unset bit
-     * @return string representation of entire matrix utilizing given strings
-     */
+    /// - `set_string`: representation of a set bit
+    /// - `unset_string`: representation of an unset bit
+    ///
+    /// Returns string representation of entire matrix utilizing given strings.
     pub fn to_string(&self, set_string: &str, unset_string: &str) -> String {
         self.build_to_string(set_string, unset_string, "\n")
     }
 
-    /**
-     * @param set_string representation of a set bit
-     * @param unset_string representation of an unset bit
-     * @param line_separator newline character in string representation
-     * @return string representation of entire matrix utilizing given strings and line separator
-     * @deprecated call {@link #to_string(String,String)} only, which uses \n line separator always
-     */
+    /// - `set_string`: representation of a set bit
+    /// - `unset_string`: representation of an unset bit
+    /// - `line_separator`: newline character in string representation
+    ///
+    /// Returns string representation of entire matrix utilizing given strings and line separator.
     fn build_to_string(
         &self,
         set_string: &str,

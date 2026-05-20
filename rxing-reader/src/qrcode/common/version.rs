@@ -30,10 +30,8 @@ pub static MICRO_VERSIONS: Lazy<Box<[Version]>> = Lazy::new(Version::build_micro
 pub static MODEL1_VERSIONS: Lazy<Box<[Version]>> = Lazy::new(Version::build_model1_versions);
 pub static RMQR_VERSIONS: Lazy<Box<[Version]>> = Lazy::new(Version::build_rmqr_versions);
 
-/**
- * See ISO 18004:2006 Annex D.
- * Element i represents the raw version bits that specify version i + 7
- */
+/// See ISO 18004:2006 Annex D.
+/// Element i represents the raw version bits that specify version i + 7
 pub const VERSION_DECODE_INFO: [u32; 34] = [
     0x07C94, 0x085BC, 0x09A99, 0x0A4D3, 0x0BBF6, 0x0C762, 0x0D847, 0x0E60D, 0x0F928, 0x10B78,
     0x1145D, 0x12A17, 0x13532, 0x149A6, 0x15683, 0x168C9, 0x177EC, 0x18EC4, 0x191E1, 0x1AFAB,
@@ -41,11 +39,7 @@ pub const VERSION_DECODE_INFO: [u32; 34] = [
     0x2542E, 0x26A64, 0x27541, 0x28C69,
 ];
 
-/**
- * See ISO 18004:2006 Annex D
- *
- * @author Sean Owen
- */
+/// See ISO 18004:2006 Annex D
 #[derive(Debug)]
 pub struct Version {
     version_number: u32,
@@ -140,13 +134,12 @@ impl Version {
             })
     }
 
-    /**
-     * <p>Deduces version information purely from QR Code dimensions.</p>
-     *
-     * @param dimension dimension in modules
-     * @return Version for a QR Code of that dimension
-     * Returns an invalid-format error if dimension is not 1 mod 4 or dimension less than 17
-     */
+    /// Deduces version information purely from QR Code dimensions.
+    ///
+    /// - `dimension`: dimension in modules
+    ///
+    /// Returns Version for a QR Code of that dimension.
+    /// Returns an invalid-format error if dimension is not 1 mod 4 or dimension less than 17
     pub fn get_provisional_version_for_dimension(dimension: u32) -> Result<VersionRef> {
         if dimension % 4 != 1 || dimension < 21 {
             return Err(Error::InvalidFormat {
@@ -201,9 +194,7 @@ impl Version {
         .into())
     }
 
-    /**
-     * See ISO 18004:2006 Annex E
-     */
+    /// See ISO 18004:2006 Annex E
     pub fn build_function_pattern(&self) -> Result<BitMatrix> {
         if self.is_rmqr() {
             let size = Version::symbol_size(self.version_number, Type::RectMicro);
@@ -299,12 +290,10 @@ impl fmt::Display for Version {
     }
 }
 
-/**
- * <p>Encapsulates a set of error-correction blocks in one symbol version. Most versions will
- * use blocks of differing sizes within one version, so, this encapsulates the parameters for
- * each set of blocks. It also holds the number of error-correction codewords per block since it
- * will be the same across all blocks within one version.</p>
- */
+/// Encapsulates a set of error-correction blocks in one symbol version. Most versions will
+/// use blocks of differing sizes within one version, so, this encapsulates the parameters for
+/// each set of blocks. It also holds the number of error-correction codewords per block since it
+/// will be the same across all blocks within one version.
 #[derive(Debug, Clone)]
 pub struct ECBlocks {
     ec_codewords_per_block: u32,
@@ -340,11 +329,9 @@ impl ECBlocks {
     }
 }
 
-/**
- * <p>Encapsulates the parameters for one error-correction block in one symbol version.
- * This includes the number of data codewords, and the number of times a block with these
- * parameters is used consecutively in the QR code version's format.</p>
- */
+/// Encapsulates the parameters for one error-correction block in one symbol version.
+/// This includes the number of data codewords, and the number of times a block with these
+/// parameters is used consecutively in the QR code version's format.
 #[derive(Debug, Clone, Copy)]
 pub struct ECB {
     count: u32,

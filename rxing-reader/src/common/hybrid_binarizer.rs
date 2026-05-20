@@ -23,23 +23,21 @@ use anyhow::Result;
 
 use super::{BitArray, BitMatrix, GlobalHistogramBinarizer};
 
-/**
- * This class implements a local thresholding algorithm, which while slower than the
- * GlobalHistogramBinarizer, is fairly efficient for what it does. It is designed for
- * high frequency images of barcodes with black data on white backgrounds. For this application,
- * it does a much better job than a global blackpoint with severe shadows and gradients.
- * However it tends to produce artifacts on lower frequency images and is therefore not
- * a good general purpose binarizer for uses outside ZXing.
- *
- * This class extends GlobalHistogramBinarizer, using the older histogram approach for 1D readers,
- * and the newer local approach for 2D readers. 1D decoding using a per-row histogram is already
- * inherently local, and only fails for horizontal gradients. We can revisit that problem later,
- * but for now it was not a win to use local blocks for 1D.
- *
- * This Binarizer is the default for the unit tests and the recommended class for library users.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// Local-thresholding binarizer.
+///
+/// This is slower than [`GlobalHistogramBinarizer`] but handles high-frequency
+/// barcode images with black data on white backgrounds more robustly. It is designed for
+/// high frequency images of barcodes with black data on white backgrounds. For this application,
+/// it does a much better job than a global blackpoint with severe shadows and gradients.
+/// However it tends to produce artifacts on lower frequency images and is therefore not
+/// a good general purpose binarizer for uses outside ZXing.
+///
+/// It wraps [`GlobalHistogramBinarizer`], using the older histogram approach for 1D readers
+/// and the newer local approach for 2D readers. 1D decoding using a per-row histogram is already
+/// inherently local, and only fails for horizontal gradients. We can revisit that problem later,
+/// but for now it was not a win to use local blocks for 1D.
+///
+/// This binarizer is the default for the unit tests and the recommended implementation for library users.
 pub struct HybridBinarizer<LS: LuminanceSource> {
     ghb: GlobalHistogramBinarizer<LS>,
     black_matrix: OnceCell<BitMatrix>,
@@ -59,11 +57,9 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
         self.ghb.get_black_line(l, lt)
     }
 
-    /**
-     * Calculates the final BitMatrix once for all requests. This could be called once from the
-     * constructor instead, but there are some advantages to doing it lazily, such as making
-     * profiling easier, and not doing heavy lifting when callers don't expect it.
-     */
+    /// Calculates the final BitMatrix once for all requests. This could be called once from the
+    /// constructor instead, but there are some advantages to doing it lazily, such as making
+    /// profiling easier, and not doing heavy lifting when callers don't expect it.
     fn get_black_matrix(&self) -> Result<&BitMatrix> {
         let matrix = self
             .black_matrix
@@ -162,11 +158,9 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
         }
     }
 
-    /**
-     * For each block in the image, calculate the average black point using a 5x5 grid
-     * of the blocks around it. Also handles the corner cases (fractional blocks are computed based
-     * on the last pixels in the row/column which are also used in the previous block).
-     */
+    /// For each block in the image, calculate the average black point using a 5x5 grid
+    /// of the blocks around it. Also handles the corner cases (fractional blocks are computed based
+    /// on the last pixels in the row/column which are also used in the previous block).
     fn calculate_threshold_for_block(
         luminances: &[u8],
         sub_width: u32,
@@ -201,9 +195,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
         }
     }
 
-    /**
-     * Applies a single threshold to a block of pixels.
-     */
+    /// Applies a single threshold to a block of pixels.
     fn threshold_block(
         luminances: &[u8],
         xoffset: u32,
@@ -224,11 +216,9 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
         }
     }
 
-    /**
-     * Calculates a single black point for each block of pixels and saves it away.
-     * See the following thread for a discussion of this algorithm:
-     *  http://groups.google.com/group/zxing/browse_thread/thread/d06efa2c35a7ddc0
-     */
+    /// Calculates a single black point for each block of pixels and saves it away.
+    /// See the following thread for a discussion of this algorithm:
+    /// http://groups.google.com/group/zxing/browse_thread/thread/d06efa2c35a7ddc0
     fn calculate_black_points(
         luminances: &[u8],
         sub_width: u32,

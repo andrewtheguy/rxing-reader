@@ -16,12 +16,8 @@
 
 use crate::{Point, point};
 
-/**
- * <p>Encapsulates an alignment pattern, which are the smaller square patterns found in
- * all but the simplest QR Codes.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates an alignment pattern, which are the smaller square patterns found in
+/// all but the simplest QR Codes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlignmentPattern {
     estimated_module_size: f32,
@@ -48,10 +44,8 @@ impl AlignmentPattern {
         }
     }
 
-    /**
-     * <p>Determines if this alignment pattern "about equals" an alignment pattern at the stated
-     * position and size -- meaning, it is at nearly the same center with nearly the same size.</p>
-     */
+    /// Determines if this alignment pattern "about equals" an alignment pattern at the stated
+    /// position and size -- meaning, it is at nearly the same center with nearly the same size.
     pub fn about_equals(&self, module_size: f32, i: f32, j: f32) -> bool {
         if (i - self.point.y).abs() <= module_size && (j - self.point.x).abs() <= module_size {
             let module_size_diff = (module_size - self.estimated_module_size).abs();
@@ -60,10 +54,8 @@ impl AlignmentPattern {
         false
     }
 
-    /**
-     * Combines this object's current estimate of an alignment pattern position and module size
-     * with a new estimate. It returns a new {@code AlignmentPattern} containing an average of the two.
-     */
+    /// Combines this object's current estimate of an alignment pattern position and module size
+    /// with a new estimate. It returns a new `AlignmentPattern` containing an average of the two.
     pub fn combine_estimate(&self, i: f32, j: f32, new_module_size: f32) -> AlignmentPattern {
         let combined_x = (self.point.x + j) / 2.0;
         let combined_y = (self.point.y + i) / 2.0;

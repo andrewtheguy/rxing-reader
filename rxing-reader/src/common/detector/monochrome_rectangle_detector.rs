@@ -19,14 +19,9 @@ use anyhow::Result;
 
 use crate::{Error, Point, common::BitMatrix, point};
 
-/**
- * <p>A somewhat generic detector that looks for a barcode-like rectangular region within an image.
- * It looks within a mostly white region of an image for a region of black and white, but mostly
- * black. It returns the four corners of the region, as best it can determine.</p>
- *
- * @author Sean Owen
- * @deprecated without replacement since 3.3.0
- */
+/// A somewhat generic detector that looks for a barcode-like rectangular region within an image.
+/// It looks within a mostly white region of an image for a region of black and white, but mostly
+/// black. It returns the four corners of the region, as best it can determine.
 const MAX_MODULES: i32 = 32;
 #[deprecated]
 pub struct MonochromeRectangleDetector<'a> {
@@ -38,16 +33,14 @@ impl<'a> MonochromeRectangleDetector<'_> {
         MonochromeRectangleDetector { image }
     }
 
-    /**
-     * <p>Detects a rectangular region of black and white -- mostly black -- with a region of mostly
-     * white, in an image.</p>
-     *
-     * @return {@link Point}[] describing the corners of the rectangular region. The first and
-     *  last points are opposed on the diagonal, as are the second and third. The first point will be
-     *  the topmost point and the last, the bottommost. The second point will be leftmost and the
-     *  third, the rightmost
-     * Returns a not-found error if no Data Matrix Code can be found
-     */
+    /// Detects a rectangular region of black and white -- mostly black -- with a region of mostly
+    /// white, in an image.
+    ///
+    /// Returns [`Point`][] describing the corners of the rectangular region. The first and.
+    /// last points are opposed on the diagonal, as are the second and third. The first point will be
+    /// the topmost point and the last, the bottommost. The second point will be leftmost and the
+    /// third, the rightmost
+    /// Returns a not-found error if no Data Matrix Code can be found
     pub fn detect(&self) -> Result<[Point; 4]> {
         let height = self.image.get_height() as i32;
         let width = self.image.get_width() as i32;
@@ -125,24 +118,23 @@ impl<'a> MonochromeRectangleDetector<'_> {
         Ok([point_a, point_b, point_c, point_d])
     }
 
-    /**
-     * Attempts to locate a corner of the barcode by scanning up, down, left or right from a center
-     * point which should be within the barcode.
-     *
-     * @param center_x center's x component (horizontal)
-     * @param delta_x same as delta_y but change in x per step instead
-     * @param left minimum value of x
-     * @param right maximum value of x
-     * @param center_y center's y component (vertical)
-     * @param delta_y change in y per step. If scanning up this is negative; down, positive;
-     *  left or right, 0
-     * @param top minimum value of y to search through (meaningless when di == 0)
-     * @param bottom maximum value of y
-     * @param max_white_run maximum run of white pixels that can still be considered to be within
-     *  the barcode
-     * @return a {@link Point} encapsulating the corner that was found
-     * Returns a not-found error if such a point cannot be found
-     */
+    /// Attempts to locate a corner of the barcode by scanning up, down, left or right from a center
+    /// point which should be within the barcode.
+    ///
+    /// - `center_x`: center's x component (horizontal)
+    /// - `delta_x`: same as delta_y but change in x per step instead
+    /// - `left`: minimum value of x
+    /// - `right`: maximum value of x
+    /// - `center_y`: center's y component (vertical)
+    /// - `delta_y`: change in y per step. If scanning up this is negative; down, positive;
+    ///   left or right, 0
+    /// - `top`: minimum value of y to search through (meaningless when di == 0)
+    /// - `bottom`: maximum value of y
+    /// - `max_white_run`: maximum run of white pixels that can still be considered to be within
+    ///   the barcode
+    ///
+    /// Returns a [`Point`] encapsulating the corner that was found.
+    /// Returns a not-found error if such a point cannot be found
     #[allow(clippy::too_many_arguments)]
     fn find_corner_from_center(
         &self,
@@ -214,20 +206,21 @@ impl<'a> MonochromeRectangleDetector<'_> {
         .into())
     }
 
-    /**
-     * Computes the start and end of a region of pixels, either horizontally or vertically, that could
-     * be part of a Data Matrix barcode.
-     *
-     * @param fixed_dimension if scanning horizontally, this is the row (the fixed vertical location)
-     *  where we are scanning. If scanning vertically it's the column, the fixed horizontal location
-     * @param max_white_run largest run of white pixels that can still be considered part of the
-     *  barcode region
-     * @param min_dim minimum pixel location, horizontally or vertically, to consider
-     * @param max_dim maximum pixel location, horizontally or vertically, to consider
-     * @param horizontal if true, we're scanning left-right, instead of up-down
-     * @return int[] with start and end of found range, or null if no such range is found
-     *  (e.g. only white was found)
-     */
+    /// Computes the start and end of a region of pixels, either horizontally or vertically, that could
+    /// be part of a Data Matrix barcode.
+    ///
+    /// - `fixed_dimension`: if scanning horizontally, this is the row (the fixed vertical location)
+    ///   where we are scanning. If scanning vertically it's the column, the fixed horizontal location
+    /// - `max_white_run`: largest run of white pixels that can still be considered part of the
+    ///   barcode region
+    /// - `min_dim`: minimum pixel location, horizontally or vertically, to consider
+    /// - `max_dim`: maximum pixel location, horizontally or vertically, to consider
+    /// - `horizontal`: if true, we're scanning left-right, instead of up-down
+    ///
+    /// Returns the start and end of the found range.
+    ///
+    /// Returns `None` when no such range is found, for example when only white
+    /// pixels were scanned.
     fn black_white_range(
         &self,
         fixed_dimension: i32,

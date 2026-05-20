@@ -68,9 +68,7 @@ impl Version {
         )
     }
 
-    /**
-     * See ISO 18004:2006 6.5.1 Table 9
-     */
+    /// See ISO 18004:2006 6.5.1 Table 9
     pub fn build_versions() -> Box<[Version]> {
         qr_version!({
             {1, {}, {

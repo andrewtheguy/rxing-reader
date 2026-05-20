@@ -16,13 +16,9 @@
 
 use crate::{Point, point};
 
-/**
- * <p>Encapsulates a finder pattern, which are the three square patterns found in
- * the corners of QR Codes. It also encapsulates a count of similar finder patterns,
- * as a convenience to the finder's bookkeeping.</p>
- *
- * @author Sean Owen
- */
+/// Encapsulates a finder pattern, which are the three square patterns found in
+/// the corners of QR Codes. It also encapsulates a count of similar finder patterns,
+/// as a convenience to the finder's bookkeeping.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FinderPattern {
     estimated_module_size: f32,
@@ -63,10 +59,8 @@ impl FinderPattern {
         self.count
     }
 
-    /**
-     * <p>Determines if this finder pattern "about equals" a finder pattern at the stated
-     * position and size -- meaning, it is at nearly the same center with nearly the same size.</p>
-     */
+    /// Determines if this finder pattern "about equals" a finder pattern at the stated
+    /// position and size -- meaning, it is at nearly the same center with nearly the same size.
     pub fn about_equals(&self, module_size: f32, i: f32, j: f32) -> bool {
         if (i - self.point.y).abs() <= module_size && (j - self.point.x).abs() <= module_size {
             let module_size_diff = (module_size - self.estimated_module_size).abs();
@@ -76,11 +70,9 @@ impl FinderPattern {
         }
     }
 
-    /**
-     * Combines this object's current estimate of a finder pattern position and module size
-     * with a new estimate. It returns a new {@code FinderPattern} containing a weighted average
-     * based on count.
-     */
+    /// Combines this object's current estimate of a finder pattern position and module size
+    /// with a new estimate. It returns a new `FinderPattern` containing a weighted average
+    /// based on count.
     pub fn combine_estimate(&self, i: f32, j: f32, new_module_size: f32) -> FinderPattern {
         let combined_count = self.count as f32 + 1.0;
         let combined_x = (self.count as f32 * self.point.x + j) / combined_count;

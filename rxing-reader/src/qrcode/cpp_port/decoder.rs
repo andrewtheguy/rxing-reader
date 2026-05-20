@@ -18,9 +18,7 @@ use crate::qrcode::cpp_port::bitmatrix_parser::{
 use crate::qrcode::decoder::DataBlock;
 use crate::qrcode::decoder::qrcode_decoder::correct_errors;
 
-/**
-* See specification GBT 18284-2000
-*/
+/// See specification GBT 18284-2000
 pub fn decode_hanzi_segment(
     bits: &mut BitSource,
     count: u32,
@@ -96,9 +94,7 @@ pub fn decode_byte_segment(
 
 pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     let value = value as usize;
-    /**
-     * See ISO 18004:2006, 6.4.4 Table 5
-     */
+    /// See ISO 18004:2006, 6.4.4 Table 5
     const ALPHANUMERIC_CHARS: [char; 45] = [
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
         'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -208,35 +204,31 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
     .into())
 }
 
-/**
- * QR codes encode mode indicators and terminator codes into a constant bit length of 4.
- * micro QR codes have terminator codes that vary in bit length but are always longer than
- * the mode indicators.
- * M1 - 0 length mode code, 3 bits terminator code
- * M2 - 1 bit mode code, 5 bits terminator code
- * M3 - 2 bit mode code, 7 bits terminator code
- * M4 - 3 bit mode code, 9 bits terminator code
- * IsTerminator peaks into the bit stream to see if the current position is at the start of
- * a terminator code.  If true, then the decoding can finish. If false, then the decoding
- * can read off the next mode code.
- *
- * See ISO 18004:2015, 7.4.1 Table 2
- *
- * @param bits the stream of bits that might have a terminator code
- * @param version the QR or micro QR code version
- */
+/// QR codes encode mode indicators and terminator codes into a constant bit length of 4.
+/// micro QR codes have terminator codes that vary in bit length but are always longer than
+/// the mode indicators.
+/// M1 - 0 length mode code, 3 bits terminator code
+/// M2 - 1 bit mode code, 5 bits terminator code
+/// M3 - 2 bit mode code, 7 bits terminator code
+/// M4 - 3 bit mode code, 9 bits terminator code
+/// IsTerminator peaks into the bit stream to see if the current position is at the start of
+/// a terminator code.  If true, then the decoding can finish. If false, then the decoding
+/// can read off the next mode code.
+///
+/// See ISO 18004:2015, 7.4.1 Table 2
+///
+/// - `bits`: the stream of bits that might have a terminator code
+/// - `version`: the QR or micro QR code version
 pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
     let bits_required = Mode::get_terminator_bit_length(version); //super::qr_codec_mode::TerminatorBitsLength(version);
     let bits_available = std::cmp::min(bits.available(), bits_required as usize);
     Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
 }
 
-/**
-* <p>QR Codes can encode text as bits in one of several modes, and can use multiple modes
-* in one QR Code. This method decodes the bits back into text.</p>
-*
-* <p>See ISO 18004:2006, 6.4.3 - 6.4.7</p>
-*/
+/// QR Codes can encode text as bits in one of several modes, and can use multiple modes
+/// in one QR Code. This method decodes the bits back into text.
+///
+/// See ISO 18004:2006, 6.4.3 - 6.4.7
 // ZXING_EXPORT_TEST_ONLY
 pub fn decode_bit_stream(
     bytes: &[u8],

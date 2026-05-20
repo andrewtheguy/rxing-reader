@@ -1,11 +1,9 @@
 use crate::Point;
 
-/**
- * Orders an array of three Points in an order [A,B,C] such that AB is less than AC
- * and BC is less than AC, and the angle between BC and BA is less than 180 degrees.
- *
- * @param patterns array of three {@code Point} to order
- */
+/// Orders an array of three points in `A, B, C` order such that AB is less than AC
+/// and BC is less than AC, and the angle between BC and BA is less than 180 degrees.
+///
+/// - `patterns`: array of three `Point` to order
 pub fn order_best_patterns<T: Into<Point> + Copy>(patterns: &mut [T; 3]) {
     // Find distances between pattern centers
     let zero_one_distance = Point::distance(patterns[0].into(), patterns[1].into());

@@ -22,14 +22,10 @@ use crate::{DecodeHints, Error, Point, PointCallback, common::BitMatrix, result_
 
 use super::{FinderPattern, FinderPatternInfo};
 
-/**
- * <p>This class attempts to find finder patterns in a QR Code. Finder patterns are the square
- * markers at three corners of a QR Code.</p>
- *
- * <p>This class is thread-safe but not reentrant. Each thread must allocate its own object.
- *
- * @author Sean Owen
- */
+/// Finds the square finder patterns at three corners of a QR Code.
+///
+/// The finder borrows its input image and stores scan state, so use one finder
+/// per detection attempt.
 pub struct FinderPatternFinder<'a> {
     image: &'a BitMatrix,
     possible_centers: Vec<FinderPattern>,
@@ -42,11 +38,9 @@ impl<'a> FinderPatternFinder<'a> {
     pub const MIN_SKIP: u32 = 3; // 1 pixel/module times 3 modules/center
     pub const MAX_MODULES: u32 = 97; // support up to version 20 for mobile clients
 
-    /**
-     * <p>Creates a finder that will search the image for three finder patterns.</p>
-     *
-     * @param image image to search
-     */
+    /// Creates a finder that will search the image for three finder patterns.
+    ///
+    /// - `image`: image to search
     pub fn new(image: &'a BitMatrix) -> FinderPatternFinder<'a> {
         Self::with_callback(image, None)
     }
@@ -183,19 +177,15 @@ impl<'a> FinderPatternFinder<'a> {
         Ok(FinderPatternInfo::new(pattern_info))
     }
 
-    /**
-     * Given a count of black/white/black/white/black pixels just seen and an end position,
-     * figures the location of the center of this run.
-     */
+    /// Given a count of black/white/black/white/black pixels just seen and an end position,
+    /// figures the location of the center of this run.
     fn center_from_end(state_count: &[u32], end: u32) -> f32 {
         (end - state_count[4] - state_count[3]) as f32 - ((state_count[2] as f32) / 2.0)
     }
 
-    /**
-     * @param state_count count of black/white/black/white/black pixels just read
-     * @return true iff the proportions of the counts is close enough to the 1/1/3/1/1 ratios
-     *         used by finder patterns to be considered a match
-     */
+    /// - `state_count`: count of black/white/black/white/black pixels just read
+    ///
+    /// Returns `true` when the counts are close enough to the 1/1/3/1/1 finder-pattern ratio.
     pub fn found_pattern_cross(state_count: &[u32]) -> bool {
         let mut total_module_size = 0;
         for count in state_count.iter().take(5) {
@@ -217,11 +207,9 @@ impl<'a> FinderPatternFinder<'a> {
             && (module_size - state_count[4] as f64).abs() < max_variance
     }
 
-    /**
-     * @param state_count count of black/white/black/white/black pixels just read
-     * @return true iff the proportions of the counts is close enough to the 1/1/3/1/1 ratios
-     *         used by finder patterns to be considered a match
-     */
+    /// - `state_count`: count of black/white/black/white/black pixels just read
+    ///
+    /// Returns `true` when the diagonal counts are close enough to the 1/1/3/1/1 finder-pattern ratio.
     pub fn found_pattern_diagonal(state_count: &[u32]) -> bool {
         let mut total_module_size = 0;
         for count in state_count.iter().take(5) {
@@ -255,15 +243,14 @@ impl<'a> FinderPatternFinder<'a> {
         state_count[4] = 0;
     }
 
-    /**
-     * After a vertical and horizontal scan finds a potential finder pattern, this method
-     * "cross-cross-cross-checks" by scanning down diagonally through the center of the possible
-     * finder pattern to see if the same proportion is detected.
-     *
-     * @param center_i row where a finder pattern was detected
-     * @param center_j center of the section that appears to cross a finder pattern
-     * @return true if proportions are withing expected limits
-     */
+    /// After a vertical and horizontal scan finds a potential finder pattern, this method
+    /// "cross-cross-cross-checks" by scanning down diagonally through the center of the possible
+    /// finder pattern to see if the same proportion is detected.
+    ///
+    /// - `center_i`: row where a finder pattern was detected
+    /// - `center_j`: center of the section that appears to cross a finder pattern
+    ///
+    /// Returns true if proportions are withing expected limits.
     fn cross_check_diagonal(&self, center_i: u32, center_j: u32) -> bool {
         let mut cross_check_state_count = [0u32; 5];
 
@@ -333,17 +320,16 @@ impl<'a> FinderPatternFinder<'a> {
         Self::found_pattern_diagonal(&cross_check_state_count)
     }
 
-    /**
-     * <p>After a horizontal scan finds a potential finder pattern, this method
-     * "cross-checks" by scanning down vertically through the center of the possible
-     * finder pattern to see if the same proportion is detected.</p>
-     *
-     * @param start_i row where a finder pattern was detected
-     * @param center_j center of the section that appears to cross a finder pattern
-     * @param max_count maximum reasonable number of modules that should be
-     * observed in any reading state, based on the results of the horizontal scan
-     * @return vertical center of finder pattern, or {@link Float#NaN} if not found
-     */
+    /// After a horizontal scan finds a potential finder pattern, this method
+    /// "cross-checks" by scanning down vertically through the center of the possible
+    /// finder pattern to see if the same proportion is detected.
+    ///
+    /// - `start_i`: row where a finder pattern was detected
+    /// - `center_j`: center of the section that appears to cross a finder pattern
+    /// - `max_count`: maximum reasonable number of modules that should be
+    ///   observed in any reading state, based on the results of the horizontal scan
+    ///
+    /// Returns vertical center of finder pattern, or [`Float::NaN`] if not found.
     fn cross_check_vertical(
         &self,
         start_i: u32,
@@ -432,11 +418,9 @@ impl<'a> FinderPatternFinder<'a> {
         }
     }
 
-    /**
-     * <p>Like {@link #cross_check_vertical(int, int, int, int)}, and in fact is basically identical,
-     * except it reads horizontally instead of vertically. This is used to cross-cross
-     * check a vertical cross check and locate the real center of the alignment pattern.</p>
-     */
+    /// Like [`int, int, int)`], and in fact is basically identical,
+    /// except it reads horizontally instead of vertically. This is used to cross-cross
+    /// check a vertical cross check and locate the real center of the alignment pattern.
     fn cross_check_horizontal(
         &self,
         start_j: u32,
@@ -526,23 +510,22 @@ impl<'a> FinderPatternFinder<'a> {
         }
     }
 
-    /**
-     * <p>This is called when a horizontal scan finds a possible alignment pattern. It will
-     * cross check with a vertical scan, and if successful, will, ah, cross-cross-check
-     * with another horizontal scan. This is needed primarily to locate the real horizontal
-     * center of the pattern in cases of extreme skew.
-     * And then we cross-cross-cross check with another diagonal scan.</p>
-     *
-     * <p>If that succeeds the finder pattern location is added to a list that tracks
-     * the number of times each location has been nearly-matched as a finder pattern.
-     * Each additional find is more evidence that the location is in fact a finder
-     * pattern center
-     *
-     * @param state_count reading state module counts from horizontal scan
-     * @param i row where finder pattern may be found
-     * @param j end of possible finder pattern in row
-     * @return true if a finder pattern candidate was found this time
-     */
+    /// This is called when a horizontal scan finds a possible alignment pattern. It will
+    /// cross check with a vertical scan, and if successful, will, ah, cross-cross-check
+    /// with another horizontal scan. This is needed primarily to locate the real horizontal
+    /// center of the pattern in cases of extreme skew.
+    /// And then we cross-cross-cross check with another diagonal scan.
+    ///
+    /// If that succeeds the finder pattern location is added to a list that tracks
+    /// the number of times each location has been nearly-matched as a finder pattern.
+    /// Each additional find is more evidence that the location is in fact a finder
+    /// pattern center
+    ///
+    /// - `state_count`: reading state module counts from horizontal scan
+    /// - `i`: row where finder pattern may be found
+    /// - `j`: end of possible finder pattern in row
+    ///
+    /// Returns true if a finder pattern candidate was found this time.
     pub fn handle_possible_center(&mut self, state_count: &[u32], i: u32, j: u32) -> bool {
         let state_count_total =
             state_count[0] + state_count[1] + state_count[2] + state_count[3] + state_count[4];
@@ -588,12 +571,10 @@ impl<'a> FinderPatternFinder<'a> {
         false
     }
 
-    /**
-     * @return number of rows we could safely skip during scanning, based on the first
-     *         two finder patterns that have been located. In some cases their position will
-     *         allow us to infer that the third pattern must lie below a certain point farther
-     *         down in the image.
-     */
+    /// Returns number of rows we could safely skip during scanning, based on the first.
+    /// two finder patterns that have been located. In some cases their position will
+    /// allow us to infer that the third pattern must lie below a certain point farther
+    /// down in the image.
     fn find_row_skip(&mut self) -> u32 {
         let max = self.possible_centers.len();
         if max <= 1 {
@@ -623,11 +604,8 @@ impl<'a> FinderPatternFinder<'a> {
         0
     }
 
-    /**
-     * @return true iff we have found at least 3 finder patterns that have been detected
-     *         at least {@link #CENTER_QUORUM} times each, and, the estimated module size of the
-     *         candidates is "pretty similar"
-     */
+    /// Returns `true` when at least three finder patterns have been confirmed
+    /// often enough and their estimated module sizes are similar.
     fn have_multiply_confirmed_centers(&self) -> bool {
         let mut confirmed_count = 0;
         let mut total_module_size = 0.0;
@@ -653,18 +631,16 @@ impl<'a> FinderPatternFinder<'a> {
         total_deviation <= 0.05 * total_module_size
     }
 
-    /**
-     * Get square of distance between a and b.
-     */
+    /// Get square of distance between a and b.
     fn squared_distance(a: &FinderPattern, b: &FinderPattern) -> f64 {
         Point::from(a).squared_distance(Point::from(b)) as f64
     }
 
-    /**
-     * @return the 3 best {@link FinderPattern}s from our list of candidates. The "best" are
-     *         those have similar module size and form a shape closer to a isosceles right triangle.
-     * Returns a not-found error if 3 such finder patterns do not exist
-     */
+    /// Returns the three best finder-pattern candidates.
+    ///
+    /// The best candidates have similar module sizes and form a shape close to
+    /// an isosceles right triangle. Returns a not-found error if three such
+    /// patterns do not exist.
     fn select_best_patterns(&mut self) -> Result<[FinderPattern; 3]> {
         let start_size = self.possible_centers.len();
         if start_size < 3 {

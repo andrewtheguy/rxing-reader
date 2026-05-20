@@ -50,7 +50,7 @@ impl BitArray {
         }
     }
 
-    /// For testing only
+    /// Builds a bit array from pre-packed test words, truncating to `size` bits.
     #[cfg(test)]
     pub fn with_initial_values(bits: Vec<BaseType>, size: usize) -> Self {
         let mut bv = Bits::from_vec(bits);

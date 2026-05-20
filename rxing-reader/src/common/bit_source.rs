@@ -20,15 +20,11 @@ use std::io::{ErrorKind, Read};
 use crate::Error;
 use anyhow::Result;
 
-/**
- * <p>This provides an easy abstraction to read bits at a time from a sequence of bytes, where the
- * number of bits read is not often a multiple of 8.</p>
- *
- * <p>This class is thread-safe but not reentrant -- unless the caller modifies the bytes array
- * it passed in, in which case all bets are off.</p>
- *
- * @author Sean Owen
- */
+/// This provides an easy abstraction to read bits at a time from a sequence of bytes, where the
+/// number of bits read is not often a multiple of 8.
+///
+/// `BitSource` borrows immutable input bytes and stores read position, so use
+/// one instance per independent bit stream.
 pub struct BitSource<'a> {
     bytes: &'a [u8],
     byte_offset: usize,
@@ -36,10 +32,8 @@ pub struct BitSource<'a> {
 }
 
 impl<'a> BitSource<'a> {
-    /**
-     * @param bytes bytes from which this will read bits. Bits will be read from the first byte first.
-     * Bits are read within a byte from most-significant to least-significant bit.
-     */
+    /// - `bytes`: bytes from which this will read bits. Bits will be read from the first byte first.
+    ///   Bits are read within a byte from most-significant to least-significant bit.
     pub const fn new(bytes: &'a [u8]) -> Self {
         BitSource {
             bytes,
@@ -48,26 +42,22 @@ impl<'a> BitSource<'a> {
         }
     }
 
-    /**
-     * @return index of next bit in current byte which would be read by the next call to {@link #read_bits(int)}.
-     */
+    /// Returns the bit index in the current byte that the next [`Self::read_bits`] call will read.
     pub const fn get_bit_offset(&self) -> usize {
         self.bit_offset
     }
 
-    /**
-     * @return index of next byte in input byte array which would be read by the next call to {@link #read_bits(int)}.
-     */
+    /// Returns the byte index that the next [`Self::read_bits`] call will read from.
     pub const fn get_byte_offset(&self) -> usize {
         self.byte_offset
     }
 
-    /**
-     * @param num_bits number of bits to read
-     * @return int representing the bits read. The bits will appear as the least-significant
-     *         bits of the int
-     * Returns an invalid-argument error if num_bits isn't in [1,32] or more than is available
-     */
+    /// - `num_bits`: number of bits to read
+    ///
+    /// Returns the requested bits as the least-significant bits of a `u32`.
+    ///
+    /// Returns an invalid-argument error if `num_bits` is outside `1..=32` or
+    /// more bits are requested than remain available.
     pub fn read_bits(&mut self, num_bits: usize) -> Result<u32> {
         let available_bits = self.available();
         if !(1..=32).contains(&num_bits) || num_bits > available_bits {
@@ -171,9 +161,7 @@ impl<'a> BitSource<'a> {
         Ok(result)
     }
 
-    /**
-     * @return number of bits that can be read successfully
-     */
+    /// Returns number of bits that can be read successfully.
     pub fn available(&self) -> usize {
         8 * (self.bytes.len() - self.byte_offset) - self.bit_offset
     }

@@ -19,80 +19,62 @@ use std::borrow::Cow;
 use crate::Error;
 use anyhow::Result;
 
-/**
- * The purpose of this class hierarchy is to abstract different bitmap implementations across
- * platforms into a standard interface for requesting greyscale luminance values. The interface
- * only provides immutable methods; therefore crop and rotation create copies. This is to ensure
- * that one Reader does not modify the original luminance source and leave it in an unknown state
- * for other Readers in the chain.
- *
- * @author dswitkin@google.com (Daniel Switkin)
- */
+/// Provides greyscale luminance values from an image.
+///
+/// The trait gives readers a common way to request rows, columns, and complete
+/// matrices without depending on a particular image buffer representation.
 pub trait LuminanceSource {
     const SUPPORTS_ROTATION: bool = false;
     const SUPPORTS_CROP: bool = false;
 
-    /**
-     * Fetches one row of luminance data from the underlying platform's bitmap. Values range from
-     * 0 (black) to 255 (white). Because Java does not have an unsigned byte type, callers will have
-     * to bitwise and with 0xff for each value. It is preferable for implementations of this method
-     * to only fetch this row rather than the whole image, since no 2D Readers may be installed and
-     * getMatrix() may never be called.
-     *
-     * @param y The row to fetch, which must be in [0,get_height())
-     * @param row An optional preallocated array. If null or too small, it will be ignored.
-     *            Always use the returned object, and ignore the .length of the array.
-     * @return An array containing the luminance data.
-     */
+    /// Fetches one row of luminance data from the underlying image.
+    ///
+    /// Values range from `0` (black) to `255` (white). Implementations should
+    /// prefer fetching only the requested row when that is cheaper than
+    /// materializing the whole matrix.
+    ///
+    /// - `y`: The row to fetch, which must be in `[0, height)`.
+    ///
+    /// Returns the luminance data for the row.
     fn get_row(&self, y: usize) -> Option<Cow<'_, [u8]>>;
 
-    /// Get a column of of the image
+    /// Returns the luminance values for column `x`, from top to bottom.
     fn get_column(&self, x: usize) -> Vec<u8>;
 
-    /**
-     * Fetches luminance data for the underlying bitmap. Values should be fetched using:
-     * {@code int luminance = array[y * width + x] & 0xff}
-     *
-     * @return A row-major 2D array of luminance values. Do not use result.length as it may be
-     *         larger than width * height bytes on some platforms. Do not modify the contents
-     *         of the result.
-     */
+    /// Fetches row-major luminance data for the underlying image.
+    ///
+    /// Returns row-major luminance values. Implementations may return a backing
+    /// buffer that is larger than `width * height`; callers should only read the
+    /// image region described by the dimensions.
     fn get_matrix(&self) -> Cow<'_, [u8]>;
 
-    /**
-     * @return The width of the bitmap.
-     */
+    /// Returns the width of the source image.
     fn get_width(&self) -> usize;
 
-    /**
-     * @return The height of the bitmap.
-     */
+    /// Returns the height of the source image.
     fn get_height(&self) -> usize;
 
-    /**
-     * @return Whether this subclass supports cropping.
-     */
+    /// Returns whether this source supports cropping.
     fn is_crop_supported(&self) -> bool {
         Self::SUPPORTS_CROP
     }
 
-    /**
-     * @return Whether this subclass supports counter-clockwise rotation.
-     */
+    /// Returns whether this source supports counter-clockwise rotation.
     fn is_rotate_supported(&self) -> bool {
         Self::SUPPORTS_ROTATION
     }
 
-    /**
-     * Returns a new object with cropped image data. Implementations may keep a reference to the
-     * original data rather than a copy. Only callable if isCropSupported() is true.
-     *
-     * @param left The left coordinate, which must be in [0,get_width())
-     * @param top The top coordinate, which must be in [0,get_height())
-     * @param width The width of the rectangle to crop.
-     * @param height The height of the rectangle to crop.
-     * @return A cropped version of this object.
-     */
+    /// Returns a source over cropped image data.
+    ///
+    /// Implementations may keep a reference to the original data rather than
+    /// copying it. Only call this when [`Self::is_crop_supported`] returns `true`.
+    ///
+    /// - `left`: The left coordinate, which must be in [0,get_width())
+    /// - `top`: The top coordinate, which must be in [0,get_height())
+    /// - `width`: The width of the rectangle to crop.
+    /// - `height`: The height of the rectangle to crop.
+    ///
+    /// Returns the cropped source.
     fn crop(&self, _left: usize, _top: usize, _width: usize, _height: usize) -> Result<Self>
     where
         Self: Sized,
@@ -103,18 +85,15 @@ pub trait LuminanceSource {
         .into())
     }
 
-    /**
-     * @return a wrapper of this {@code LuminanceSource} which inverts the luminances it returns -- black becomes
-     *  white and vice versa, and each value becomes (255-value).
-     */
+    /// Inverts the luminance values in place: black becomes white and each
+    /// value becomes `255 - value`.
     fn invert(&mut self);
 
-    /**
-     * Returns a new object with rotated image data by 90 degrees counterclockwise.
-     * Only callable if {@link #isRotateSupported()} is true.
-     *
-     * @return A rotated version of this object.
-     */
+    /// Returns a source over image data rotated 90 degrees counter-clockwise.
+    ///
+    /// Only call this when [`Self::is_rotate_supported`] returns `true`.
+    ///
+    /// Returns the rotated source.
     fn rotate_counter_clockwise(&self) -> Result<Self>
     where
         Self: Sized,
@@ -125,12 +104,11 @@ pub trait LuminanceSource {
         .into())
     }
 
-    /**
-     * Returns a new object with rotated image data by 45 degrees counterclockwise.
-     * Only callable if {@link #isRotateSupported()} is true.
-     *
-     * @return A rotated version of this object.
-     */
+    /// Returns a source over image data rotated 45 degrees counter-clockwise.
+    ///
+    /// Only call this when [`Self::is_rotate_supported`] returns `true`.
+    ///
+    /// Returns the rotated source.
     fn rotate_counter_clockwise_45(&self) -> Result<Self>
     where
         Self: Sized,

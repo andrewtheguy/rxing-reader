@@ -128,11 +128,9 @@ pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatter
     res
 }
 
-/**
- * @brief generate_finder_pattern_sets
- * @param patterns list of ConcentricPattern objects, i.e. found finder pattern squares
- * @return list of plausible finder pattern sets, sorted by decreasing plausibility
- */
+/// - `patterns`: list of ConcentricPattern objects, i.e. found finder pattern squares
+///
+/// Returns list of plausible finder pattern sets, sorted by decreasing plausibility.
 pub fn generate_finder_pattern_sets(patterns: &mut FinderPatterns) -> FinderPatternSets {
     patterns.sort_by_key(|p| p.size);
 

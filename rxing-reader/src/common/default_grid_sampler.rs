@@ -19,9 +19,6 @@ use anyhow::Result;
 
 use super::{BitMatrix, GridSampler, SamplerControl};
 
-/**
- * @author Sean Owen
- */
 #[derive(Default)]
 pub struct DefaultGridSampler;
 
