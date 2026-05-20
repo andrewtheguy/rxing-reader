@@ -35,7 +35,7 @@ pub trait GridSampler {
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             }
             .into());
         }
@@ -98,7 +98,7 @@ pub trait GridSampler {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".into(),
+                    message: "QR pattern was not detected".into(),
                 }
                 .into());
             }
@@ -126,7 +126,7 @@ pub trait GridSampler {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".into(),
+                    message: "QR pattern was not detected".into(),
                 }
                 .into());
             }

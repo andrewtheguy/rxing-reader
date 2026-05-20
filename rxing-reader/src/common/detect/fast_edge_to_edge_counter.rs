@@ -81,7 +81,7 @@ impl FastEdgeToEdgeCounter<'_> {
                 }
             }
 
-            let Some(idx_pt) = self.get_array_check_index(steps) else {
+            let Some(idx_pt) = self.checked_index_for_steps(steps) else {
                 return 0;
             };
 
@@ -103,7 +103,7 @@ impl FastEdgeToEdgeCounter<'_> {
     }
 
     #[inline(always)]
-    fn get_array_check_index(&self, steps: i32) -> Option<usize> {
+    fn checked_index_for_steps(&self, steps: i32) -> Option<usize> {
         let idx = self.p as isize + (steps as isize * self.stride);
         if idx < 0 {
             return None;

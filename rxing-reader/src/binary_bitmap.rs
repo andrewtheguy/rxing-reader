@@ -22,7 +22,7 @@ use crate::{Binarizer, common::BitMatrix};
 
 /// One-bit view of an image produced by a [`Binarizer`].
 ///
-/// Readers consume `BinaryBitmap` values when searching for barcodes.
+/// Readers consume `BinaryBitmap` values when searching for QR symbols.
 pub struct BinaryBitmap<B: Binarizer> {
     binarizer: B,
 }
@@ -49,7 +49,7 @@ impl<B: Binarizer> BinaryBitmap<B> {
     /// any pixel whose 3×3 neighborhood contains at least one black pixel),
     /// then erode (keep only pixels whose 3×3 neighborhood is entirely
     /// black). Useful as a post-binarization denoise step for marginal
-    /// photos (cf. zxing-cpp's `tryDenoise`). The 1-pixel border is left
+    /// photos. The 1-pixel border is left
     /// unchanged. No-op if the matrix is smaller than 3×3.
     pub fn close(&mut self) -> Result<()> {
         let matrix = self.black_matrix_mut()?;

@@ -498,7 +498,7 @@ impl BitMatrix {
         self.bits = new_bits;
     }
 
-    /// This is useful in detecting the enclosing rectangle of a 'pure' barcode.
+    /// This is useful in detecting the enclosing rectangle of a pure QR symbol.
     ///
     /// Returns the `left, top, width, height` rectangle enclosing all set bits.
     ///
@@ -532,7 +532,7 @@ impl BitMatrix {
         Some([left, top, right - left + 1, bottom - top + 1])
     }
 
-    /// This is useful in detecting a corner of a 'pure' barcode.
+    /// This is useful in detecting a corner of a pure QR symbol.
     ///
     /// Returns the coordinate of the top-left-most set bit.
     ///

@@ -16,7 +16,7 @@
 
 use std::fmt;
 
-use crate::{Error, common::BitMatrix};
+use crate::{Error, PointI, common::BitMatrix, point};
 use anyhow::Result;
 
 use super::ErrorCorrectionLevel;
@@ -78,7 +78,7 @@ impl Version {
     }
 
     pub fn dimension(&self) -> u32 {
-        Self::dimension_of_version(self.version_number)
+        Self::dimension_for_number(self.version_number)
     }
 
     pub fn ec_blocks_for_level(&self, ec_level: ErrorCorrectionLevel) -> Result<&ECBlocks> {
@@ -124,6 +124,59 @@ impl Version {
             .into());
         }
         Ok(&VERSIONS[version_number as usize - 1])
+    }
+
+    pub const fn dimension_for_number(version_number: u32) -> u32 {
+        17 + 4 * version_number
+    }
+
+    pub fn decode_version_information_pair(
+        version_bits_a: i32,
+        version_bits_b: i32,
+    ) -> Result<VersionRef> {
+        let mut best_difference = u32::MAX;
+        let mut best_version = 0;
+        for (i, target_version) in VERSION_DECODE_INFO.into_iter().enumerate() {
+            for bits in [version_bits_a, version_bits_b] {
+                let bits_difference = ((bits as u32) ^ target_version).count_ones();
+                if bits_difference < best_difference {
+                    best_version = i + 7;
+                    best_difference = bits_difference;
+                }
+            }
+            if best_difference == 0 {
+                break;
+            }
+        }
+        // We can tolerate up to 3 bits of error since no two version info codewords will
+        // differ in less than 8 bits.
+        if best_difference <= 3 {
+            return Self::for_number(best_version as u32);
+        }
+        Err(Error::InvalidState {
+            message: "required internal state is missing".into(),
+        }
+        .into())
+    }
+
+    pub fn is_valid_size(size: PointI) -> bool {
+        size.x == size.y && size.x >= 21 && size.x <= 177 && (size.x % 4 == 1)
+    }
+
+    pub fn has_valid_size(matrix: &BitMatrix) -> bool {
+        Self::is_valid_size(point(matrix.width() as i32, matrix.height() as i32))
+    }
+
+    pub fn number_from_size(size: PointI) -> u32 {
+        if Self::is_valid_size(size) {
+            ((size.x - 17) / 4) as u32
+        } else {
+            0
+        }
+    }
+
+    pub fn number_from_matrix(bit_matrix: &BitMatrix) -> u32 {
+        Self::number_from_size(point(bit_matrix.width() as i32, bit_matrix.height() as i32))
     }
 
     /// See ISO 18004:2006 Annex E

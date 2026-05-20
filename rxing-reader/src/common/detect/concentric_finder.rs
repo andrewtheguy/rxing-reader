@@ -2,7 +2,7 @@ use crate::{
     Point,
     common::{
         BitMatrix, Quadrilateral,
-        cpp_essentials::{
+        detect::{
             Direction, FixedPattern, PatternRow, PatternType, PatternView, is_pattern,
         },
     },

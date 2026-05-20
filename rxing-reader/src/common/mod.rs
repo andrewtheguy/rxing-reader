@@ -36,7 +36,7 @@ pub use eci::*;
 mod quad;
 pub use quad::*;
 
-pub mod cpp_essentials;
+pub mod detect;
 
 pub type BitFieldBaseType = usize;
 pub const BIT_FIELD_BASE_BITS: usize = BitFieldBaseType::BITS as usize;

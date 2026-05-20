@@ -12,16 +12,38 @@ use crate::{
     qrcode::{FormatInformation, Version, VersionRef},
 };
 
-use super::data_mask::data_mask_bit;
-use crate::common::cpp_essentials::append_bit;
+use crate::common::detect::append_bit;
 
-pub fn bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -> bool {
-    let mirrored = mirrored.unwrap_or(false);
+/// Return the QR module bit, optionally reading from mirrored coordinates.
+fn module_bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: bool) -> bool {
     if mirrored {
         bit_matrix.get(y, x)
     } else {
         bit_matrix.get(x, y)
     }
+}
+
+/// Encapsulates data masks for the data bits in a QR code, per ISO 18004:2006 6.8.
+///
+/// Note that the diagram in section 6.8.1 is misleading since it indicates that i is column position
+/// and j is row position. In fact, as the text says, i is row position and j is column position.
+fn data_mask_bit(mask_index: u32, x: u32, y: u32) -> Result<bool> {
+    match mask_index {
+        0 => return Ok((y + x).is_multiple_of(2)),
+        1 => return Ok(y.is_multiple_of(2)),
+        2 => return Ok(x.is_multiple_of(3)),
+        3 => return Ok((y + x).is_multiple_of(3)),
+        4 => return Ok(((y / 2) + (x / 3)).is_multiple_of(2)),
+        5 => return Ok((y * x).is_multiple_of(6)),
+        6 => return Ok(((y * x) % 6) < 3),
+        7 => return Ok((y + x + ((y * x) % 3)).is_multiple_of(2)),
+        _ => {}
+    }
+
+    Err(Error::InvalidArgument {
+        message: format!("QR mask index {mask_index} out of range (expected 0..=7)").into(),
+    }
+    .into())
 }
 
 pub fn read_version(bit_matrix: &BitMatrix) -> Result<VersionRef> {
@@ -45,15 +67,15 @@ pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformati
     // Read top-left format info bits
     let mut format_info_bits1 = 0;
     for x in 0..6 {
-        append_bit(&mut format_info_bits1, bit(bit_matrix, x, 8, None));
+        append_bit(&mut format_info_bits1, module_bit(bit_matrix, x, 8, false));
     }
     // .. and skip a bit in the timing pattern ...
-    append_bit(&mut format_info_bits1, bit(bit_matrix, 7, 8, None));
-    append_bit(&mut format_info_bits1, bit(bit_matrix, 8, 8, None));
-    append_bit(&mut format_info_bits1, bit(bit_matrix, 8, 7, None));
+    append_bit(&mut format_info_bits1, module_bit(bit_matrix, 7, 8, false));
+    append_bit(&mut format_info_bits1, module_bit(bit_matrix, 8, 8, false));
+    append_bit(&mut format_info_bits1, module_bit(bit_matrix, 8, 7, false));
     // .. and skip a bit in the timing pattern ...
     for y in (0..=5).rev() {
-        append_bit(&mut format_info_bits1, bit(bit_matrix, 8, y, None));
+        append_bit(&mut format_info_bits1, module_bit(bit_matrix, 8, y, false));
     }
 
     // Read the top-right/bottom-left pattern including the 'Dark Module' from the bottom-left
@@ -62,10 +84,10 @@ pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformati
     let dimension = bit_matrix.height();
     let mut format_info_bits2 = 0;
     for y in ((dimension - 8)..=(dimension - 1)).rev() {
-        append_bit(&mut format_info_bits2, bit(bit_matrix, 8, y, None));
+        append_bit(&mut format_info_bits2, module_bit(bit_matrix, 8, y, false));
     }
     for x in (dimension - 8)..dimension {
-        append_bit(&mut format_info_bits2, bit(bit_matrix, x, 8, None));
+        append_bit(&mut format_info_bits2, module_bit(bit_matrix, x, 8, false));
     }
 
     Ok(FormatInformation::decode_qr(
@@ -74,7 +96,7 @@ pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformati
     ))
 }
 
-pub fn read_qrcodewords(
+pub fn read_codewords(
     bit_matrix: &BitMatrix,
     version: VersionRef,
     format_info: &FormatInformation,
@@ -104,7 +126,7 @@ pub fn read_qrcodewords(
                     append_bit(
                         &mut current_byte,
                         data_mask_bit(format_info.data_mask as u32, xx, y)?
-                            != bit(bit_matrix, xx, y, Some(format_info.is_mirrored)),
+                            != module_bit(bit_matrix, xx, y, format_info.is_mirrored),
                     );
                     // If we've made a whole byte, save it off
                     bits_read += 1;
@@ -130,12 +152,4 @@ pub fn read_qrcodewords(
     }
 
     Ok(result.iter().copied().map(|x| x as u8).collect())
-}
-
-pub fn read_codewords(
-    bit_matrix: &BitMatrix,
-    version: VersionRef,
-    format_info: &FormatInformation,
-) -> Result<Vec<u8>> {
-    read_qrcodewords(bit_matrix, version, format_info)
 }

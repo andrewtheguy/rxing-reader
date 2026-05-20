@@ -62,8 +62,7 @@ impl<'a> Luma8LuminanceSource<'a> {
 /// New dimensions are `(width / factor, height / factor)`. Trailing edge
 /// pixels that don't fit a full `factor × factor` block are dropped (truncating
 /// division). `factor` must be ≥ 1; `factor == 1` returns a copy. Useful as a
-/// pyramid-layer step for `try_harder`-style multi-resolution decoding
-/// (mirrors zxing-cpp's `tryDownscale`).
+/// pyramid-layer step for `try_harder`-style multi-resolution QR decoding.
 pub fn downscale_luma_buffer(
     src: &[u8],
     width: u32,

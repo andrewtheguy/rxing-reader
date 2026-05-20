@@ -4,7 +4,7 @@ use anyhow::Result;
 use super::RegressionLineTrait;
 
 #[derive(Clone)]
-pub struct DMRegressionLine {
+pub struct UnorientedRegressionLine {
     points: Vec<Point>,
     direction_inward: Point,
     pub(super) a: f32,
@@ -12,7 +12,7 @@ pub struct DMRegressionLine {
     pub(super) c: f32,
 }
 
-impl Default for DMRegressionLine {
+impl Default for UnorientedRegressionLine {
     fn default() -> Self {
         Self {
             points: Default::default(),
@@ -24,7 +24,7 @@ impl Default for DMRegressionLine {
     }
 }
 
-impl RegressionLineTrait for DMRegressionLine {
+impl RegressionLineTrait for UnorientedRegressionLine {
     fn is_valid(&self) -> bool {
         !self.a.is_nan()
     }
@@ -163,7 +163,7 @@ impl RegressionLineTrait for DMRegressionLine {
     }
 }
 
-impl DMRegressionLine {
+impl UnorientedRegressionLine {
     pub fn new(point_1: Point, point_2: Point) -> Self {
         let mut new = Self::default();
         RegressionLineTrait::evaluate(&mut new, &[point_1, point_2]);

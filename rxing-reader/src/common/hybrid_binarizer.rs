@@ -24,8 +24,8 @@ use super::{BitMatrix, GlobalHistogramBinarizer};
 /// Local-thresholding binarizer.
 ///
 /// This is slower than [`GlobalHistogramBinarizer`] but handles high-frequency
-/// barcode images with black data on white backgrounds more robustly. It is designed for
-/// high frequency images of barcodes with black data on white backgrounds. For this application,
+/// QR images with black data on white backgrounds more robustly. It is designed for
+/// high-frequency QR images with black data on white backgrounds. For this application,
 /// it does a much better job than a global blackpoint with severe shadows and gradients.
 /// However it tends to produce artifacts on lower frequency images and is therefore not
 /// a good general purpose binarizer for uses outside ZXing.
@@ -251,7 +251,7 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
                     if y > 0 && x > 0 {
                         // Correct the "white background" assumption for blocks that have neighbors by comparing
                         // the pixels in this block to the previously calculated black points. This is based on
-                        // the fact that dark barcode symbology is always surrounded by some amount of light
+                        // the fact that dark QR symbols are always surrounded by some amount of light
                         // background for which reasonable black point estimates were made. The bp estimated at
                         // the boundaries is used for the interior.
 

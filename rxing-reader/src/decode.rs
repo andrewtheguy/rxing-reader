@@ -9,8 +9,7 @@ use crate::{
     qrcode::QrReader,
 };
 
-/// Pyramid downscale threshold and factor, mirroring zxing-cpp's
-/// `tryDownscale` defaults.
+/// Pyramid downscale threshold and factor used by try-harder QR scanning.
 pub const PYRAMID_DOWNSCALE_THRESHOLD: u32 = 500;
 pub const PYRAMID_DOWNSCALE_FACTOR: u32 = 3;
 
@@ -47,7 +46,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     try_invert: bool,
 ) -> Vec<Vec<u8>> {
     let results = QrReader
-        .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+        .decode_with_hints(bitmap, hints, max_number_of_symbols)
         .unwrap_or_default();
     if !results.is_empty() {
         return results;
@@ -55,7 +54,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     if try_invert && let Ok(matrix) = bitmap.black_matrix_mut() {
         matrix.flip_self();
         return QrReader
-            .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+            .decode_with_hints(bitmap, hints, max_number_of_symbols)
             .unwrap_or_default();
     }
     Vec::new()

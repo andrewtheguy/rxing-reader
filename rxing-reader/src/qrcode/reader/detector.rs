@@ -5,9 +5,9 @@ use crate::{
     Error,
     common::{
         DefaultGridSampler, GridSampler, SamplerControl,
-        cpp_essentials::{
-            DMRegressionLine, Matrix, append_bit, center_of_ring, find_concentric_pattern_corners,
-            find_left_guard_by,
+        detect::{
+            Matrix, UnorientedRegressionLine, append_bit, center_of_ring,
+            find_concentric_pattern_corners, find_left_guard_by,
         },
     },
     point, point_i,
@@ -18,15 +18,27 @@ use crate::{
     Point,
     common::{
         BitMatrix, PerspectiveTransform, Quadrilateral,
-        cpp_essentials::{
+        detect::{
             BitMatrixCursorTrait, ConcentricPattern, Direction, EdgeTracer, FixedPattern,
             PatternRow, PatternType, PatternView, RegressionLine, RegressionLineTrait,
-            get_pattern_row_tp, is_pattern, locate_concentric_pattern, read_symmetric_pattern,
+            is_pattern, locate_concentric_pattern, read_pattern_row, read_symmetric_pattern,
         },
     },
 };
 
-use super::detector_result::QRCodeDetectorResult;
+pub(super) struct DetectorResult {
+    bits: BitMatrix,
+}
+
+impl DetectorResult {
+    fn new(bits: BitMatrix) -> Self {
+        Self { bits }
+    }
+
+    pub(super) fn bits(&self) -> &BitMatrix {
+        &self.bits
+    }
+}
 
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct FinderPatternSet {
@@ -79,7 +91,7 @@ pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatter
 
     while y < height {
         let mut row = PatternRow::default();
-        get_pattern_row_tp(image, y, &mut row, false);
+        read_pattern_row(image, y, &mut row, false);
         let mut next: PatternView = PatternView::new(&row);
 
         while {
@@ -250,13 +262,13 @@ pub fn estimate_module_size(
     let mut cur = EdgeTracer::new(image, a.p, b.p - a.p);
     if !cur.is_black() {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+            message: "QR pattern was not detected".into(),
         }
         .into());
     }
 
     let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound {
-        message: "barcode pattern was not detected".into(),
+        message: "QR pattern was not detected".into(),
     })?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
@@ -268,7 +280,7 @@ pub fn estimate_module_size(
     ) != 0.0)
     {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+            message: "QR pattern was not detected".into(),
         }
         .into());
     }
@@ -462,7 +474,7 @@ pub fn read_version(
     Version::decode_version_information_pair(bits[0], bits[1])
 }
 
-pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetectorResult> {
+pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorResult> {
     // Tolerate one estimator failing — pick the surviving estimate via the
     // existing err-based comparison below. Failure (Err) maps to the
     // `DimensionEstimate::default()` (dim=0, err=4), preserving the prior
@@ -472,7 +484,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     if top.dim == 0 && left.dim == 0 {
         return Err(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+            message: "QR pattern was not detected".into(),
         }
         .into());
     }
@@ -511,10 +523,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
 
     if bl2.is_valid() && tr2.is_valid() && bl3.is_valid() && tr3.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (DMRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
-        })? + DMRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".into(),
+        let br_inter = (UnorientedRegressionLine::intersect(&bl2, &tr2).ok_or(Error::NotFound {
+            message: "QR pattern was not detected".into(),
+        })? + UnorientedRegressionLine::intersect(&bl3, &tr3).ok_or(Error::NotFound {
+            message: "QR pattern was not detected".into(),
         })?) / 2.0;
 
         if dimension > 21
@@ -548,17 +560,17 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
     )?;
 
-    if dimension >= Version::symbol_size(7).x {
+    if dimension >= Version::dimension_for_number(7) as i32 {
         let version =
             read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             })?;
         let version_dimension = version.dimension() as i32;
 
         // if the version bits are garbage -> discard the detection
         if (version_dimension - dimension).abs() > 8 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".into(),
+                message: "QR pattern was not detected".into(),
             }
             .into());
         }
@@ -580,7 +592,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 .transform_point(Point::centered(point_i(ap_m[x], ap_m[y])))
                 .ok_or_else(|| {
                     Error::NotFound {
-                        message: "barcode pattern was not detected".into(),
+                        message: "QR pattern was not detected".into(),
                     }
                     .into()
                 })
@@ -664,8 +676,8 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
                 // if we found 2 each, intersect the two lines that are formed by connecting the point pairs
                 if (hori.len()) == 2 && (verti.len()) == 2 {
                     let guessed = RegressionLine::intersect(
-                        &DMRegressionLine::new(hori[0], hori[1]),
-                        &DMRegressionLine::new(verti[0], verti[1]),
+                        &UnorientedRegressionLine::new(hori[0], hori[1]),
+                        &UnorientedRegressionLine::new(verti[0], verti[1]),
                     )
                     .ok_or(Error::InvalidState {
                         message: "required internal state is missing".into(),
@@ -736,7 +748,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         }
         let grid_sampler = DefaultGridSampler;
         let sampled = grid_sampler.sample_grid(image, dimension as u32, dimension as u32, &rois)?;
-        let result = QRCodeDetectorResult::new(sampled);
+        let result = DetectorResult::new(sampled);
         return Ok(result);
     }
 
@@ -751,6 +763,6 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
             transform: mod_to_pix,
         }],
     )?;
-    let result = QRCodeDetectorResult::new(sampled);
+    let result = DetectorResult::new(sampled);
     Ok(result)
 }

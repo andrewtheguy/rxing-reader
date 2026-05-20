@@ -52,6 +52,15 @@ impl ErrorCorrectionLevel {
         }
     }
 
+    pub fn from_format_bits(bits: u8) -> Self {
+        match bits & 0x03 {
+            0 => Self::M,
+            1 => Self::L,
+            2 => Self::H,
+            _ => Self::Q,
+        }
+    }
+
     pub const fn value(&self) -> u8 {
         match self {
             ErrorCorrectionLevel::L => 0x01,

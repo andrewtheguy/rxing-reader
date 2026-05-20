@@ -7,15 +7,14 @@
 use anyhow::Result;
 
 use crate::Error;
-use crate::common::cpp_essentials::DecoderResult;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
-};
-use crate::qrcode::cpp_port::bitmatrix_parser::{
-    read_codewords, read_format_information, read_version,
+    detect::{DecoderResult, to_string as padded_digits},
 };
 use crate::qrcode::reed_solomon::correct_qr_errors;
 use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
+
+use super::bitmatrix_parser::{read_codewords, read_format_information, read_version};
 
 /// See specification GBT 18284-2000
 pub fn decode_hanzi_segment(
@@ -85,13 +84,13 @@ pub fn decode_byte_segment(
     result.switch_encoding(CharacterSet::Unknown, false);
     result.reserve(count as usize);
 
-    for _i in 0..count {
+    for _ in 0..count {
         *result += (bits.read_bits(8)?) as u8;
     }
     Ok(())
 }
 
-pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
+pub fn to_alphanumeric_char(value: u32) -> Result<char> {
     let value = value as usize;
     /// See ISO 18004:2006, 6.4.4 Table 5
     const ALPHANUMERIC_CHARS: [char; 45] = [
@@ -103,7 +102,7 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
     if value >= (ALPHANUMERIC_CHARS.len()) {
         return Err(Error::InvalidFormat {
             message: format!(
-                "to_alpha_numeric_char: value {value} out of range (expected 0..{})",
+                "to_alphanumeric_char: value {value} out of range (expected 0..{})",
                 ALPHANUMERIC_CHARS.len()
             ).into(),
         }
@@ -125,13 +124,13 @@ pub fn decode_alphanumeric_segment(
 
     while count > 1 {
         let next_two_chars_bits = bits.read_bits(11)?;
-        buffer.push(to_alpha_numeric_char(next_two_chars_bits / 45)?);
-        buffer.push(to_alpha_numeric_char(next_two_chars_bits % 45)?);
+        buffer.push(to_alphanumeric_char(next_two_chars_bits / 45)?);
+        buffer.push(to_alphanumeric_char(next_two_chars_bits % 45)?);
         count -= 2;
     }
     if count == 1 {
         // special case: one character left
-        buffer.push(to_alpha_numeric_char(bits.read_bits(6)?)?);
+        buffer.push(to_alphanumeric_char(bits.read_bits(6)?)?);
     }
     // See section 6.4.8.1, 6.4.8.2
     if result.symbology.ai_flag != AIFlag::None {
@@ -169,17 +168,14 @@ pub fn decode_numeric_segment(
     while count > 0 {
         let n = std::cmp::min(count, 3);
         let n_digits = bits.read_bits(1 + 3 * n as usize)?; // read 4, 7 or 10 bits into 1, 2 or 3 digits
-        result.append_string(&crate::common::cpp_essentials::util::to_string(
-            n_digits as usize,
-            n as usize,
-        )?);
+        result.append_string(&padded_digits(n_digits as usize, n as usize)?);
         count -= n;
     }
 
     Ok(())
 }
 
-pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
+pub fn parse_eci_value(bits: &mut BitSource) -> Result<Eci> {
     let first_byte = bits.read_bits(8)?;
     if (first_byte & 0x80) == 0 {
         // just one byte
@@ -197,14 +193,14 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
     }
     Err(Error::InvalidFormat {
         message: format!(
-            "parse_ecivalue: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
+            "parse_eci_value: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
         ).into(),
     }
     .into())
 }
 
 /// QR codes encode mode indicators and terminator codes into a constant bit length of 4.
-/// IsTerminator peaks into the bit stream to see if the current position is at the start of
+/// IsTerminator peeks into the bit stream to see if the current position is at the start of
 /// a terminator code.  If true, then the decoding can finish. If false, then the decoding
 /// can read off the next mode code.
 ///
@@ -253,7 +249,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                     if app_ind < 100 {
                         // "00-09"
                         result +=
-                            crate::common::cpp_essentials::util::to_string(app_ind as usize, 2)?;
+                            padded_digits(app_ind as usize, 2)?;
                     } else if (165..=190).contains(&app_ind) || (197..=222).contains(&app_ind) {
                         // "A-Za-z"
                         result += (app_ind - 100) as u8;
@@ -274,7 +270,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                 }
                 Mode::Eci => {
                     // Count doesn't apply to ECI
-                    result.switch_encoding(parse_ecivalue(&mut bits)?.into(), true);
+                    result.switch_encoding(parse_eci_value(&mut bits)?.into(), true);
                 }
                 Mode::Hanzi => {
                     // First handle Hanzi mode which does not start with character count
