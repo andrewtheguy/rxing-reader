@@ -6,9 +6,6 @@
 
 use crate::Exceptions;
 use crate::common::cpp_essentials::{DecoderResult, StructuredAppendInfo};
-use crate::common::reedsolomon::{
-    PredefinedGenericGF, ReedSolomonDecoder, get_predefined_genericgf,
-};
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, Result, SymbologyIdentifier,
 };
@@ -17,37 +14,7 @@ use crate::qrcode::cpp_port::bitmatrix_parser::{
     read_codewords, read_format_information, read_version,
 };
 use crate::qrcode::decoder::DataBlock;
-
-/**
-* <p>Given data and error-correction codewords received, possibly corrupted by errors, attempts to
-* correct the errors in-place using Reed-Solomon error correction.</p>
-*
-* @param codeword_bytes data and error correction codewords
-* @param num_data_codewords number of codewords that are data bytes
-* @return false if error correction fails
-*/
-pub fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: u32) -> Result<bool> {
-    // First read into an array of ints
-    let mut codewords_ints: Vec<i32> = codeword_bytes.iter().copied().map(|b| b as i32).collect();
-
-    let num_eccodewords = ((codeword_bytes.len() as u32) - num_data_codewords) as i32;
-    let rs = ReedSolomonDecoder::new(get_predefined_genericgf(
-        PredefinedGenericGF::QrCodeField256,
-    ));
-
-    rs.decode(&mut codewords_ints, num_eccodewords)?;
-
-    // Copy back into array of bytes -- only need to worry about the bytes that were data
-    // We don't care about errors in the error-correction codewords
-    for (dst, src) in codeword_bytes[..num_data_codewords as usize]
-        .iter_mut()
-        .zip(codewords_ints[..num_data_codewords as usize].iter())
-    {
-        *dst = *src as u8;
-    }
-
-    Ok(true)
-}
+use crate::qrcode::decoder::qrcode_decoder::correct_errors;
 
 /**
 * See specification GBT 18284-2000
@@ -404,9 +371,7 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
         let mut codeword_bytes = data_block.get_codewords().to_vec();
         let num_data_codewords = data_block.get_num_data_codewords() as usize;
 
-        if !correct_errors(&mut codeword_bytes, num_data_codewords as u32)? {
-            return Err(Exceptions::CHECKSUM);
-        }
+        correct_errors(&mut codeword_bytes, num_data_codewords)?;
 
         result_bytes[result_iterator..(result_iterator + num_data_codewords)]
             .copy_from_slice(&codeword_bytes[..num_data_codewords]);

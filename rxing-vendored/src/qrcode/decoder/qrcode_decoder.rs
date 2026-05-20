@@ -22,23 +22,12 @@ use std::sync::Arc;
  *
  * @author Sean Owen
  */
-use once_cell::sync::Lazy;
-
 use crate::{
     DecodeHints, Exceptions,
-    common::{
-        BitMatrix, DecoderRXingResult, Result,
-        reedsolomon::{PredefinedGenericGF, ReedSolomonDecoder, get_predefined_genericgf},
-    },
+    common::{BitMatrix, DecoderRXingResult, Result},
 };
 
 use super::{BitMatrixParser, DataBlock, QRCodeDecoderMetaData, decoded_bit_stream_parser};
-
-static RS_DECODER: Lazy<ReedSolomonDecoder> = Lazy::new(|| {
-    ReedSolomonDecoder::new(get_predefined_genericgf(
-        PredefinedGenericGF::QrCodeField256,
-    ))
-});
 
 pub fn decode_bool_array(image: &[Vec<bool>]) -> Result<DecoderRXingResult> {
     decode_bool_array_with_hints(image, &DecodeHints::default())
@@ -179,25 +168,11 @@ fn decode_bitmatrix_parser_with_hints(
  * @param num_data_codewords number of codewords that are data bytes
  * @throws ChecksumException if error correction fails
  */
-fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
-    let mut sending_code_words: Vec<i32> = codeword_bytes.iter().map(|x| *x as i32).collect();
-
-    if let Err(Exceptions::ReedSolomonException(error_str)) = RS_DECODER.decode(
-        &mut sending_code_words,
-        (codeword_bytes.len() - num_data_codewords) as i32,
-    ) {
-        return Err(Exceptions::ChecksumException(error_str));
-    }
-
-    // Copy back into array of bytes -- only need to worry about the bytes that were data
-    // We don't care about errors in the error-correction codewords
-    for (code_word, sent_code_word) in codeword_bytes
-        .iter_mut()
-        .zip(sending_code_words.iter())
-        .take(num_data_codewords)
-    {
-        *code_word = *sent_code_word as u8;
-    }
-
+pub(crate) fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
+    let ecc_len = codeword_bytes.len() - num_data_codewords;
+    let buf = reed_solomon::Decoder::new(ecc_len)
+        .correct(codeword_bytes, None)
+        .map_err(|e| Exceptions::ChecksumException(format!("{e:?}")))?;
+    codeword_bytes[..num_data_codewords].copy_from_slice(buf.data());
     Ok(())
 }
