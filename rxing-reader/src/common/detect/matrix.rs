@@ -28,12 +28,9 @@ impl<T: Default + Copy> Matrix<T> {
 
     pub fn get(&self, x: usize, y: usize) -> Option<T> {
         if x >= self.width || y >= self.height {
-            None
-        } else if let Some(Some(d)) = self.data.get(Self::offset(x, y, self.width)) {
-            Some(*d)
-        } else {
-            None
+            return None;
         }
+        self.data.get(Self::offset(x, y, self.width)).copied().flatten()
     }
 
     pub fn set(&mut self, x: usize, y: usize, value: T) -> Result<T> {
