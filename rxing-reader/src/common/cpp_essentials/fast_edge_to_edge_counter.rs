@@ -24,9 +24,7 @@ impl FastEdgeToEdgeCounter<'_> {
         let image_len = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: format!(
-                    "FastEdgeToEdgeCounter: image size overflow ({width} x {height})"
-                ),
+                message: format!("FastEdgeToEdgeCounter: image size overflow ({width} x {height})"),
             })?;
         if !(0..image_len).contains(&p) {
             return Err(Error::InvalidArgument {

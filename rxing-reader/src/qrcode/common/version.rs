@@ -155,9 +155,7 @@ impl Version {
     pub fn get_version_for_number(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
             return Err(Error::InvalidArgument {
-                message: format!(
-                    "QR version {version_number} is out of spec (expected 1..=40)"
-                ),
+                message: format!("QR version {version_number} is out of spec (expected 1..=40)"),
             }
             .into());
         }

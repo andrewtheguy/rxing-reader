@@ -39,9 +39,7 @@ pub struct Detector<'a> {
 
 impl<'a> Detector<'a> {
     pub fn new(image: &'a BitMatrix) -> Detector<'a> {
-        Detector {
-            image,
-        }
+        Detector { image }
     }
 
     pub fn get_image(&self) -> &BitMatrix {

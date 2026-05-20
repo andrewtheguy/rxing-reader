@@ -13,9 +13,7 @@ impl<T: Default + Copy> Matrix<T> {
         let expected = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: format!(
-                    "Matrix::with_data: width * height overflow ({width} x {height})"
-                ),
+                message: format!("Matrix::with_data: width * height overflow ({width} x {height})"),
             })?;
         if data.len() != expected {
             return Err(Error::InvalidArgument {
@@ -37,9 +35,7 @@ impl<T: Default + Copy> Matrix<T> {
         let size = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: format!(
-                    "Matrix::new: width * height overflow ({width} x {height})"
-                ),
+                message: format!("Matrix::new: width * height overflow ({width} x {height})"),
             })?;
         Ok(Self {
             width,

@@ -163,9 +163,7 @@ impl Mode {
         }
 
         Err(Error::InvalidFormat {
-            message: format!(
-                "Invalid codec mode bits 0x{bits:X} for qr_type {qr_type:?}"
-            ),
+            message: format!("Invalid codec mode bits 0x{bits:X} for qr_type {qr_type:?}"),
         }
         .into())
     }

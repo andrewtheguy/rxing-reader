@@ -354,11 +354,7 @@ pub fn decode_bit_stream(
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult<bool>> {
     if !Version::has_valid_size(bits) {
         return Err(Error::InvalidFormat {
-            message: format!(
-                "Invalid QR symbol size: {}x{}",
-                bits.width(),
-                bits.height()
-            ),
+            message: format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()),
         }
         .into());
     }
