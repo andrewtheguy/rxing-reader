@@ -43,8 +43,10 @@ pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String>
     Ok(result.iter().collect())
 }
 
-pub fn append_bit(val: &mut i32, bit: bool) {
+pub fn append_bit<T>(val: &mut T, bit: bool)
+where
+    T: std::ops::ShlAssign<u32> + std::ops::BitOrAssign + From<bool>,
+{
     *val <<= 1;
-
-    *val |= i32::from(bit)
+    *val |= T::from(bit);
 }

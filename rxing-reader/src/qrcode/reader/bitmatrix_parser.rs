@@ -99,10 +99,10 @@ pub fn read_codewords(
 ) -> Result<Vec<u8>> {
     let function_pattern: BitMatrix = version.build_function_pattern()?;
 
-    let mut result = Vec::with_capacity(version.total_codewords() as usize);
-    let mut current_byte = 0;
+    let mut result: Vec<u8> = Vec::with_capacity(version.total_codewords() as usize);
+    let mut current_byte: u8 = 0;
     let mut reading_up = true;
-    let mut bits_read = 0;
+    let mut bits_read: usize = 0;
     let dimension = bit_matrix.height();
     // Read columns in pairs, from right to left
     let mut x = (dimension as i32) - 1;
@@ -126,7 +126,7 @@ pub fn read_codewords(
                     );
                     // If we've made a whole byte, save it off
                     bits_read += 1;
-                    if bits_read % 8 == 0 {
+                    if bits_read.is_multiple_of(8) {
                         result.push(std::mem::take(&mut current_byte));
                     }
                 }
@@ -147,5 +147,5 @@ pub fn read_codewords(
         .into());
     }
 
-    Ok(result.iter().copied().map(|x| x as u8).collect())
+    Ok(result)
 }
