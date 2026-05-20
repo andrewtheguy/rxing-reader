@@ -9,10 +9,6 @@ impl Quadrilateral {
         Self([tl, tr, br, bl])
     }
 
-    pub const fn with_points(tl: Point, tr: Point, br: Point, bl: Point) -> Self {
-        Self([tl, tr, br, bl])
-    }
-
     pub const fn top_left(&self) -> &Point {
         &self.0[0]
     }
@@ -35,9 +31,6 @@ impl Quadrilateral {
         }
         let center_line_f = Point::normalized(center_line);
         f32::atan2(center_line_f.y, center_line_f.x).into()
-    }
-    pub const fn points(&self) -> &[Point] {
-        &self.0
     }
 }
 

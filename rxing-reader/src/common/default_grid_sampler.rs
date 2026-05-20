@@ -29,7 +29,7 @@ impl GridSampler for DefaultGridSampler {
         dimension_x: u32,
         dimension_y: u32,
         controls: &[SamplerControl],
-    ) -> Result<(BitMatrix, [Point; 4])> {
+    ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
                 message: "barcode pattern was not detected".to_owned(),
@@ -86,25 +86,6 @@ impl GridSampler for DefaultGridSampler {
             }
         }
 
-        let project_corner = |p: Point| -> Point {
-            for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x
-                    && p.x <= p1.x
-                    && p0.y <= p.y
-                    && p.y <= p1.y
-                    && let Some(transformed) = transform.transform_point(p)
-                {
-                    return transformed + point(0.5, 0.5);
-                }
-            }
-            Point::default()
-        };
-
-        let tl = project_corner(Point::default());
-        let tr = project_corner(Point::from((dimension_x - 1, 0)));
-        let br = project_corner(Point::from((dimension_x - 1, dimension_y - 1)));
-        let bl = project_corner(Point::from((0, dimension_y - 1)));
-
-        Ok((bits, [tl, tr, bl, br]))
+        Ok(bits)
     }
 }

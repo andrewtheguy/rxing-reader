@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-use std::borrow::Cow;
-
 use once_cell::sync::OnceCell;
 
 use crate::{Binarizer, Error, LuminanceSource};
 use anyhow::Result;
 
-use super::{BitArray, BitMatrix, GlobalHistogramBinarizer};
+use super::{BitMatrix, GlobalHistogramBinarizer};
 
 /// Local-thresholding binarizer.
 ///
@@ -49,14 +47,6 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
         self.ghb.get_luminance_source()
     }
 
-    fn get_black_row(&self, y: usize) -> Result<Cow<'_, BitArray>> {
-        self.ghb.get_black_row(y)
-    }
-
-    fn get_black_line(&self, l: usize, lt: super::LineOrientation) -> Result<Cow<'_, BitArray>> {
-        self.ghb.get_black_line(l, lt)
-    }
-
     /// Calculates the final BitMatrix once for all requests. This could be called once from the
     /// constructor instead, but there are some advantages to doing it lazily, such as making
     /// profiling easier, and not doing heavy lifting when callers don't expect it.
@@ -78,25 +68,6 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
         })
     }
 
-    fn create_binarizer(&self, source: LS) -> Self {
-        Self::new(source)
-    }
-
-    fn get_width(&self) -> usize {
-        self.ghb.get_width()
-    }
-
-    fn get_height(&self) -> usize {
-        self.ghb.get_height()
-    }
-
-    fn get_black_row_from_matrix(&self, y: usize) -> Result<Cow<'_, BitArray>> {
-        if let Some(matrix) = self.black_matrix.get() {
-            Ok(Cow::Owned(matrix.get_row(y as u32)))
-        } else {
-            self.get_black_row(y)
-        }
-    }
 }
 
 // This class uses 5x5 blocks to compute local luminance, where each block is 8x8 pixels.

@@ -2,8 +2,6 @@ use std::{fmt, iter::Sum};
 
 use std::hash::Hash;
 
-use crate::ResultPoint;
-
 /// Encapsulates a point of interest in an image containing a barcode. Typically, this
 /// would be the location of a finder pattern or the corner of the barcode, for example.
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq, PartialOrd)]
@@ -107,27 +105,6 @@ where
 {
     fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
         iter.fold(Self::default(), |acc, &p| acc + p)
-    }
-}
-
-/// This impl is temporary and is there to ease refactoring.
-impl<T> ResultPoint for PointT<T>
-where
-    T: Into<f32> + Copy,
-{
-    fn get_x(&self) -> f32 {
-        self.x.into()
-    }
-
-    fn get_y(&self) -> f32 {
-        self.y.into()
-    }
-
-    fn to_rxing_result_point(&self) -> PointT<f32> {
-        PointT {
-            x: self.x.into(),
-            y: self.y.into(),
-        }
     }
 }
 
@@ -432,7 +409,7 @@ mod tests {
 
 #[cfg(test)]
 mod point_tests {
-    use super::{Point, PointF, PointI, PointT, PointU, ResultPoint, point, point_i};
+    use super::{PointF, PointI, PointT, PointU, point, point_i};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
@@ -587,18 +564,6 @@ mod point_tests {
         let pts = [PointI::new(1, 2), PointI::new(3, 4), PointI::new(-2, -1)];
         let sum: PointI = pts.iter().sum();
         assert_eq!(sum, PointI::new(2, 5));
-    }
-
-    // --- ResultPoint impl ---------------------------------------------------
-
-    #[test]
-    fn test_result_point_trait() {
-        let pi = Point::new(3.0, 4.0);
-        // get_x/get_y from ResultPoint
-        assert_eq!(pi.get_x(), 3.0);
-        assert_eq!(pi.get_y(), 4.0);
-        let rf = pi.to_rxing_result_point();
-        assert_eq!(rf, PointF::new(3.0, 4.0));
     }
 
     // --- Vector methods (Real) ----------------------------------------------

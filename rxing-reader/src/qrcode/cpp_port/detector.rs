@@ -6,15 +6,12 @@ use crate::{
     common::{
         DefaultGridSampler, GridSampler, SamplerControl,
         cpp_essentials::{
-            DMRegressionLine, Matrix, Value, append_bit, center_of_ring,
-            find_concentric_pattern_corners, find_left_guard_by,
+            DMRegressionLine, Matrix, append_bit, center_of_ring, find_concentric_pattern_corners,
+            find_left_guard_by,
         },
     },
     point, point_i,
-    qrcode::{
-        common::{FormatInformation, Version, VersionRef},
-        detector::QRCodeDetectorResult,
-    },
+    qrcode::{Version, VersionRef},
 };
 
 use crate::{
@@ -29,7 +26,7 @@ use crate::{
     },
 };
 
-use super::Type;
+use super::detector_result::QRCodeDetectorResult;
 
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 pub struct FinderPatternSet {
@@ -551,7 +548,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
         Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
     )?;
 
-    if dimension >= Version::symbol_size(7, Type::Model2).x {
+    if dimension >= Version::symbol_size(7).x {
         let version =
             read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
                 message: "barcode pattern was not detected".to_owned(),
@@ -738,14 +735,13 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
             }
         }
         let grid_sampler = DefaultGridSampler;
-        let (sampled, rp) =
-            grid_sampler.sample_grid(image, dimension as u32, dimension as u32, &rois)?;
-        let result = QRCodeDetectorResult::new(sampled, rp.to_vec());
+        let sampled = grid_sampler.sample_grid(image, dimension as u32, dimension as u32, &rois)?;
+        let result = QRCodeDetectorResult::new(sampled);
         return Ok(result);
     }
 
     let grid_sampler = DefaultGridSampler;
-    let (sampled, rps) = grid_sampler.sample_grid(
+    let sampled = grid_sampler.sample_grid(
         image,
         dimension as u32,
         dimension as u32,
@@ -755,327 +751,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
             transform: mod_to_pix,
         }],
     )?;
-    let result = QRCodeDetectorResult::new(sampled, rps.to_vec());
+    let result = QRCodeDetectorResult::new(sampled);
     Ok(result)
 }
 
-pub fn sample_mqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetectorResult> {
-    let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) else {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    };
-
-    let src_quad = Quadrilateral::rectangle(7, 7, Some(0.5));
-
-    let format_info_coords: [Point; 17] = [
-        point_i(0, 8),
-        point_i(1, 8),
-        point_i(2, 8),
-        point_i(3, 8),
-        point_i(4, 8),
-        point_i(5, 8),
-        point_i(6, 8),
-        point_i(7, 8),
-        point_i(8, 8),
-        point_i(8, 7),
-        point_i(8, 6),
-        point_i(8, 5),
-        point_i(8, 4),
-        point_i(8, 3),
-        point_i(8, 2),
-        point_i(8, 1),
-        point_i(8, 0),
-    ];
-
-    let mut best_fi = FormatInformation::default();
-    let mut best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
-        src_quad,
-        fp_quad.rotated_corners(Some(0), None),
-    )?;
-    let cur = EdgeTracer::new(image, Point::default(), Point::default());
-
-    for i in 0..4 {
-        let mod2_pix = PerspectiveTransform::quadrilateral_to_quadrilateral(
-            src_quad,
-            fp_quad.rotated_corners(Some(i), None),
-        )?;
-
-        let check = |i, check_one: bool| {
-            mod2_pix
-                .transform_point(Point::centered(format_info_coords[i]))
-                .is_some_and(|p| image.is_in(p) && (!check_one || image.get_point(p)))
-        };
-
-        // check that we see both innermost timing pattern modules
-        if !check(0, true) || !check(8, false) || !check(16, true) {
-            continue;
-        }
-
-        let mut format_info_bits = 0;
-        for info_coord in format_info_coords.iter().take(15 + 1).skip(1) {
-            append_bit(
-                &mut format_info_bits,
-                mod2_pix
-                    .transform_point(Point::centered(*info_coord))
-                    .is_some_and(|p| cur.black_at(p)),
-            );
-        }
-
-        let fi = FormatInformation::decode_mqr(format_info_bits as u32);
-        if fi.hamming_distance < best_fi.hamming_distance {
-            best_fi = fi;
-            best_pt = mod2_pix;
-        }
-    }
-
-    if !best_fi.is_valid() {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    }
-
-    let dim: u32 = Version::symbol_size(best_fi.micro_version, Type::Micro).x as u32;
-
-    // check that we are in fact not looking at a corner of a non-micro QRCode symbol
-    // we accept at most 1/3rd black pixels in the quite zone (in a QRCode symbol we expect about 1/2).
-    let mut black_pixels = 0;
-    for i in 0..dim {
-        let px = best_pt.transform_point(Point::centered(point_i(i, dim)));
-        let py = best_pt.transform_point(Point::centered(point_i(dim, i)));
-        if let Some(px) = px {
-            black_pixels += u32::from(cur.black_at(px));
-        }
-        if let Some(py) = py {
-            black_pixels += u32::from(cur.black_at(py) || (image.is_in(py) && image.get_point(py)));
-        }
-    }
-    if black_pixels > 2 * dim / 3 {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    }
-
-    let grid_sampler = DefaultGridSampler;
-    let (sample, rps) = grid_sampler.sample_grid(
-        image,
-        dim,
-        dim,
-        &[SamplerControl {
-            p1: point_i(dim, dim),
-            p0: point_i(0, 0),
-            transform: best_pt,
-        }],
-    )?;
-    Ok(QRCodeDetectorResult::new(sample, rps.to_vec()))
-}
-
-pub fn sample_rmqr(image: &BitMatrix, fp: ConcentricPattern) -> Result<QRCodeDetectorResult> {
-    // TODO proper
-    let Some(fp_quad) = find_concentric_pattern_corners(image, fp.p, fp.size, 2) else {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    };
-
-    let src_quad = Quadrilateral::rectangle(7, 7, Some(0.5));
-
-    let format_info_edge_coords: [Point; 4] =
-        [point_i(8, 0), point_i(9, 0), point_i(10, 0), point_i(11, 0)];
-    let format_info_coords: [Point; 18] = [
-        point_i(11, 3),
-        point_i(11, 2),
-        point_i(11, 1),
-        point_i(10, 5),
-        point_i(10, 4),
-        point_i(10, 3),
-        point_i(10, 2),
-        point_i(10, 1),
-        point_i(9, 5),
-        point_i(9, 4),
-        point_i(9, 3),
-        point_i(9, 2),
-        point_i(9, 1),
-        point_i(8, 5),
-        point_i(8, 4),
-        point_i(8, 3),
-        point_i(8, 2),
-        point_i(8, 1),
-    ];
-
-    let mut best_fi: FormatInformation = FormatInformation::default();
-    let mut best_pt: PerspectiveTransform = PerspectiveTransform::default();
-    let cur = EdgeTracer::new(image, Point::default(), Point::default());
-
-    for i in 0..4 {
-        let mod2_pix = PerspectiveTransform::quadrilateral_to_quadrilateral(
-            src_quad,
-            fp_quad.rotated_corners(Some(i), None),
-        )?;
-
-        let check = |i: usize, on: bool| {
-            mod2_pix
-                .transform_point(Point::centered(format_info_edge_coords[i]))
-                .is_some_and(|p| cur.test_at(p) == Value::from(on))
-        };
-
-        // check that we see top edge timing pattern modules
-        if !check(0, true) || !check(1, false) || !check(2, true) || !check(3, false) {
-            continue;
-        }
-
-        let mut format_info_bits = 0;
-        for coord in format_info_coords {
-            append_bit(
-                &mut format_info_bits,
-                mod2_pix
-                    .transform_point(Point::centered(coord))
-                    .is_some_and(|p| cur.black_at(p)),
-            );
-        }
-
-        let fi =
-            FormatInformation::decode_rmqr(format_info_bits as u32, 0 /*format_info_bits2*/);
-        if fi.hamming_distance < best_fi.hamming_distance {
-            best_fi = fi;
-            best_pt = mod2_pix;
-        }
-    }
-
-    if !best_fi.is_valid() {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    }
-
-    let dim = Version::symbol_size(best_fi.micro_version, Type::RectMicro);
-
-    // TODO: this is a WIP
-    let intersect_quads = |a: &Quadrilateral, b: &Quadrilateral| -> Result<Quadrilateral> {
-        let tl = a.center();
-        let br = b.center();
-        // rotate points such that top_left of a is furthest away from b and top_left of b is closest to a
-        let offset_atarget =
-            a.0.iter()
-                .max_by(|a, b| {
-                    Point::distance(**a, br)
-                        .partial_cmp(&Point::distance(**b, br))
-                        .unwrap_or(std::cmp::Ordering::Less)
-                })
-                .ok_or(Error::InvalidFormat {
-                    message: "QR data is malformed".to_owned(),
-                })?;
-        let offset_a =
-            a.0.iter()
-                .position(|x| x == offset_atarget)
-                .ok_or(Error::InvalidFormat {
-                    message: "QR data is malformed".to_owned(),
-                })? as i32;
-        let offset_btarget =
-            b.0.iter()
-                .min_by(|a, b| {
-                    Point::distance(**a, tl)
-                        .partial_cmp(&Point::distance(**b, tl))
-                        .unwrap_or(std::cmp::Ordering::Less)
-                })
-                .ok_or(Error::InvalidFormat {
-                    message: "QR data is malformed".to_owned(),
-                })?;
-        let offset_b =
-            b.0.iter()
-                .position(|x| x == offset_btarget)
-                .ok_or(Error::InvalidFormat {
-                    message: "QR data is malformed".to_owned(),
-                })? as i32;
-
-        let a = a.rotated_corners(Some(offset_a), None);
-        let b = b.rotated_corners(Some(offset_b), None);
-        let tr = (RegressionLine::intersect(
-            &RegressionLine::with_two_points(a[0], a[1]),
-            &RegressionLine::with_two_points(b[1], b[2]),
-        )
-        .ok_or(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
-        })? + RegressionLine::intersect(
-            &RegressionLine::with_two_points(a[3], a[2]),
-            &RegressionLine::with_two_points(b[0], b[3]),
-        )
-        .ok_or(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
-        })?) / 2.0;
-
-        let bl = (RegressionLine::intersect(
-            &RegressionLine::with_two_points(a[0], a[3]),
-            &RegressionLine::with_two_points(b[2], b[3]),
-        )
-        .ok_or(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
-        })? + RegressionLine::intersect(
-            &RegressionLine::with_two_points(a[1], a[2]),
-            &RegressionLine::with_two_points(b[0], b[1]),
-        )
-        .ok_or(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
-        })?) / 2.0;
-
-        Ok(Quadrilateral::from([tl, tr, br, bl]))
-    };
-
-    let alignment_estimate = best_pt
-        .transform_point(Into::<Point>::into(dim) - point(3.0, 3.0))
-        .ok_or(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        })?;
-    if let Some(found) = locate_alignment_pattern(image, fp.size / 7, alignment_estimate)
-        && let Some(sp_quad) = find_concentric_pattern_corners(image, found, fp.size / 2, 1)
-    {
-        let mut dest = intersect_quads(&fp_quad, &sp_quad)?;
-        if dim.y <= 9 {
-            best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
-                Quadrilateral::from([
-                    point(6.5, 0.5),
-                    point(dim.x as f32 - 1.5, dim.y as f32 - 3.5),
-                    point(dim.x as f32 - 1.5, dim.y as f32 - 1.5),
-                    point(6.5, 6.5),
-                ]),
-                Quadrilateral::from([
-                    *fp_quad.top_right(),
-                    *sp_quad.top_right(),
-                    *sp_quad.bottom_right(),
-                    *fp_quad.bottom_right(),
-                ]),
-            )?;
-        } else {
-            dest[0] = fp.p;
-            dest[2] = found;
-            best_pt = PerspectiveTransform::quadrilateral_to_quadrilateral(
-                Quadrilateral::from([
-                    point(3.5, 3.5),
-                    point(dim.x as f32 - 2.5, 3.5),
-                    point(dim.x as f32 - 2.5, dim.y as f32 - 2.5),
-                    point(3.5, dim.y as f32 - 2.5),
-                ]),
-                dest,
-            )?;
-        }
-    }
-
-    let grid_sampler = DefaultGridSampler;
-    let (sample, rps) = grid_sampler.sample_grid(
-        image,
-        dim.x as u32,
-        dim.y as u32,
-        &[SamplerControl {
-            p1: point_i(dim.x, dim.y),
-            p0: point_i(0, 0),
-            transform: best_pt,
-        }],
-    )?;
-    Ok(QRCodeDetectorResult::new(sample, rps.to_vec()))
-    //  SampleGrid(image, dim.x, dim.y, best_pt)
-}

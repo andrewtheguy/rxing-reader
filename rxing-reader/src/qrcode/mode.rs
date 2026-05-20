@@ -15,7 +15,6 @@
  */
 
 use crate::Error;
-use crate::qrcode::cpp_port::Type;
 use anyhow::Result;
 
 use super::Version;
@@ -114,56 +113,28 @@ impl Mode {
     }
 
     pub fn get_terminator_bit_length(version: &Version) -> u8 {
-        (if version.is_micro() {
-            version.get_version_number() * 2 + 1
-        } else {
-            4 - u32::from(version.is_rmqr())
-        }) as u8
+        let _ = version;
+        4
     }
 
     pub fn get_codec_mode_bits_length(version: &Version) -> u8 {
-        (if version.is_micro() {
-            version.get_version_number() - 1
-        } else {
-            4 - u32::from(version.is_rmqr())
-        }) as u8
+        let _ = version;
+        4
     }
-    /// Converts a QR, Micro QR, or rMQR mode indicator into a [`Mode`].
+    /// Converts a QR mode indicator into a [`Mode`].
     ///
     /// - `bits`: variable-width mode indicator.
-    /// - `qr_type`: QR symbol family that determines the mode table.
     ///
     /// Returns an invalid-format error if `bits` does not correspond to a known mode.
-    pub fn codec_mode_for_bits(bits: u32, qr_type: Option<Type>) -> Result<Self> {
-        let qr_type = qr_type.unwrap_or(Type::Model2);
+    pub fn codec_mode_for_bits(bits: u32) -> Result<Self> {
         let bits = bits as usize;
 
-        if qr_type == Type::Micro {
-            const BITS2MODE: [Mode; 4] =
-                [Mode::Numeric, Mode::Alphanumeric, Mode::Byte, Mode::Kanji];
-            if bits < (BITS2MODE.len()) {
-                return Ok(BITS2MODE[bits]);
-            }
-        } else if qr_type == Type::RectMicro {
-            const BITS2MODE: [Mode; 8] = [
-                Mode::Terminator,
-                Mode::Numeric,
-                Mode::Alphanumeric,
-                Mode::Byte,
-                Mode::Kanji,
-                Mode::Fnc1FirstPosition,
-                Mode::Fnc1SecondPosition,
-                Mode::Eci,
-            ];
-            if bits < (BITS2MODE.len()) {
-                return Ok(BITS2MODE[bits]);
-            }
-        } else if (0x00..=0x05).contains(&bits) || (0x07..=0x09).contains(&bits) || bits == 0x0d {
+        if (0x00..=0x05).contains(&bits) || (0x07..=0x09).contains(&bits) || bits == 0x0d {
             return Mode::try_from(bits as u32);
         }
 
         Err(Error::InvalidFormat {
-            message: format!("Invalid codec mode bits 0x{bits:X} for qr_type {qr_type:?}"),
+            message: format!("Invalid QR codec mode bits 0x{bits:X}"),
         }
         .into())
     }
@@ -174,49 +145,6 @@ impl Mode {
     /// characters that follow this mode indicator.
     pub fn character_count_bits(&self, version: &Version) -> u32 {
         let number = version.get_version_number() as usize;
-        if version.is_micro() {
-            return match self {
-                Mode::Numeric => [3, 4, 5, 6]
-                    .get(number.wrapping_sub(1))
-                    .copied()
-                    .unwrap_or(0),
-                Mode::Alphanumeric => [3, 4, 5].get(number.wrapping_sub(2)).copied().unwrap_or(0),
-                Mode::Byte => [4, 5].get(number.wrapping_sub(3)).copied().unwrap_or(0),
-                Mode::Kanji | Mode::Hanzi => {
-                    [3, 4].get(number.wrapping_sub(3)).copied().unwrap_or(0)
-                }
-                _ => 0,
-            };
-        }
-
-        if version.is_rmqr() {
-            // See ISO/IEC 23941:2022 7.4.1, Table 3 - number of bits of character count indicator
-            const NUMERIC: [u32; 32] = [
-                4, 5, 6, 7, 7, 5, 6, 7, 7, 8, 4, 6, 7, 7, 8, 8, 5, 6, 7, 7, 8, 8, 7, 7, 8, 8, 9, 7,
-                8, 8, 8, 9,
-            ];
-            const ALPHANUM: [u32; 32] = [
-                3, 5, 5, 6, 6, 5, 5, 6, 6, 7, 4, 5, 6, 6, 7, 7, 5, 6, 6, 7, 7, 8, 6, 7, 7, 7, 8, 6,
-                7, 7, 8, 8,
-            ];
-            const BYTE: [u32; 32] = [
-                3, 4, 5, 5, 6, 4, 5, 5, 6, 6, 3, 5, 5, 6, 6, 7, 4, 5, 6, 6, 7, 7, 6, 6, 7, 7, 7, 6,
-                6, 7, 7, 8,
-            ];
-            const KANJI: [u32; 32] = [
-                2, 3, 4, 5, 5, 3, 4, 5, 5, 6, 2, 4, 5, 5, 6, 6, 3, 5, 5, 6, 6, 7, 5, 5, 6, 6, 7, 5,
-                6, 6, 6, 7,
-            ];
-            let idx = number.saturating_sub(1);
-            match self {
-                Mode::Numeric => return NUMERIC.get(idx).copied().unwrap_or(0),
-                Mode::Alphanumeric => return ALPHANUM.get(idx).copied().unwrap_or(0),
-                Mode::Byte => return BYTE.get(idx).copied().unwrap_or(0),
-                Mode::Kanji => return KANJI.get(idx).copied().unwrap_or(0),
-                _ => return 0,
-            }
-        }
-
         let i = if number <= 9 {
             0
         } else if number <= 26 {

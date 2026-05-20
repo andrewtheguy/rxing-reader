@@ -42,16 +42,6 @@ impl<'a> BitSource<'a> {
         }
     }
 
-    /// Returns the bit index in the current byte that the next [`Self::read_bits`] call will read.
-    pub const fn get_bit_offset(&self) -> usize {
-        self.bit_offset
-    }
-
-    /// Returns the byte index that the next [`Self::read_bits`] call will read from.
-    pub const fn get_byte_offset(&self) -> usize {
-        self.byte_offset
-    }
-
     /// - `num_bits`: number of bits to read
     ///
     /// Returns the requested bits as the least-significant bits of a `u32`.

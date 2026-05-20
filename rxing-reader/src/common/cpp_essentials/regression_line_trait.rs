@@ -30,21 +30,12 @@ pub trait RegressionLineTrait {
     fn evaluate(&mut self, points: &[Point]) -> bool;
     fn evaluate_self(&mut self) -> bool;
 
-    fn points(&self) -> &[Point];
-    fn length(&self) -> u32;
     fn is_valid(&self) -> bool;
     fn normal(&self) -> Point;
     fn signed_distance(&self, p: Point) -> f32;
     fn distance_single(&self, p: Point) -> f32;
-    fn project(&self, p: Point) -> Point {
-        p - self.normal() * self.signed_distance(p)
-    }
-
-    fn reset(&mut self);
 
     fn add(&mut self, p: Point) -> Result<()>;
-
-    fn pop_back(&mut self);
 
     fn set_direction_inward(&mut self, d: Point);
 

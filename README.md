@@ -26,14 +26,14 @@ image = "0.25"
 
 ```rust
 use image::ImageReader;
-use rxing_reader::decode::{decode_inner, rgba_to_luma};
+use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
 
 fn main() {
     let img = ImageReader::open("qr.png").unwrap().decode().unwrap().to_rgba8();
     let (w, h) = (img.width(), img.height());
     let luma = rgba_to_luma(img.as_raw(), w, h).unwrap();
 
-    let results = decode_inner(
+    let results = decode_qr_codes_luma(
         &luma, w, h,
         /* try_harder            */ false,
         /* try_invert            */ false,
@@ -41,8 +41,8 @@ fn main() {
         /* max_number_of_symbols */ 0,
     ).unwrap();
 
-    for r in results {
-        println!("{}", String::from_utf8_lossy(r.get_raw_bytes()));
+    for bytes in results {
+      println!("{}", String::from_utf8_lossy(&bytes));
     }
 }
 ```

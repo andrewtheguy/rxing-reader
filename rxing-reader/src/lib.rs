@@ -1,54 +1,29 @@
-pub mod common;
-pub mod decode;
+mod common;
+mod decode;
 mod error;
 
-use std::collections::HashMap;
+use binarizer::Binarizer;
+use binary_bitmap::BinaryBitmap;
+use decode_hints::DecodeHints;
+use error::Error;
+use luma_luma_source::{Luma8LuminanceSource, downscale_luma_buffer};
+use luminance_source::LuminanceSource;
+use rxing_result_point::{Point, PointI, point, point_i};
 
-pub use error::Error;
+pub use decode::{decode_qr_codes_luma, rgba_to_luma};
 
-pub type MetadataDictionary = HashMap<RXingResultMetadataType, RXingResultMetadataValue>;
-
-mod barcode_format;
-pub use barcode_format::*;
-
-/// Callback which is invoked when a possible result point (significant
-/// point in the barcode image such as a corner) is found.
-pub type PointCallback = Box<dyn Fn(Point) + Send + Sync>;
-
-mod dimension;
-pub use dimension::*;
-
-pub mod qrcode;
+mod qrcode;
 
 // Reading
 mod decode_hints;
-pub use decode_hints::*;
-
-mod rxing_result_metadata;
-pub use rxing_result_metadata::*;
-
-mod rxing_result;
-pub use rxing_result::*;
-
-mod result_point;
-pub use result_point::*;
-
-pub mod result_point_utils;
 
 mod rxing_result_point;
-pub use rxing_result_point::*;
-
-pub type DecodingHintDictionary = HashMap<DecodeHintType, DecodeHintValue>;
 
 // Reading sources
 mod binarizer;
-pub use binarizer::*;
 
 mod binary_bitmap;
-pub use binary_bitmap::*;
 
 mod luminance_source;
-pub use luminance_source::*;
 
 mod luma_luma_source;
-pub use luma_luma_source::*;

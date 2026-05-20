@@ -30,7 +30,7 @@ pub enum Eci {
     Cp1256 = 24,
     UTF16BE = 25,
     UTF8 = 26,
-    ASCII = 27,
+    Ascii = 27,
     Big5 = 28,
     GB2312 = 29,
     EucKr = 30,
@@ -40,12 +40,6 @@ pub enum Eci {
     UTF32LE = 35,
     Iso646Inv = 170,
     Binary = 899,
-}
-
-impl Eci {
-    pub const fn can_encode(self) -> bool {
-        (self as i32) >= 899
-    }
 }
 
 impl TryFrom<u32> for Eci {
@@ -89,7 +83,7 @@ impl From<i32> for Eci {
             24 => Eci::Cp1256,
             25 => Eci::UTF16BE,
             26 => Eci::UTF8,
-            27 => Eci::ASCII,
+            27 => Eci::Ascii,
             28 => Eci::Big5,
             29 => Eci::GB2312,
             30 => Eci::EucKr,
@@ -125,7 +119,7 @@ impl From<CharacterSet> for Eci {
             CharacterSet::Cp1256 => Eci::Cp1256,
             CharacterSet::UTF16BE => Eci::UTF16BE,
             CharacterSet::UTF8 => Eci::UTF8,
-            CharacterSet::ASCII => Eci::ASCII,
+            CharacterSet::Ascii => Eci::Ascii,
             CharacterSet::Big5 => Eci::Big5,
             CharacterSet::GB2312 => Eci::GB2312,
             CharacterSet::GB18030 => Eci::GB18030,
@@ -170,7 +164,7 @@ impl From<Eci> for CharacterSet {
             Eci::Cp1256 => CharacterSet::Cp1256,
             Eci::UTF16BE => CharacterSet::UTF16BE,
             Eci::UTF8 => CharacterSet::UTF8,
-            Eci::ASCII => CharacterSet::ASCII,
+            Eci::Ascii => CharacterSet::Ascii,
             Eci::Big5 => CharacterSet::Big5,
             Eci::GB2312 => CharacterSet::GB2312,
             Eci::EucKr => CharacterSet::EucKr,
@@ -178,7 +172,7 @@ impl From<Eci> for CharacterSet {
             Eci::UTF16LE => CharacterSet::UTF16LE,
             Eci::UTF32BE => CharacterSet::UTF32BE,
             Eci::UTF32LE => CharacterSet::UTF32LE,
-            Eci::Iso646Inv => CharacterSet::ASCII,
+            Eci::Iso646Inv => CharacterSet::Ascii,
             Eci::Binary => CharacterSet::Binary,
             _ => CharacterSet::Unknown,
         }

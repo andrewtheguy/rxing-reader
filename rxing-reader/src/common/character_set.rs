@@ -44,7 +44,7 @@ pub enum CharacterSet {
     Cp1256,
     UTF16BE,
     UTF8,
-    ASCII,
+    Ascii,
     Big5,
     GB2312,
     GB18030,
@@ -54,85 +54,6 @@ pub enum CharacterSet {
     UTF32LE,
     Binary,
     Unknown,
-}
-
-impl CharacterSet {
-    pub const fn get_charset_name(&self) -> &'static str {
-        match self {
-            CharacterSet::Cp437 => "cp437",
-            CharacterSet::ISO8859_1 => "iso-8859-1",
-            CharacterSet::ISO8859_2 => "iso-8859-2",
-            CharacterSet::ISO8859_3 => "iso-8859-3",
-            CharacterSet::ISO8859_4 => "iso-8859-4",
-            CharacterSet::ISO8859_5 => "iso-8859-5",
-            CharacterSet::ISO8859_6 => "iso-8859-6",
-            CharacterSet::ISO8859_7 => "iso-8859-7",
-            CharacterSet::ISO8859_8 => "iso-8859-8",
-            CharacterSet::ISO8859_9 => "iso-8859-9",
-            CharacterSet::ISO8859_10 => "iso-8859-10",
-            CharacterSet::ISO8859_11 => "iso-8859-11",
-            CharacterSet::ISO8859_13 => "iso-8859-13",
-            CharacterSet::ISO8859_14 => "iso-8859-14",
-            CharacterSet::ISO8859_15 => "iso-8859-15",
-            CharacterSet::ISO8859_16 => "iso-8859-16",
-            CharacterSet::ShiftJis => "shift_jis",
-            CharacterSet::Cp1250 => "windows-1250",
-            CharacterSet::Cp1251 => "windows-1251",
-            CharacterSet::Cp1252 => "windows-1252",
-            CharacterSet::Cp1256 => "windows-1256",
-            CharacterSet::UTF16BE => "utf-16be",
-            CharacterSet::UTF16LE => "utf-16le",
-            CharacterSet::UTF8 => "utf-8",
-            CharacterSet::ASCII => "us-ascii",
-            CharacterSet::Big5 => "big5",
-            CharacterSet::GB18030 => "gb18030",
-            CharacterSet::GB2312 => "gb2312",
-            CharacterSet::EucKr => "euc-kr",
-            CharacterSet::UTF32BE => "utf-32be",
-            CharacterSet::UTF32LE => "utf-32le",
-            CharacterSet::Binary => "binary",
-            CharacterSet::Unknown => "unknown",
-        }
-    }
-
-    pub fn get_character_set_by_name(name: &str) -> Option<CharacterSet> {
-        match name.to_lowercase().as_str() {
-            "cp437" => Some(CharacterSet::Cp437),
-            "iso-8859-1" => Some(CharacterSet::ISO8859_1),
-            "iso-8859-2" => Some(CharacterSet::ISO8859_2),
-            "iso-8859-3" => Some(CharacterSet::ISO8859_3),
-            "iso-8859-4" => Some(CharacterSet::ISO8859_4),
-            "iso-8859-5" => Some(CharacterSet::ISO8859_5),
-            "iso-8859-6" => Some(CharacterSet::ISO8859_6),
-            "iso-8859-7" => Some(CharacterSet::ISO8859_7),
-            "iso-8859-8" => Some(CharacterSet::ISO8859_8),
-            "iso-8859-9" => Some(CharacterSet::ISO8859_9),
-            "iso-8859-10" => Some(CharacterSet::ISO8859_10),
-            "iso-8859-11" => Some(CharacterSet::ISO8859_11),
-            "iso-8859-13" => Some(CharacterSet::ISO8859_13),
-            "iso-8859-14" => Some(CharacterSet::ISO8859_14),
-            "iso-8859-15" => Some(CharacterSet::ISO8859_15),
-            "iso-8859-16" => Some(CharacterSet::ISO8859_16),
-            "shift_jis" => Some(CharacterSet::ShiftJis),
-            "windows-1250" => Some(CharacterSet::Cp1250),
-            "windows-1251" => Some(CharacterSet::Cp1251),
-            "windows-1252" => Some(CharacterSet::Cp1252),
-            "windows-1256" => Some(CharacterSet::Cp1256),
-            "utf-16be" => Some(CharacterSet::UTF16BE),
-            "utf-16le" | "utf16le" => Some(CharacterSet::UTF16LE),
-            "utf-8" | "utf8" => Some(CharacterSet::UTF8),
-            "us-ascii" => Some(CharacterSet::ASCII),
-            "big5" => Some(CharacterSet::Big5),
-            "gb2312" => Some(CharacterSet::GB2312),
-            "gb18030" => Some(CharacterSet::GB18030),
-            "euc-kr" => Some(CharacterSet::EucKr),
-            "utf-32be" => Some(CharacterSet::UTF32BE),
-            "utf-32le" => Some(CharacterSet::UTF32LE),
-            "binary" => Some(CharacterSet::Binary),
-            "unknown" => Some(CharacterSet::Unknown),
-            _ => None,
-        }
-    }
 }
 
 impl CharacterSet {
@@ -158,7 +79,7 @@ impl CharacterSet {
             CharacterSet::Cp1252 => Some(encoding_rs::WINDOWS_1252),
             CharacterSet::Cp1256 => Some(encoding_rs::WINDOWS_1256),
             CharacterSet::UTF8 => Some(encoding_rs::UTF_8),
-            CharacterSet::ASCII => encoding_rs::Encoding::for_label(b"ascii"),
+            CharacterSet::Ascii => encoding_rs::Encoding::for_label(b"ascii"),
             CharacterSet::Big5 => Some(encoding_rs::BIG5),
             CharacterSet::GB18030 => Some(encoding_rs::GB18030),
             CharacterSet::GB2312 => Some(encoding_rs::GBK),
@@ -166,132 +87,6 @@ impl CharacterSet {
             CharacterSet::UTF16BE => Some(encoding_rs::UTF_16BE),
             CharacterSet::UTF16LE => Some(encoding_rs::UTF_16LE),
             _ => None,
-        }
-    }
-
-    pub fn encode(&self, input: &str) -> Result<Vec<u8>> {
-        match self {
-            CharacterSet::Cp437 => {
-                use codepage_437::CP437_CONTROL;
-                use codepage_437::ToCp437;
-
-                input
-                    .to_cp437(&CP437_CONTROL)
-                    .map(|data| data.to_vec())
-                    .map_err(|e| {
-                        Error::InvalidFormat {
-                            message: format!("{e:?}"),
-                        }
-                        .into()
-                    })
-            }
-            CharacterSet::UTF16BE => {
-                Ok(input.encode_utf16().flat_map(|u| u.to_be_bytes()).collect())
-            }
-            CharacterSet::UTF16LE => {
-                Ok(input.encode_utf16().flat_map(|u| u.to_le_bytes()).collect())
-            }
-            CharacterSet::UTF32BE => Ok(input
-                .chars()
-                .flat_map(|c| (c as u32).to_be_bytes())
-                .collect()),
-            CharacterSet::UTF32LE => Ok(input
-                .chars()
-                .flat_map(|c| (c as u32).to_le_bytes())
-                .collect()),
-            CharacterSet::Binary | CharacterSet::ISO8859_1 => {
-                let mut bytes = Vec::with_capacity(input.len());
-                for c in input.chars() {
-                    if c as u32 > 0xFF {
-                        return Err(Error::InvalidFormat {
-                            message:
-                                "Binary/ISO-8859-1 encoding only supports characters up to U+00FF"
-                                    .to_owned(),
-                        }
-                        .into());
-                    }
-                    bytes.push(c as u8);
-                }
-                Ok(bytes)
-            }
-            CharacterSet::ASCII => {
-                let mut bytes = Vec::with_capacity(input.len());
-                for c in input.chars() {
-                    if c as u32 > 0x7F {
-                        return Err(Error::InvalidFormat {
-                            message: "ASCII encoding only supports characters up to U+007F"
-                                .to_owned(),
-                        }
-                        .into());
-                    }
-                    bytes.push(c as u8);
-                }
-                Ok(bytes)
-            }
-            _ => {
-                if let Some(enc) = self.get_encoding() {
-                    let (res, _, had_errors) = enc.encode(input);
-                    if had_errors {
-                        return Err(Error::InvalidFormat {
-                            message: "Could not encode character".to_owned(),
-                        }
-                        .into());
-                    }
-                    Ok(res.into_owned())
-                } else {
-                    Err(Error::InvalidFormat {
-                        message: "Unsupported encoding".to_owned(),
-                    }
-                    .into())
-                }
-            }
-        }
-    }
-
-    pub fn encode_replace(&self, input: &str) -> Result<Vec<u8>> {
-        match self {
-            CharacterSet::UTF16BE
-            | CharacterSet::UTF16LE
-            | CharacterSet::UTF32BE
-            | CharacterSet::UTF32LE => self.encode(input),
-            CharacterSet::Cp437 => {
-                let mut bytes = Vec::with_capacity(input.len());
-                let mut buf = String::new();
-                for c in input.chars() {
-                    buf.clear();
-                    buf.push(c);
-                    match self.encode(&buf) {
-                        Ok(b) => bytes.extend_from_slice(&b),
-                        Err(_) => bytes.push(b'?'),
-                    }
-                }
-                Ok(bytes)
-            }
-            CharacterSet::Binary | CharacterSet::ISO8859_1 => {
-                let bytes = input
-                    .chars()
-                    .map(|c| if c as u32 > 0xFF { b'?' } else { c as u8 })
-                    .collect();
-                Ok(bytes)
-            }
-            CharacterSet::ASCII => {
-                let bytes = input
-                    .chars()
-                    .map(|c| if c as u32 > 0x7F { b'?' } else { c as u8 })
-                    .collect();
-                Ok(bytes)
-            }
-            _ => {
-                if let Some(enc) = self.get_encoding() {
-                    let (res, _, _) = enc.encode(input);
-                    Ok(res.into_owned())
-                } else {
-                    Err(Error::InvalidFormat {
-                        message: "Unsupported encoding".to_owned(),
-                    }
-                    .into())
-                }
-            }
         }
     }
 
@@ -346,7 +141,7 @@ impl CharacterSet {
             CharacterSet::Binary | CharacterSet::ISO8859_1 => {
                 Ok(input.iter().map(|&b| char::from(b)).collect())
             }
-            CharacterSet::ASCII => {
+            CharacterSet::Ascii => {
                 let mut s = String::with_capacity(input.len());
                 for &b in input {
                     if b > 0x7F {
@@ -379,52 +174,4 @@ impl CharacterSet {
         }
     }
 
-    pub fn decode_replace(&self, input: &[u8]) -> Result<String> {
-        match self {
-            CharacterSet::Cp437 | CharacterSet::Binary | CharacterSet::ISO8859_1 => {
-                self.decode(input)
-            }
-            CharacterSet::ASCII => Ok(input
-                .iter()
-                .map(|&b| if b > 0x7F { '\u{FFFD}' } else { char::from(b) })
-                .collect()),
-            CharacterSet::UTF32BE => {
-                let mut res: String = input
-                    .chunks_exact(4)
-                    .map(|c| {
-                        let val = u32::from_be_bytes([c[0], c[1], c[2], c[3]]);
-                        char::from_u32(val).unwrap_or('\u{FFFD}')
-                    })
-                    .collect();
-                if !input.len().is_multiple_of(4) {
-                    res.push('\u{FFFD}');
-                }
-                Ok(res)
-            }
-            CharacterSet::UTF32LE => {
-                let mut res: String = input
-                    .chunks_exact(4)
-                    .map(|c| {
-                        let val = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
-                        char::from_u32(val).unwrap_or('\u{FFFD}')
-                    })
-                    .collect();
-                if !input.len().is_multiple_of(4) {
-                    res.push('\u{FFFD}');
-                }
-                Ok(res)
-            }
-            _ => {
-                if let Some(enc) = self.get_encoding() {
-                    let (res, _, _) = enc.decode(input);
-                    Ok(res.into_owned())
-                } else {
-                    Err(Error::InvalidFormat {
-                        message: "Unsupported encoding".to_owned(),
-                    }
-                    .into())
-                }
-            }
-        }
-    }
 }

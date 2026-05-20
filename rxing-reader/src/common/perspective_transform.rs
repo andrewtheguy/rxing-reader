@@ -105,28 +105,6 @@ impl PerspectiveTransform {
         Ok(())
     }
 
-    pub fn transform_points_double(
-        &self,
-        x_values: &mut [f32],
-        y_values: &mut [f32],
-    ) -> Result<()> {
-        let n = x_values.len();
-        for (x, y) in x_values.iter_mut().zip(y_values.iter_mut()).take(n) {
-            let ox = *x;
-            let oy = *y;
-            let d = self.a13 * ox + self.a23 * oy + self.a33;
-            if d.abs() < DENOMINATOR_EPSILON {
-                return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".to_owned(),
-                }
-                .into());
-            }
-            *x = (self.a11 * ox + self.a21 * oy + self.a31) / d;
-            *y = (self.a12 * ox + self.a22 * oy + self.a32) / d;
-        }
-        Ok(())
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn square_to_quadrilateral(square: Quadrilateral) -> Result<Self> {
         let [p0, p1, p2, p3] = square.0;

@@ -14,33 +14,6 @@ use super::{
     RegressionLineTrait, update_min_max, update_min_max_float,
 };
 
-pub fn center_from_end<const N: usize, T: Into<f32> + std::iter::Sum<T> + Copy>(
-    pattern: &[T; N],
-    end: f32,
-) -> f32 {
-    if N == 5 {
-        let a: f32 = pattern[4].into() + pattern[3].into() + pattern[2].into() / 2.0;
-        let b: f32 =
-            pattern[4].into() + (pattern[3].into() + pattern[2].into() + pattern[1].into()) / 2.0;
-        let c: f32 = (pattern[4].into()
-            + pattern[3].into()
-            + pattern[2].into()
-            + pattern[1].into()
-            + pattern[0].into())
-            / 2.0;
-        end - (2.0 * a + b + c) / 4.0
-    } else if N == 3 {
-        let a: f32 = pattern[2].into() + pattern[1].into() / 2.0;
-        let b: f32 = (pattern[2].into() + pattern[1].into() + pattern[0].into()) / 2.0;
-        end - (2.0 * a + b) / 3.0
-    } else {
-        // aztec
-        let a: f32 =
-            pattern.iter().skip(N / 2 + 1).copied().sum::<T>().into() + pattern[N / 2].into() / 2.0;
-        end - a
-    }
-}
-
 pub fn read_symmetric_pattern<const N: usize, Cursor: BitMatrixCursorTrait>(
     cur: &mut Cursor,
     range: i32,

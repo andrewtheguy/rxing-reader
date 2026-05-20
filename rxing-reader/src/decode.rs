@@ -1,12 +1,12 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result as RxingResult;
 
 use crate::{
-    BarcodeFormat, Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource, RXingResult,
+    Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
     common::{GlobalHistogramBinarizer, HybridBinarizer},
     downscale_luma_buffer,
-    qrcode::cpp_port::QrReader,
+    qrcode::QrReader,
 };
 
 /// Pyramid downscale threshold and factor, mirroring zxing-cpp's
@@ -38,14 +38,6 @@ pub fn rgba_to_luma(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, Str
         .collect())
 }
 
-fn collect_bytes(results: RxingResult<Vec<RXingResult>>) -> Vec<Vec<u8>> {
-    results
-        .unwrap_or_default()
-        .into_iter()
-        .map(|r| r.get_raw_bytes().to_vec())
-        .collect()
-}
-
 /// decode on `bitmap` once, then optionally flip the BitMatrix in place and
 /// retry when no result was found.
 pub fn decode_with_optional_invert<B: Binarizer>(
@@ -54,18 +46,17 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     max_number_of_symbols: u32,
     try_invert: bool,
 ) -> Vec<Vec<u8>> {
-    let results =
-        collect_bytes(QrReader.decode_set_number_with_hints(bitmap, hints, max_number_of_symbols));
+    let results = QrReader
+        .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+        .unwrap_or_default();
     if !results.is_empty() {
         return results;
     }
     if try_invert && let Ok(matrix) = bitmap.get_black_matrix_mut() {
         matrix.flip_self();
-        return collect_bytes(QrReader.decode_set_number_with_hints(
-            bitmap,
-            hints,
-            max_number_of_symbols,
-        ));
+        return QrReader
+            .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
+            .unwrap_or_default();
     }
     Vec::new()
 }
@@ -94,9 +85,9 @@ pub fn decode_one_layer(
     }
 }
 
-/// decode QR payload bytes from a luma image through the shared pyramid,
+/// Decode QR payload bytes from a luma image through the shared pyramid,
 /// close-pass, binarizer, and optional-inversion pipeline.
-pub fn decode_inner(
+pub fn decode_qr_codes_luma(
     luma: &[u8],
     width: u32,
     height: u32,
@@ -106,9 +97,7 @@ pub fn decode_inner(
     max_number_of_symbols: u32,
 ) -> RxingResult<Vec<Vec<u8>>> {
     let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),
-        try_harder: Some(try_harder),
-        ..DecodeHints::default()
+        try_harder,
     };
 
     if !try_harder {

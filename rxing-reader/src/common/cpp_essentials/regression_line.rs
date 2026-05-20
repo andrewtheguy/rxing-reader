@@ -25,19 +25,6 @@ impl Default for RegressionLine {
 }
 
 impl RegressionLineTrait for RegressionLine {
-    fn points(&self) -> &[Point] {
-        &self.points
-    }
-
-    fn length(&self) -> u32 {
-        match (self.points.first(), self.points.last()) {
-            (Some(first), Some(last)) if self.points.len() >= 2 => {
-                Point::distance(*first, *last) as u32
-            }
-            _ => 0,
-        }
-    }
-
     fn is_valid(&self) -> bool {
         !self.a.is_nan()
     }
@@ -61,14 +48,6 @@ impl RegressionLineTrait for RegressionLine {
         (self.signed_distance(p)).abs()
     }
 
-    fn reset(&mut self) {
-        self.points.clear();
-        self.direction_inward = Point { x: 0.0, y: 0.0 };
-        self.a = f32::NAN;
-        self.b = f32::NAN;
-        self.c = f32::NAN;
-    }
-
     fn add(&mut self, p: Point) -> Result<()> {
         if self.direction_inward == Point::default() {
             return Err(Error::InvalidState {
@@ -81,10 +60,6 @@ impl RegressionLineTrait for RegressionLine {
             self.c = Point::dot(self.normal(), p);
         }
         Ok(())
-    }
-
-    fn pop_back(&mut self) {
-        self.points.pop();
     }
 
     fn set_direction_inward(&mut self, d: Point) {

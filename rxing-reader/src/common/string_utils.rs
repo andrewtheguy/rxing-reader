@@ -14,46 +14,17 @@
  * limitations under the License.
  */
 
-use crate::DecodeHints;
-
 use super::CharacterSet;
 
 const ASSUME_SHIFT_JIS: bool = false;
 
-pub const SHIFT_JIS_CHARSET: CharacterSet = CharacterSet::ShiftJis;
-
 /// - `bytes`: bytes encoding a string, whose encoding should be guessed
-/// - `hints`: decode hints if applicable
-///
-/// Returns the name of the guessed encoding.
-///
-/// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1, and
-/// encodings explicitly supplied in `hints`.
-pub fn guess_encoding(bytes: &[u8], hints: &DecodeHints) -> Option<&'static str> {
-    let c = guess_charset(bytes, hints)?;
-    if c == CharacterSet::ShiftJis {
-        Some("SJIS")
-    } else if c == CharacterSet::UTF8 {
-        Some("UTF8")
-    } else if c == CharacterSet::ISO8859_1 {
-        Some("ISO8859_1")
-    } else {
-        Some(c.get_charset_name())
-    }
-}
-
-/// - `bytes`: bytes encoding a string, whose encoding should be guessed
-/// - `hints`: decode hints if applicable
 ///
 /// Returns the guessed character set.
 ///
 /// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1,
 /// UTF-16 via byte-order mark, and encodings explicitly supplied in `hints`.
-pub fn guess_charset(bytes: &[u8], hints: &DecodeHints) -> Option<CharacterSet> {
-    if let Some(cs_name) = &hints.character_set {
-        return CharacterSet::get_character_set_by_name(cs_name);
-    }
-
+pub fn guess_charset(bytes: &[u8]) -> Option<CharacterSet> {
     // First try UTF-16, assuming anything with its BOM is UTF-16
 
     if bytes.len() > 2 {

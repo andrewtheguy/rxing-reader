@@ -40,10 +40,6 @@ impl PatternRow {
         self.0.is_empty()
     }
 
-    pub fn into_pattern_view(&'_ self) -> PatternView<'_> {
-        PatternView::new(self)
-    }
-
     pub fn sum(&self) -> PatternType {
         self.0.iter().sum()
     }
@@ -373,10 +369,6 @@ pub struct BarAndSpace<T: Default + std::cmp::PartialEq> {
     space: T,
 }
 impl<T: Default + std::cmp::PartialEq> BarAndSpace<T> {
-    pub fn new(bar: T, space: T) -> BarAndSpace<T> {
-        Self { bar, space }
-    }
-
     #[allow(dead_code)]
     pub fn is_valid(&self) -> bool {
         self.bar != T::default() && self.space != T::default()
@@ -451,8 +443,6 @@ impl<const N: usize, const SUM: usize, const IS_SPARCE: bool> std::ops::Index<us
         &self.data[index]
     }
 }
-
-pub type FixedSparcePattern<const N: usize, const SUM: usize> = FixedPattern<N, SUM, true>;
 
 pub fn is_pattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPARSE: bool>(
     view: &PatternView,
@@ -543,29 +533,6 @@ pub fn is_pattern<const E2E: bool, const LEN: usize, const SUM: usize, const SPA
     module_size
 }
 
-pub fn is_right_guard<const N: usize, const SUM: usize, const IS_SPARCE: bool>(
-    view: &PatternView,
-    pattern: &FixedPattern<N, SUM, IS_SPARCE>,
-    min_quiet_zone: f32,
-    module_size_ref: f32,
-) -> bool {
-    let space_in_pixel = if view.is_at_last_bar() {
-        None
-    } else {
-        view.end().map(Into::into)
-    };
-
-    const E2E: bool = false;
-
-    is_pattern::<E2E, N, SUM, IS_SPARCE>(
-        view,
-        pattern,
-        space_in_pixel,
-        min_quiet_zone,
-        module_size_ref,
-    ) != 0.0
-}
-
 pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) -> bool>(
     view: PatternView<'_>,
     min_size: usize,
@@ -600,94 +567,6 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         message: "required internal state is missing".to_owned(),
     }
     .into())
-}
-
-pub fn find_left_guard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: bool>(
-    view: PatternView<'a>,
-    min_size: usize,
-    pattern: &FixedPattern<LEN, SUM, IS_SPARCE>,
-    min_quiet_zone: f32,
-) -> Result<PatternView<'a>> {
-    find_left_guard_by::<LEN, _>(
-        view,
-        std::cmp::max(min_size, LEN),
-        |window, space_in_pixel| {
-            // perform a fast plausability test for 1:1:3:1:1 pattern
-            if window[2] < 2 as PatternType * std::cmp::max(window[0], window[4])
-                || window[2] < std::cmp::max(window[1], window[3])
-            {
-                return false;
-            }
-            is_pattern::<false, LEN, SUM, IS_SPARCE>(
-                window,
-                pattern,
-                space_in_pixel,
-                min_quiet_zone,
-                0.0,
-            ) != 0.0
-        },
-    )
-}
-
-pub fn normalized_e2_epattern<const LEN: usize, const LEN_MINUS_2: usize, const SUM: usize>(
-    view: &PatternView,
-) -> [PatternType; LEN_MINUS_2] {
-    let module_size: f32 = Into::<f32>::into(view.sum(Some(LEN))) / SUM as f32;
-
-    let mut e2e = [PatternType::default(); LEN_MINUS_2];
-
-    for i in 0..LEN_MINUS_2 {
-        let v: f32 = (Into::<f32>::into(view[i]) + Into::<f32>::into(view[i + 1])) / module_size;
-        e2e[i] = (v + 0.5) as PatternType;
-    }
-
-    e2e
-}
-
-pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
-    view: &PatternView,
-) -> Result<[PatternType; LEN]> {
-    let module_size: f32 = Into::<usize>::into(view.sum(Some(LEN))) as f32 / SUM as f32;
-    if !module_size.is_finite() || module_size <= f32::EPSILON {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    }
-    let mut err = SUM as isize;
-    let mut is = [PatternType::default(); LEN];
-    let mut rs = [0.0; LEN];
-    for i in 0..LEN {
-        let v: f32 = Into::<f32>::into(view[i]) / module_size;
-        is[i] = (v + 0.5) as PatternType;
-        rs[i] = v - Into::<f32>::into(is[i]);
-        err -= Into::<usize>::into(is[i]) as isize;
-    }
-
-    if err.abs() > 1 {
-        return Err(Error::NotFound {
-            message: "barcode pattern was not detected".to_owned(),
-        }
-        .into());
-    }
-
-    if err != 0 {
-        let mi = if err > 0 {
-            rs.iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        } else {
-            rs.iter()
-                .enumerate()
-                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        };
-        let (mi, _) = mi.ok_or(Error::InvalidState {
-            message: "required internal state is missing".to_owned(),
-        })?;
-        is[mi] += err as PatternType;
-    }
-
-    Ok(is)
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

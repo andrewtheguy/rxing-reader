@@ -19,8 +19,6 @@ use std::{
     fmt::{self},
 };
 
-use crate::DecodeHints;
-
 use super::{CharacterSet, Eci, string_utils};
 
 /// Builds decoded text from byte ranges annotated with ECI character sets.
@@ -35,25 +33,8 @@ pub struct ECIStringBuilder {
 }
 
 impl ECIStringBuilder {
-    pub fn with_capacity(initial_capacity: usize) -> Self {
-        Self {
-            eci_result: None,
-            bytes: Vec::with_capacity(initial_capacity),
-            eci_positions: Vec::default(),
-            has_eci: false,
-            symbology: SymbologyIdentifier::default(),
-            eci_list: HashSet::default(),
-        }
-    }
-
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
-    }
-
-    /// Appends the low byte of `value`.
-    pub fn append_char(&mut self, value: char) {
-        self.eci_result = None;
-        self.bytes.push(value as u8);
     }
 
     /// Appends one raw byte.
@@ -74,11 +55,6 @@ impl ECIStringBuilder {
         }
         self.eci_result = None;
         self.bytes.extend_from_slice(value.as_bytes());
-    }
-
-    /// Appends the decimal string representation of `value`.
-    pub fn append(&mut self, value: i32) {
-        self.append_string(&format!("{value}"));
     }
 
     /// Marks the current byte position with a new ECI designator.
@@ -181,7 +157,7 @@ impl ECIStringBuilder {
             }
         } else if eci == Eci::Unknown
             && let Some(found_encoding) =
-                string_utils::guess_charset(bytes, &DecodeHints::default())
+                string_utils::guess_charset(bytes)
             && let Ok(found_encoded_str) = found_encoding.decode(bytes)
         {
             encoded_string.push_str(&found_encoded_str);
@@ -201,18 +177,6 @@ impl ECIStringBuilder {
         }
     }
 
-    /// Appends the characters from `value`.
-    pub fn append_characters(&mut self, value: &str) {
-        self.append_string(value);
-    }
-
-    /// Returns the length of the underlying byte buffer, not the decoded character count.
-    ///
-    /// Prefer [`Self::is_empty`] when only checking for emptiness.
-    pub fn len(&self) -> usize {
-        self.bytes.len()
-    }
-
     /// Reserves capacity for at least `additional` more bytes.
     pub fn reserve(&mut self, additional: usize) {
         self.bytes.reserve(additional);
@@ -223,11 +187,6 @@ impl ECIStringBuilder {
         self.bytes.is_empty()
     }
 
-    pub fn build_result(mut self) -> Self {
-        self.eci_result = Some(self.encode_current_bytes_if_any());
-
-        self
-    }
 }
 
 impl fmt::Display for ECIStringBuilder {
@@ -253,19 +212,10 @@ impl std::ops::AddAssign<String> for ECIStringBuilder {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ContentType {
-    Text,
-    Binary,
-    Mixed,
-    GS1,
-    ISO15434,
-    UnknownECI,
-}
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum AIFlag {
     None,
     GS1,
-    AIM,
+    Aim,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

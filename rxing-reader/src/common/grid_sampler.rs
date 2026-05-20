@@ -16,9 +16,9 @@
 
 use anyhow::Result;
 
-use crate::{Error, Point, point};
+use crate::{Error, Point};
 
-use super::{BitMatrix, PerspectiveTransform, Quadrilateral};
+use super::{BitMatrix, PerspectiveTransform};
 
 /// Samples a perspective-corrected grid from an image.
 ///
@@ -26,60 +26,13 @@ use super::{BitMatrix, PerspectiveTransform, Quadrilateral};
 /// module grid while accounting for perspective distortion. The abstraction
 /// allows callers to swap in optimized sampling implementations.
 pub trait GridSampler {
-    /// Samples an image for a rectangular matrix of bits of the given dimension. The sampling
-    /// transformation is determined by the coordinates of 4 points, in the original and transformed
-    /// image space.
-    ///
-    /// - `image`: image to sample
-    /// - `dimension_x`: width of [`BitMatrix`] to sample from image
-    /// - `dimension_y`: height of [`BitMatrix`] to sample from image
-    /// - `p1ToX`: point 1 preimage X
-    /// - `p1ToY`: point 1 preimage Y
-    /// - `p2ToX`: point 2 preimage X
-    /// - `p2ToY`: point 2 preimage Y
-    /// - `p3ToX`: point 3 preimage X
-    /// - `p3ToY`: point 3 preimage Y
-    /// - `p4ToX`: point 4 preimage X
-    /// - `p4ToY`: point 4 preimage Y
-    /// - `p1FromX`: point 1 image X
-    /// - `p1FromY`: point 1 image Y
-    /// - `p2FromX`: point 2 image X
-    /// - `p2FromY`: point 2 image Y
-    /// - `p3FromX`: point 3 image X
-    /// - `p3FromY`: point 3 image Y
-    /// - `p4FromX`: point 4 image X
-    /// - `p4FromY`: point 4 image Y
-    ///
-    /// Returns [`BitMatrix`] representing a grid of points sampled from the image within a region.
-    /// defined by the "from" parameters
-    /// Returns a not-found error if image can't be sampled, for example, if the transformation defined
-    /// by the given points is invalid or results in sampling outside the image boundaries
-    #[allow(clippy::too_many_arguments)]
-    fn sample_grid_detailed(
-        &self,
-        image: &BitMatrix,
-        dimension_x: u32,
-        dimension_y: u32,
-        dst: Quadrilateral,
-        src: Quadrilateral,
-    ) -> Result<(BitMatrix, [Point; 4])> {
-        let transform = PerspectiveTransform::quadrilateral_to_quadrilateral(dst, src)?;
-
-        self.sample_grid(
-            image,
-            dimension_x,
-            dimension_y,
-            &[SamplerControl::new(dimension_x, dimension_y, transform)],
-        )
-    }
-
     fn sample_grid(
         &self,
         image: &BitMatrix,
         dimension_x: u32,
         dimension_y: u32,
         controls: &[SamplerControl],
-    ) -> Result<(BitMatrix, [Point; 4])> {
+    ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
                 message: "barcode pattern was not detected".to_owned(),
@@ -115,26 +68,7 @@ pub trait GridSampler {
             }
         }
 
-        let project_corner = |p: Point| -> Point {
-            for SamplerControl { p0, p1, transform } in controls {
-                if p0.x <= p.x
-                    && p.x <= p1.x
-                    && p0.y <= p.y
-                    && p.y <= p1.y
-                    && let Some(transformed) = transform.transform_point(p)
-                {
-                    return transformed + point(0.5, 0.5);
-                }
-            }
-            Point::default()
-        };
-
-        let top_left = project_corner(Point::default());
-        let top_right = project_corner(Point::from((dimension_x - 1, 0)));
-        let bottom_right = project_corner(Point::from((dimension_x - 1, dimension_y - 1)));
-        let bottom_left = project_corner(Point::from((0, dimension_y - 1)));
-
-        Ok((bits, [top_left, top_right, bottom_left, bottom_right]))
+        Ok(bits)
     }
 
     /// Checks a set of points that have been transformed to sample points on an image against
@@ -225,12 +159,3 @@ pub struct SamplerControl {
     pub transform: PerspectiveTransform,
 }
 
-impl SamplerControl {
-    pub fn new(width: u32, height: u32, transform: PerspectiveTransform) -> Self {
-        Self {
-            p0: point(0.0, 0.0),
-            p1: point(width as f32, height as f32),
-            transform,
-        }
-    }
-}

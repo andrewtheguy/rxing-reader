@@ -2,12 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use image::ImageReader;
-use rxing_reader::{
-    BarcodeFormat, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
-    common::HybridBinarizer,
-    decode::{decode_inner, rgba_to_luma},
-    qrcode::cpp_port::QrReader,
-};
+use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
 
 fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, u32, u32) {
     let mut full = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -25,7 +20,7 @@ fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, u32, u32) {
 
 // The full Cartesian product of (try_harder, try_invert, use_hybrid_binarizer).
 // All three flags compose freely on the only remaining decode path
-// (`QrReader::decode_set_number_with_hints` + the manual BitMatrix flip for
+// (`decode_qr_codes_luma` + the manual BitMatrix flip for
 // inversion); each affects an orthogonal stage of the pipeline.
 const ALL_COMBOS: [(bool, bool, bool); 8] = [
     (false, false, false),
@@ -45,8 +40,8 @@ fn decode_combo(
     (try_harder, try_invert, use_hybrid_binarizer): (bool, bool, bool),
 ) -> Option<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
-    decode_inner(&luma, w, h, try_harder, try_invert, use_hybrid_binarizer, 1)
-        .expect("decode inner")
+    decode_qr_codes_luma(&luma, w, h, try_harder, try_invert, use_hybrid_binarizer, 1)
+        .expect("decode")
         .into_iter()
         .next()
 }
@@ -176,13 +171,13 @@ fn qr_sample_small_in_canvas_png_requires_try_harder() {
 // ---------------------------------------------------------------------------
 // Binarizer fallback. The wasm wrapper exposes a `binarizer_fallback` option
 // that retries the full pipeline once with the opposite binarizer when the
-// primary produces no results. Mirrors the `read_inner` policy in
+// primary produces no results. Mirrors the `read_luma` policy in
 // `rxing-wasm/src/lib.rs`. Validated here against the two binarizer-isolation
 // fixtures (each decodes on only one binarizer) — proves fallback rescues
 // both failure modes regardless of which binarizer the caller picks first.
 // ---------------------------------------------------------------------------
 
-/// Mirror of `read_inner`'s `binarizer_fallback` policy: run the single-symbol
+/// Mirror of `read_luma`'s `binarizer_fallback` policy: run the single-symbol
 /// pipeline with `primary_use_hybrid`; on miss, run again with the other.
 fn decode_with_binarizer_fallback(
     rgba: &[u8],
@@ -231,7 +226,7 @@ fn rgba_length_mismatch_is_rejected() {
 // close pre-pass. Neither decodes at the original resolution; both surface
 // only after the buffer is downscaled and/or `BinaryBitmap::close()` is
 // applied. These pin the capability we lost when `FilteredImageReader` was
-// removed and re-added via `read_inner`'s try_harder branch + the
+// removed and re-added via `decode_qr_codes_luma`'s try_harder branch + the
 // `BinaryBitmap::close()` / `downscale_luma_buffer` utilities.
 // ---------------------------------------------------------------------------
 
@@ -462,7 +457,7 @@ fn qr_sample_rotated_speckled_png_requires_try_harder() {
     // `rotated_qr_sample_decodes_natively`), so rotation alone isn't enough
     // — the salt is what defeats the original-resolution scan, and the
     // `try_harder = true` morphological close-pass is what fills the holes
-    // and rescues detection. Pins the close-pass branch of `decode_inner`
+    // and rescues detection. Pins the close-pass branch of `decode_qr_codes_luma`
     // without depending on the JPG fixture (which conflates rotation, motion
     // blur, JPEG noise, and low resolution into a single failure mode).
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_sample_rotated_speckled.png");
@@ -538,7 +533,7 @@ fn probe_fixture_requirements() {
 fn rotated_and_inverted_qr_sample_requires_try_invert() {
     // Compose both transforms. Rotation alone is handled natively (see
     // `rotated_qr_sample_decodes_natively`) but the inversion still requires
-    // `try_invert`. Pins that the manual BitMatrix flip in `decode_inner`
+    // `try_invert`. Pins that the manual BitMatrix flip in `decode_qr_codes_luma`
     // composes correctly with a rotated source: every try_invert=true combo
     // decodes, every try_invert=false combo (including try_harder=true, which
     // could plausibly rescue via the close-pass / pyramid) misses.
@@ -585,26 +580,12 @@ fn rotated_and_inverted_qr_sample_requires_try_invert() {
 // ---------------------------------------------------------------------------
 
 /// Multi-symbol decode. Bypasses the inversion/pyramid/close pipeline used
-/// by `decode_inner` because the multi-QR fixtures are clean upright
-/// composites — only the multi-decode loop itself needs exercising. `count`
-/// is forwarded verbatim to `decode_set_number_with_hints` (0 = unlimited).
+/// by `decode_qr_codes_luma` because the multi-QR fixtures are clean upright
+/// composites. `count` is forwarded through the high-level decode API
+/// (0 = unlimited).
 fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
-    let source = Luma8LuminanceSource::new(luma, w, h).expect("luma source");
-    let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
-    let hints = DecodeHints {
-        possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),
-        ..DecodeHints::default()
-    };
-    QrReader
-        .decode_set_number_with_hints(&mut bitmap, &hints, count)
-        .map(|results| {
-            results
-                .into_iter()
-                .map(|r| r.get_raw_bytes().to_vec())
-                .collect()
-        })
-        .unwrap_or_default()
+    decode_qr_codes_luma(&luma, w, h, false, false, true, count).unwrap_or_default()
 }
 
 const QR_COMPLEX_TEXT: &[u8] = b"https://qr-code-styling.com";
@@ -667,7 +648,7 @@ fn count_cap_of_one_returns_single_symbol_from_multi_qr_image() {
 #[test]
 fn count_zero_returns_every_symbol_in_multi_qr_image() {
     // count = 0 is documented as "unlimited" in
-    // `decode_set_number_with_hints`. Pin that contract against the
+    // `decode_qr_codes_luma`. Pin that contract against the
     // two-QR fixture.
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_two_codes.png");
     let decoded = decode_all(&rgba, w, h, 0);
