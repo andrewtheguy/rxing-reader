@@ -11,6 +11,10 @@ Standalone Rust workspace providing a trimmed, QR-reading-only fork of
 - `rxing-wasm`: `wasm-bindgen` wrapper around `rxing-reader`. Distributed
   as a `.tgz` attached to each [GitHub release](https://github.com/andrewtheguy/rxing-reader/releases)
   (not published to the npm registry).
+- `rxing-cli`: command-line wrapper around `rxing-reader`. Decodes QR
+  codes from a local image file or an http(s) URL. Prebuilt binaries
+  for `linux-amd64`, `linux-arm64`, and `macos-arm64` are attached to
+  each [GitHub release](https://github.com/andrewtheguy/rxing-reader/releases).
 
 ## Using `rxing-reader` from Rust
 
@@ -91,6 +95,42 @@ for (const bytes of symbols) {
 
 See `rxing-wasm/src/lib.rs` for the full flag semantics (retry order,
 binarizer fallback, multi-symbol cap).
+
+## Using `rxing-cli`
+
+Download a prebuilt tarball from a [GitHub release](https://github.com/andrewtheguy/rxing-reader/releases)
+and extract the `rxing-cli` binary:
+
+```sh
+curl -L https://github.com/andrewtheguy/rxing-reader/releases/download/v0.0.6/rxing-cli-v0.0.6-linux-amd64.tar.gz \
+  | tar -xz
+./rxing-cli --help
+```
+
+Or build from source:
+
+```sh
+cargo install --git https://github.com/andrewtheguy/rxing-reader rxing-cli
+```
+
+The CLI accepts a local file path or an http(s) URL and supports two
+output formats:
+
+```sh
+# Plain text (default). Caps decode at 1 result; non-UTF-8 payloads
+# are printed as `base64:<b64>`. Exits 1 when no QR is found.
+rxing-cli qr.png
+# jfghjghjghfkghjkghj
+
+# JSON. Returns every detection as an array; each entry has a
+# `text` field (for UTF-8 payloads) or `bytes_b64` (for binary).
+rxing-cli --format json https://example.com/qr.png
+# [{"text":"https://qr-code-styling.com"},{"text":"jfghjghjghfkghjkghj"}]
+```
+
+Decode-pipeline flags (`try_harder`, `try_invert`, binarizer choice,
+binarizer fallback) are not exposed — the CLI hard-codes the
+"one-shot image upload" defaults recommended in `rxing-wasm/src/lib.rs`.
 
 ## Build and test
 
