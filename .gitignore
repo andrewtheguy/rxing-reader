@@ -4,3 +4,5 @@ node_modules/
 target/
 **/target/
 rxing-wasm/pkg/
+
+tmp/

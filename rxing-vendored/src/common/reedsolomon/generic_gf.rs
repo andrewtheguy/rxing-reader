@@ -1,0 +1,148 @@
+use std::fmt;
+
+use crate::Exceptions;
+use crate::common::Result;
+
+use super::{GenericGFPoly, GenericGFRef};
+
+/**
+ * <p>This class contains utility methods for performing mathematical operations over
+ * the Galois Fields. Operations use a given primitive polynomial in calculations.</p>
+ *
+ * <p>Throughout this package, elements of the GF are represented as an {@code int}
+ * for convenience and speed (but at the cost of memory).
+ * </p>
+ *
+ * @author Sean Owen
+ * @author David Olivier
+ */
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericGF {
+    exp_table: Vec<i32>,
+    log_table: Vec<i32>,
+    size: usize,
+    primitive: i32,
+    generator_base: i32,
+}
+
+impl GenericGF {
+    /**
+     * Create a representation of GF(size) using the given primitive polynomial.
+     *
+     * @param primitive irreducible polynomial whose coefficients are represented by
+     *  the bits of an int, where the least-significant bit represents the constant
+     *  coefficient
+     * @param size the size of the field
+     * @param b the factor b in the generator polynomial can be 0- or 1-based
+     *  (g(x) = (x+a^b)(x+a^(b+1))...(x+a^(b+2t-1))).
+     *  In most cases it should be 1, but for QR code it is 0.
+     */
+    pub fn new(primitive: i32, size: usize, b: i32) -> Self {
+        let mut exp_table = vec![0; size];
+        let mut log_table = vec![0; size];
+        let mut x = 1;
+        for exp_table_entry in exp_table.iter_mut().take(size) {
+            *exp_table_entry = x;
+            x *= 2; // we're assuming the generator alpha is 2
+            if x >= size as i32 {
+                x ^= primitive;
+                let sz_m_1: i32 = size as i32 - 1;
+                x &= sz_m_1;
+            }
+        }
+        for (i, loc) in exp_table.iter().enumerate().take(size - 1) {
+            log_table[*loc as usize] = i as i32;
+        }
+        log_table[0] = 0;
+
+        Self {
+            exp_table,
+            log_table,
+            size,
+            primitive,
+            generator_base: b,
+        }
+    }
+
+    /**
+     * @return the monomial representing coefficient * x^degree
+     */
+    pub fn build_monomial(
+        source: GenericGFRef,
+        degree: usize,
+        coefficient: i32,
+    ) -> Result<GenericGFPoly> {
+        if coefficient == 0 {
+            return GenericGFPoly::new(source, &[0]);
+        }
+        let mut coefficients = vec![0; degree + 1];
+        coefficients[0] = coefficient;
+        GenericGFPoly::new(source, &coefficients)
+    }
+
+    /**
+     * Implements both addition and subtraction -- they are the same in GF(size).
+     *
+     * @return sum/difference of a and b
+     */
+    pub const fn add_or_subtract(a: i32, b: i32) -> i32 {
+        a ^ b
+    }
+
+    /**
+     * @return 2 to the power of a in GF(size)
+     */
+    pub fn exp(&self, a: i32) -> i32 {
+        let idx = a.rem_euclid(self.size as i32 - 1) as usize;
+        self.exp_table[idx]
+    }
+
+    /**
+     * @return base 2 log of a in GF(size)
+     */
+    pub fn log(&self, a: i32) -> Result<i32> {
+        if a <= 0 || a >= self.size as i32 {
+            return Err(Exceptions::ILLEGAL_ARGUMENT);
+        }
+        Ok(self.log_table[a as usize])
+    }
+
+    /**
+     * @return multiplicative inverse of a
+     */
+    pub fn inverse(&self, a: i32) -> Result<i32> {
+        if a <= 0 || a >= self.size as i32 {
+            return Err(Exceptions::ARITHMETIC);
+        }
+        let log_t_loc: usize = a as usize;
+        let loc: usize = ((self.size as i32) - self.log_table[log_t_loc] - 1) as usize;
+        Ok(self.exp_table[loc])
+    }
+
+    /**
+     * @return product of a and b in GF(size)
+     */
+    pub fn multiply(&self, a: i32, b: i32) -> i32 {
+        if a == 0 || b == 0 {
+            return 0;
+        }
+        let a_loc: usize = a as usize;
+        let b_loc: usize = b as usize;
+        let comb_loc: usize = (self.log_table[a_loc] + self.log_table[b_loc]) as usize;
+        self.exp_table[comb_loc % (self.size - 1)]
+    }
+
+    pub const fn get_size(&self) -> usize {
+        self.size
+    }
+
+    pub const fn get_generator_base(&self) -> i32 {
+        self.generator_base
+    }
+}
+
+impl fmt::Display for GenericGF {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GF({:#06x},{})", self.primitive, self.size)
+    }
+}

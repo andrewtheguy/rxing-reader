@@ -1,0 +1,11 @@
+[workspace]
+members = [
+  "rxing-vendored",
+  "rxing-wasm",
+]
+resolver = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"

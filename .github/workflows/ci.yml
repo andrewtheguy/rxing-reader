@@ -24,6 +24,6 @@ jobs:
       - run: npm ci
         working-directory: rxing-wasm
       - run: cargo clippy --workspace --all-targets
-      - run: cargo test --workspace
+      - run: cargo test --workspace --release
       - run: npm run build
         working-directory: rxing-wasm
