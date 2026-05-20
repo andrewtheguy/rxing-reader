@@ -61,10 +61,12 @@ impl BitArray {
         }
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.bits.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.bits.is_empty()
     }

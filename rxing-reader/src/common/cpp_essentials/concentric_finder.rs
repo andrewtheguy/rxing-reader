@@ -102,7 +102,7 @@ pub fn check_symmetric_pattern<
     }
 
     if is_pattern::<E2E, LEN, SUM, false>(
-        &PatternView::new(&res),
+        &PatternView::from_bars(res.as_slice()),
         &FixedPattern::<LEN, SUM, false>::with_reference(pattern),
         None,
         0.0,

@@ -260,7 +260,7 @@ pub fn estimate_module_size(
     })?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
-        &PatternView::from_slice(&pattern),
+        &PatternView::from_bars(&pattern),
         &PATTERN,
         None,
         0.0,

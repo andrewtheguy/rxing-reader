@@ -47,6 +47,10 @@ impl PatternRow {
     pub fn rev(&mut self) {
         self.0.reverse()
     }
+
+    pub fn as_slice(&self) -> &[PatternType] {
+        &self.0
+    }
 }
 
 impl IntoIterator for PatternRow {
@@ -111,21 +115,28 @@ pub struct PatternView<'a> {
 }
 
 impl<'a> PatternView<'a> {
-    // A PatternRow always starts with the width of whitespace in front of the first black bar.
-    // The first element of the PatternView is the first bar.
+    // A PatternRow always starts with the width of whitespace in front of the
+    // first black bar (see `get_pattern_row`). `start = 1` skips that
+    // leading-whitespace element, so `view[0]` is the first bar; `count`
+    // is the number of view elements (bars + spaces, excluding the
+    // leading-whitespace prefix).
     pub fn new(bars: &'a PatternRow) -> PatternView<'a> {
         PatternView {
             data: &bars.0,
             start: 1,
-            count: bars.0.len(),
+            count: bars.0.len().saturating_sub(1),
             current: 0,
         }
     }
 
-    pub fn from_slice(bars: &'a [PatternType]) -> PatternView<'a> {
+    /// Construct a view directly over a bar-only buffer (no leading-whitespace
+    /// element at index 0). `view[0]` is `bars[0]`; use this for buffers that
+    /// were built as raw bar-width arrays rather than fed through
+    /// `get_pattern_row`.
+    pub fn from_bars(bars: &'a [PatternType]) -> PatternView<'a> {
         PatternView {
             data: bars,
-            start: 1,
+            start: 0,
             count: bars.len(),
             current: 0,
         }
@@ -161,10 +172,6 @@ impl<'a> PatternView<'a> {
     }
 
     pub fn sum_first(&self, n: usize) -> PatternType {
-        if self.count == self.data.len() {
-            return self.data.iter().sum::<PatternType>();
-        }
-
         self.data
             .iter()
             .skip(self.start + self.current)
@@ -272,19 +279,21 @@ impl<'a> PatternView<'a> {
         ) as usize
     }
 
-    fn try_index(&self, index: isize) -> Option<PatternType> {
+    /// Translate a signed view-relative index into an absolute `self.data`
+    /// position, returning `None` when the index would land outside the
+    /// underlying buffer. Returns the position rather than the value so
+    /// `Index<isize>` / `Index<i32>` can resolve to `&self.data[spot]`
+    /// without recomputing the offset.
+    fn try_index(&self, index: isize) -> Option<usize> {
         if index.abs() > self.data.len() as isize {
             return None;
         }
-        if index >= 0 {
-            let fetch_spot = ((self.start + self.current) as isize + index) as usize;
-            return self.data.get(fetch_spot).copied();
-        }
-        if index.abs() > (self.start + self.current) as isize {
+        let base = (self.start + self.current) as isize;
+        if index < 0 && index.abs() > base {
             return None;
         }
-        let fetch_spot = ((self.start + self.current) as isize + index) as usize;
-        self.data.get(fetch_spot).copied()
+        let spot = (base + index) as usize;
+        (spot < self.data.len()).then_some(spot)
     }
 }
 
@@ -292,17 +301,13 @@ impl std::ops::Index<isize> for PatternView<'_> {
     type Output = PatternType;
 
     fn index(&self, index: isize) -> &Self::Output {
-        if self.count == self.data.len() && index >= 0 {
-            return &self.data[index as usize];
-        }
-        if self.try_index(index).is_none() {
+        let spot = self.try_index(index).unwrap_or_else(|| {
             panic!(
                 "index out of bounds: the len is {} but the index is {}",
                 self.count, index
             )
-        }
-        let fetch_spot = ((self.start + self.current) as isize + index) as usize;
-        &self.data[fetch_spot]
+        });
+        &self.data[spot]
     }
 }
 
@@ -310,10 +315,6 @@ impl std::ops::Index<usize> for PatternView<'_> {
     type Output = PatternType;
 
     fn index(&self, index: usize) -> &Self::Output {
-        if self.count == self.data.len() {
-            return &self.data[index];
-        }
-
         match self.data.get(self.start + self.current + index) {
             Some(value) => value,
             None => panic!(
@@ -355,13 +356,9 @@ impl<'a, const LEN: usize> From<&PatternView<'a>> for [PatternType; LEN] {
 
 impl<'a> From<&PatternView<'a>> for &'a [PatternType] {
     fn from(value: &PatternView<'a>) -> Self {
-        if value.data.len() == value.count {
-            value.data
-        } else {
-            let start_idx = value.current + value.start;
-            let end_idx = (start_idx + value.count).min(value.data.len());
-            &value.data[start_idx..end_idx]
-        }
+        let start_idx = value.current + value.start;
+        let end_idx = (start_idx + value.count).min(value.data.len());
+        &value.data[start_idx..end_idx]
     }
 }
 
@@ -558,7 +555,9 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         message: "pattern view has no end index".into(),
     })?) - min_size;
     while (window.start + window.current) < end {
-        let prev = window.try_index(PREV_IDX).map(|v| v as f32);
+        let prev = window
+            .try_index(PREV_IDX)
+            .map(|spot| window.data[spot] as f32);
         if is_guard(&window, prev) {
             return Ok(window);
         }
@@ -718,15 +717,24 @@ mod tests {
             ],
             &mut p_row,
         );
+        // p_row layout (11 elements): [leading_whitespace, bar, space, bar,
+        // space, bar, space, bar, space, bar, trailing_zero]
+        //                            = [1,                  1,   1,     1,
+        //                               2,     3,   2,     6,   4,     1, 0]
+        // PatternView::new sets start = 1, so view[i] = data[1 + i].
 
         let mut pv = PatternView::new(&p_row);
 
         assert_eq!(pv.data(), p_row.0.as_slice());
 
-        assert_eq!(pv[0], 1_u16);
-        assert_eq!(pv[1], 1_u16);
-        assert_eq!(pv[4], 2_u16);
-        assert_eq!(pv[7], 6_u16);
+        // view[0] is the first bar (1) — the leading-whitespace element at
+        // data[0] is no longer reachable via positive indexing; it sits one
+        // slot "before" view[0] and is read via has_quiet_zone_before /
+        // try_index(-1).
+        assert_eq!(pv[0], 1_u16); // data[1]: first bar
+        assert_eq!(pv[1], 1_u16); // data[2]: first space
+        assert_eq!(pv[4], 3_u16); // data[5]: third bar
+        assert_eq!(pv[7], 4_u16); // data[8]: fourth space
 
         assert_eq!(pv.index(), 0);
         assert!(pv.shift(1));
