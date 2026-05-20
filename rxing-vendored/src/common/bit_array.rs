@@ -119,9 +119,12 @@ impl BitArray {
     }
 
     pub fn set_range(&mut self, start: usize, end: usize) -> Result<()> {
-        if end < start || end > self.bits.len() {
+        let len = self.bits.len();
+        if end < start || end > len {
             return Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "set_range: start={start}, end={end} out of range for bit array of length {len}"
+                ),
             }
             .into());
         }
@@ -137,9 +140,12 @@ impl BitArray {
     }
 
     pub fn is_range(&self, start: usize, end: usize, value: bool) -> Result<bool> {
-        if end < start || end > self.bits.len() {
+        let len = self.bits.len();
+        if end < start || end > len {
             return Err(Error::InvalidArgument {
-                message: "argument is out of range".to_owned(),
+                message: format!(
+                    "is_range: start={start}, end={end} out of range for bit array of length {len}"
+                ),
             }
             .into());
         }
@@ -180,7 +186,11 @@ impl BitArray {
     pub fn xor(&mut self, other: &BitArray) -> Result<()> {
         if self.bits.len() != other.bits.len() {
             return Err(Error::InvalidArgument {
-                message: "Sizes don't match".to_owned(),
+                message: format!(
+                    "xor: bit array sizes differ (self={}, other={})",
+                    self.bits.len(),
+                    other.bits.len(),
+                ),
             }
             .into());
         }

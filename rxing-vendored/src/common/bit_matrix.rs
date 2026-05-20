@@ -67,7 +67,9 @@ impl BitMatrix {
     pub fn new(width: u32, height: u32) -> Result<Self> {
         if width < 1 || height < 1 {
             return Err(Error::InvalidArgument {
-                message: "Both dimensions must be greater than 0".to_owned(),
+                message: format!(
+                    "BitMatrix::new: both dimensions must be greater than 0 (got width={width}, height={height})"
+                ),
             }
             .into());
         }
@@ -157,8 +159,11 @@ impl BitMatrix {
                         first_run = false;
                         row_length = bits_pos - row_start_pos;
                     } else if bits_pos - row_start_pos != row_length {
+                        let this_row_length = bits_pos - row_start_pos;
                         return Err(Error::InvalidArgument {
-                            message: "row lengths do not match".to_owned(),
+                            message: format!(
+                                "parse_strings: row lengths do not match (row {n_rows} has {this_row_length} cells, expected {row_length})"
+                            ),
                         }
                         .into());
                     }
@@ -190,8 +195,11 @@ impl BitMatrix {
             if first_run {
                 row_length = bits_pos - row_start_pos;
             } else if bits_pos - row_start_pos != row_length {
+                let this_row_length = bits_pos - row_start_pos;
                 return Err(Error::InvalidArgument {
-                    message: "row lengths do not match".to_owned(),
+                    message: format!(
+                        "parse_strings: final row lengths do not match (row {n_rows} has {this_row_length} cells, expected {row_length})"
+                    ),
                 }
                 .into());
             }
@@ -348,7 +356,11 @@ impl BitMatrix {
         if self.width != mask.width || self.height != mask.height || self.row_size != mask.row_size
         {
             return Err(Error::InvalidArgument {
-                message: "input matrix dimensions do not match".to_owned(),
+                message: format!(
+                    "BitMatrix::xor: input matrix dimensions do not match (self={}x{} row_size={}, mask={}x{} row_size={})",
+                    self.width, self.height, self.row_size,
+                    mask.width, mask.height, mask.row_size,
+                ),
             }
             .into());
         }
@@ -382,7 +394,9 @@ impl BitMatrix {
     pub fn set_region(&mut self, left: u32, top: u32, width: u32, height: u32) -> Result<()> {
         if height < 1 || width < 1 {
             return Err(Error::InvalidArgument {
-                message: "height and width must be at least 1".to_owned(),
+                message: format!(
+                    "set_region: width and height must be at least 1 (got width={width}, height={height})"
+                ),
             }
             .into());
         }
@@ -390,7 +404,10 @@ impl BitMatrix {
         let bottom = top + height;
         if bottom > self.height || right > self.width {
             return Err(Error::InvalidArgument {
-                message: "the region must fit inside the matrix".to_owned(),
+                message: format!(
+                    "set_region: region (left={left}, top={top}, width={width}, height={height} -> right={right}, bottom={bottom}) does not fit inside matrix {}x{}",
+                    self.width, self.height,
+                ),
             }
             .into());
         }
@@ -466,8 +483,10 @@ impl BitMatrix {
                 self.rotate180();
                 Ok(())
             }
-            _ => Err(Error::InvalidArgument {
-                message: "degrees must be a multiple of 0, 90, 180, or 270".to_owned(),
+            other => Err(Error::InvalidArgument {
+                message: format!(
+                    "rotate: degrees must be 0, 90, 180, or 270 (got {degrees}, normalized to {other})"
+                ),
             }
             .into()),
         }
@@ -670,7 +689,9 @@ impl BitMatrix {
     pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> Result<BitMatrix> {
         if width == 0 || height == 0 {
             return Err(Error::InvalidArgument {
-                message: "crop width and height must be greater than 0".to_owned(),
+                message: format!(
+                    "crop: width and height must be greater than 0 (got width={width}, height={height})"
+                ),
             }
             .into());
         }
@@ -678,7 +699,10 @@ impl BitMatrix {
             || top.saturating_add(height) > self.height as usize
         {
             return Err(Error::InvalidArgument {
-                message: "crop region must fit inside the matrix".to_owned(),
+                message: format!(
+                    "crop: region (left={left}, top={top}, width={width}, height={height}) does not fit inside matrix {}x{}",
+                    self.width, self.height,
+                ),
             }
             .into());
         }

@@ -177,7 +177,9 @@ impl Luma8LuminanceSource {
         let expected = (width as usize)
             .checked_mul(height as usize)
             .ok_or_else(|| Error::InvalidArgument {
-                message: "image dimensions overflow".to_owned(),
+                message: format!(
+                    "Luma8LuminanceSource::new: image dimensions overflow usize ({width} x {height})"
+                ),
             })?;
         if data.len() != expected {
             return Err(Error::InvalidArgument {
@@ -196,7 +198,9 @@ impl Luma8LuminanceSource {
         let size = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: "image dimensions overflow".to_owned(),
+                message: format!(
+                    "Luma8LuminanceSource::with_empty_image: image dimensions overflow usize ({width} x {height})"
+                ),
             })?;
         Ok(Self {
             dimensions: (width as u32, height as u32),
@@ -229,14 +233,16 @@ pub fn downscale_luma_buffer(
 ) -> Result<(Vec<u8>, u32, u32)> {
     if factor == 0 {
         return Err(Error::InvalidArgument {
-            message: "downscale factor must be at least 1".to_owned(),
+            message: format!("downscale_luma_buffer: factor must be at least 1 (got {factor})"),
         }
         .into());
     }
     let expected = (width as usize)
         .checked_mul(height as usize)
         .ok_or_else(|| Error::InvalidArgument {
-            message: "image dimensions overflow".to_owned(),
+            message: format!(
+                "downscale_luma_buffer: image dimensions overflow usize ({width} x {height})"
+            ),
         })?;
     if src.len() != expected {
         return Err(Error::InvalidArgument {

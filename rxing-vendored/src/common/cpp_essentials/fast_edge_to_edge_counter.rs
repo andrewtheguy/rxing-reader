@@ -24,11 +24,17 @@ impl FastEdgeToEdgeCounter<'_> {
         let image_len = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: "FastEdgeToEdgeCounter: image size overflow".to_owned(),
+                message: format!(
+                    "FastEdgeToEdgeCounter: image size overflow ({width} x {height})"
+                ),
             })?;
         if !(0..image_len).contains(&p) {
             return Err(Error::InvalidArgument {
-                message: "FastEdgeToEdgeCounter: cursor position is outside the image".to_owned(),
+                message: format!(
+                    "FastEdgeToEdgeCounter: cursor index {p} is outside image of size {width}x{height} (cursor=({}, {}))",
+                    cur.p().x,
+                    cur.p().y,
+                ),
             }
             .into());
         }
