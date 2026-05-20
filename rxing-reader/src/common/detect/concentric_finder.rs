@@ -211,7 +211,7 @@ pub fn center_of_ring(
             return None;
         }
 
-        if !(cur.p != start) {
+        if cur.p == start {
             break;
         }
     }
@@ -297,7 +297,7 @@ pub fn collect_ring_points(
             return Vec::default();
         }
 
-        if !(cur.p != start) {
+        if cur.p == start {
             break;
         }
     }
