@@ -3,7 +3,7 @@ mod decoder;
 mod detector;
 
 use crate::{
-    Binarizer, BinaryBitmap, DecodeHints,
+    Binarizer, BinaryBitmap, DecodeHints, QrSymbol,
     common::detect::ConcentricPattern,
 };
 
@@ -24,14 +24,14 @@ impl QrReader {
         image: &mut BinaryBitmap<B>,
         hints: &DecodeHints,
         max_symbols: usize,
-    ) -> anyhow::Result<Vec<Vec<u8>>> {
+    ) -> anyhow::Result<Vec<QrSymbol>> {
         let bin_img = image.black_matrix()?;
         let try_harder = hints.try_harder;
 
         let mut all_fps = find_finder_patterns(bin_img, try_harder);
 
         let mut used_fps: Vec<ConcentricPattern> = Vec::new();
-        let mut results: Vec<Vec<u8>> = Vec::new();
+        let mut results: Vec<QrSymbol> = Vec::new();
 
         let all_fpsets = generate_finder_pattern_sets(&mut all_fps);
         for fp_set in all_fpsets {
@@ -52,7 +52,7 @@ impl QrReader {
                     used_fps.push(fp_set.tl);
                     used_fps.push(fp_set.tr);
 
-                    results.push(decoder_result.into_bytes());
+                    results.push(QrSymbol::from_decoder_result(decoder_result));
 
                     if max_symbols != 0 && results.len() == max_symbols {
                         break;

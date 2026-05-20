@@ -75,6 +75,21 @@ impl TryFrom<u8> for DataMask {
     }
 }
 
+impl From<DataMask> for u8 {
+    fn from(value: DataMask) -> Self {
+        match value {
+            DataMask::Pattern000 => 0,
+            DataMask::Pattern001 => 1,
+            DataMask::Pattern010 => 2,
+            DataMask::Pattern011 => 3,
+            DataMask::Pattern100 => 4,
+            DataMask::Pattern101 => 5,
+            DataMask::Pattern110 => 6,
+            DataMask::Pattern111 => 7,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FormatInfoSource {
     Primary,

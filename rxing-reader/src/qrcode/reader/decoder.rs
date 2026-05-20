@@ -9,7 +9,7 @@ use anyhow::Result;
 use crate::Error;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
-    detect::{DecoderResult, to_fixed_len_string as padded_digits},
+    detect::{DecoderResult, StructuredAppendInfo, to_fixed_len_string as padded_digits},
 };
 use crate::qrcode::reed_solomon::correct_qr_errors;
 use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
@@ -363,9 +363,15 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
     };
     let mode_bit_length = Mode::codec_mode_bits_length(version);
 
+    let mut modes_seen: Vec<Mode> = Vec::new();
+    let mut structured_append: Option<StructuredAppendInfo> = None;
+
     let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
             let mode = Mode::codec_mode_for_bits(bits.read_bits(mode_bit_length)?)?;
+            if !modes_seen.contains(&mode) {
+                modes_seen.push(mode);
+            }
 
             match mode {
                 Mode::Fnc1FirstPosition => {
@@ -389,9 +395,14 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                     result.symbology.ai_flag = AIFlag::Aim;
                 }
                 Mode::StructuredAppend => {
-                    bits.read_bits(STRUCTURED_APPEND_INDEX_BITS)?;
-                    bits.read_bits(STRUCTURED_APPEND_COUNT_BITS)?;
-                    bits.read_bits(STRUCTURED_APPEND_PARITY_BITS)?;
+                    let index = bits.read_bits(STRUCTURED_APPEND_INDEX_BITS)?;
+                    let count = bits.read_bits(STRUCTURED_APPEND_COUNT_BITS)?;
+                    let parity = bits.read_bits(STRUCTURED_APPEND_PARITY_BITS)?;
+                    structured_append = Some(StructuredAppendInfo {
+                        index: index as u8,
+                        count: count as u8,
+                        parity: parity as u8,
+                    });
                 }
                 Mode::Eci => {
                     // Count doesn't apply to ECI
@@ -430,7 +441,13 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
         Ok(())
     })();
 
-    Ok(DecoderResult::with_eci_string_builder(result).with_error(res.err()))
+    let mut decoder_result =
+        DecoderResult::with_eci_string_builder(result).with_error(res.err());
+    decoder_result.set_modes(modes_seen);
+    if let Some(info) = structured_append {
+        decoder_result.set_structured_append(info);
+    }
+    Ok(decoder_result)
 }
 
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
@@ -505,7 +522,12 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
     }
 
     // decode the contents of that stream of bytes
-    decode_bit_stream(&result_bytes, version)
+    let decoder_result = decode_bit_stream(&result_bytes, version)?;
+    Ok(decoder_result.with_format(
+        version.number(),
+        format_info.error_correction_level,
+        u8::from(format_info.data_mask),
+    ))
 }
 
 struct DataBlock {
