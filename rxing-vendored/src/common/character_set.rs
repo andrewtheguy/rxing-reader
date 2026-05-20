@@ -238,11 +238,23 @@ impl CharacterSet {
 
     pub fn encode_replace(&self, input: &str) -> Result<Vec<u8>> {
         match self {
-            CharacterSet::Cp437
-            | CharacterSet::UTF16BE
+            CharacterSet::UTF16BE
             | CharacterSet::UTF16LE
             | CharacterSet::UTF32BE
             | CharacterSet::UTF32LE => self.encode(input),
+            CharacterSet::Cp437 => {
+                let mut bytes = Vec::with_capacity(input.len());
+                let mut buf = String::new();
+                for c in input.chars() {
+                    buf.clear();
+                    buf.push(c);
+                    match self.encode(&buf) {
+                        Ok(b) => bytes.extend_from_slice(&b),
+                        Err(_) => bytes.push(b'?'),
+                    }
+                }
+                Ok(bytes)
+            }
             CharacterSet::Binary | CharacterSet::ISO8859_1 => {
                 let bytes = input
                     .chars()

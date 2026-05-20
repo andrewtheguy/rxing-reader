@@ -105,7 +105,7 @@ impl<T: Default + Clone + Copy> Matrix<T> {
                 p.x, p.y
             )));
         }
-        self.set(p.x as usize, p.y as usize, value)
+        self.set(x as usize, y as usize, value)
     }
 
     pub fn data(&self) -> &[Option<T>] {
