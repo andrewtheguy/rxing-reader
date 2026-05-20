@@ -8,7 +8,6 @@ pub struct FastEdgeToEdgeCounter<'a> {
     p: u32,
     stride: isize,
     steps_to_border: i32,
-    _arr: isize,
     under_array: &'a BitMatrix,
 }
 
@@ -63,7 +62,6 @@ impl FastEdgeToEdgeCounter<'_> {
             p,
             stride,
             steps_to_border,
-            _arr: cur.p().y as isize * stride,
             under_array: cur.img(),
         })
     }

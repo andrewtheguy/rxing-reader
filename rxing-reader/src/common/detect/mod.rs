@@ -8,7 +8,6 @@ pub mod matrix;
 pub mod pattern;
 pub mod regression_line;
 pub mod regression_line_trait;
-pub mod unoriented_regression_line;
 pub mod util;
 pub mod value;
 
@@ -22,6 +21,5 @@ pub use matrix::*;
 pub use pattern::*;
 pub use regression_line::*;
 pub use regression_line_trait::*;
-pub use unoriented_regression_line::*;
 pub use util::*;
 pub use value::*;

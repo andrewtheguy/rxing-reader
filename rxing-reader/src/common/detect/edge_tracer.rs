@@ -137,7 +137,7 @@ impl BitMatrixCursorTrait for EdgeTracer<'_> {
     }
 }
 
-impl<'a> EdgeTracer<'_> {
+impl<'a> EdgeTracer<'a> {
     pub fn new(image: &'a BitMatrix, p: Point, d: Point) -> EdgeTracer<'a> {
         EdgeTracer {
             img: image,
