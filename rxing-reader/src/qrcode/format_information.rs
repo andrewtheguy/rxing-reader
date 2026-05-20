@@ -40,7 +40,7 @@ pub enum DataMask {
 }
 
 impl DataMask {
-    pub fn is_masked(self, x: u32, y: u32) -> bool {
+    pub fn is_masked(self, x: usize, y: usize) -> bool {
         match self {
             DataMask::Pattern000 => (y + x).is_multiple_of(2),
             DataMask::Pattern001 => y.is_multiple_of(2),

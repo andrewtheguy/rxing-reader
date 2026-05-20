@@ -5,7 +5,7 @@ use crate::{Error, common::BitMatrix};
 use super::BitMatrixCursorTrait;
 
 pub struct FastEdgeToEdgeCounter<'a> {
-    p: u32,
+    p: usize,
     stride: isize,
     steps_to_border: i32,
     under_array: &'a BitMatrix,
@@ -36,7 +36,7 @@ impl FastEdgeToEdgeCounter<'_> {
             }
             .into());
         }
-        let p = p as u32;
+        let p = p as usize;
 
         let max_steps_x: i32 = if cur.d().x != 0.0 {
             if cur.d().x > 0.0 {
@@ -83,7 +83,7 @@ impl FastEdgeToEdgeCounter<'_> {
                 return 0;
             };
 
-            if self.under_array.at_index(idx_pt) != self.under_array.at_index(self.p as usize) {
+            if self.under_array.at_index(idx_pt) != self.under_array.at_index(self.p) {
                 break;
             }
         }
@@ -94,7 +94,7 @@ impl FastEdgeToEdgeCounter<'_> {
         // for negative stride. Caller never re-reads `self.p` in that terminal case,
         // but clamping keeps `self.p` in a defined state.
         let new_pos = self.p as isize + (steps as isize * self.stride);
-        self.p = new_pos.max(0) as u32;
+        self.p = new_pos.max(0) as usize;
         self.steps_to_border -= steps;
 
         steps as u32

@@ -586,7 +586,7 @@ impl<T: Into<PatternType>> From<T> for Color {
     }
 }
 
-pub fn read_pattern_row(matrix: &BitMatrix, r: u32, pr: &mut PatternRow, transpose: bool) {
+pub fn read_pattern_row(matrix: &BitMatrix, r: usize, pr: &mut PatternRow, transpose: bool) {
     let row = if transpose {
         matrix.column(r)
     } else {

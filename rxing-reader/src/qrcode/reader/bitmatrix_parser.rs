@@ -15,7 +15,7 @@ use crate::{
 use crate::common::detect::append_bit;
 
 /// Return the QR module bit, optionally reading from mirrored coordinates.
-fn module_bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: bool) -> bool {
+fn module_bit(bit_matrix: &BitMatrix, x: usize, y: usize, mirrored: bool) -> bool {
     if mirrored {
         bit_matrix.get(y, x)
     } else {

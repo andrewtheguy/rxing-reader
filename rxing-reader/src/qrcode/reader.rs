@@ -23,7 +23,7 @@ impl QrReader {
         &self,
         image: &mut BinaryBitmap<B>,
         hints: &DecodeHints,
-        max_symbols: u32,
+        max_symbols: usize,
     ) -> anyhow::Result<Vec<Vec<u8>>> {
         let bin_img = image.black_matrix()?;
         let try_harder = hints.try_harder;
@@ -52,9 +52,9 @@ impl QrReader {
                     used_fps.push(fp_set.tl);
                     used_fps.push(fp_set.tr);
 
-                    results.push(decoder_result.content().bytes().to_vec());
+                    results.push(decoder_result.into_bytes());
 
-                    if max_symbols != 0 && (results.len() as u32) == max_symbols {
+                    if max_symbols != 0 && results.len() == max_symbols {
                         break;
                     }
                 }

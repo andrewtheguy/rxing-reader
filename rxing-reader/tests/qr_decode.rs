@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use image::ImageReader;
 use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
 
-fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, u32, u32) {
+fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, usize, usize) {
     let mut full = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     full.push(relative_path);
     let img = ImageReader::open(&full)
@@ -14,7 +14,7 @@ fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, u32, u32) {
         .decode()
         .expect("decode image")
         .into_rgba8();
-    let (w, h) = (img.width(), img.height());
+    let (w, h) = (img.width() as usize, img.height() as usize);
     (img.into_raw(), w, h)
 }
 
@@ -35,8 +35,8 @@ const ALL_COMBOS: [(bool, bool, bool); 8] = [
 
 fn decode_combo(
     rgba: &[u8],
-    w: u32,
-    h: u32,
+    w: usize,
+    h: usize,
     (try_harder, try_invert, use_hybrid_binarizer): (bool, bool, bool),
 ) -> Option<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
@@ -181,8 +181,8 @@ fn qr_sample_small_in_canvas_png_requires_try_harder() {
 /// pipeline with `primary_use_hybrid`; on miss, run again with the other.
 fn decode_with_binarizer_fallback(
     rgba: &[u8],
-    w: u32,
-    h: u32,
+    w: usize,
+    h: usize,
     try_harder: bool,
     try_invert: bool,
     primary_use_hybrid: bool,
@@ -263,7 +263,7 @@ fn qr_zoo_jpg_requires_try_harder_and_try_invert() {
 /// Loop over `ALL_COMBOS` asserting that `rgba` decodes to `expected` iff
 /// `try_harder = true`. `label` is interpolated into panic messages so test
 /// failures point at the specific fixture/transform under test.
-fn assert_requires_try_harder(rgba: &[u8], w: u32, h: u32, expected: &[u8], label: &str) {
+fn assert_requires_try_harder(rgba: &[u8], w: usize, h: usize, expected: &[u8], label: &str) {
     for combo in ALL_COMBOS {
         let (try_harder, _, _) = combo;
         let result = decode_combo(rgba, w, h, combo);
@@ -400,15 +400,14 @@ fn invert_rgba(rgba: &[u8]) -> Vec<u8> {
 }
 
 /// Rotate an RGBA buffer 90° clockwise. Source (x, y) maps to dst (h - 1 - y, x).
-fn rotate_rgba_90_cw(rgba: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
-    let (w_us, h_us) = (w as usize, h as usize);
+fn rotate_rgba_90_cw(rgba: &[u8], w: usize, h: usize) -> (Vec<u8>, usize, usize) {
     let mut out = vec![0u8; rgba.len()];
-    for y in 0..h_us {
-        for x in 0..w_us {
-            let src = (y * w_us + x) * 4;
-            let dx = h_us - 1 - y;
+    for y in 0..h {
+        for x in 0..w {
+            let src = (y * w + x) * 4;
+            let dx = h - 1 - y;
             let dy = x;
-            let dst = (dy * h_us + dx) * 4;
+            let dst = (dy * h + dx) * 4;
             out[dst..dst + 4].copy_from_slice(&rgba[src..src + 4]);
         }
     }
@@ -583,7 +582,7 @@ fn rotated_and_inverted_qr_sample_requires_try_invert() {
 /// by `decode_qr_codes_luma` because the multi-QR fixtures are clean upright
 /// composites. `count` is forwarded through the high-level decode API
 /// (0 = unlimited).
-fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
+fn decode_all(rgba: &[u8], w: usize, h: usize, count: usize) -> Vec<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
     decode_qr_codes_luma(&luma, w, h, false, false, true, count).unwrap_or_default()
 }

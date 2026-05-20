@@ -72,7 +72,7 @@ fn sum_filter_3x3<F: Fn(u8) -> bool>(input: &BitMatrix, output: &mut BitMatrix, 
     for row in 1..h - 1 {
         for col in 1..w - 1 {
             let mut sum: u8 = 0;
-            for dx in 0..3u32 {
+            for dx in 0..3 {
                 sum += input.try_get(col + dx - 1, row - 1).unwrap_or(false) as u8
                     + input.try_get(col + dx - 1, row).unwrap_or(false) as u8
                     + input.try_get(col + dx - 1, row + 1).unwrap_or(false) as u8;

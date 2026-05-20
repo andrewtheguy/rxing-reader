@@ -12,13 +12,13 @@ use wasm_bindgen::prelude::*;
 #[allow(clippy::too_many_arguments)] // mirrors the wasm export signature 1:1
 fn read_luma(
     luma: Vec<u8>,
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
     try_harder: bool,
     try_invert: bool,
     use_hybrid_binarizer: bool,
     binarizer_fallback: bool,
-    max_number_of_symbols: u32,
+    max_number_of_symbols: usize,
 ) -> Result<Vec<Vec<u8>>, JsValue> {
     let primary = decode_qr_codes_luma(
         &luma,
@@ -97,6 +97,9 @@ pub fn read_qr_codes_rgba(
     binarizer_fallback: bool,
     max_number_of_symbols: u32,
 ) -> Result<js_sys::Array, JsValue> {
+    let width = width as usize;
+    let height = height as usize;
+    let max_number_of_symbols = max_number_of_symbols as usize;
     let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
     let payloads = read_luma(
         luma,

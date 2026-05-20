@@ -29,11 +29,11 @@ pub static VERSIONS: Lazy<Box<[Version]>> = Lazy::new(Version::build_versions);
 
 const MIN_VERSION_NUMBER: u32 = 1;
 const MAX_VERSION_NUMBER: u32 = 40;
-const MIN_DIMENSION: u32 = 21;
-const MAX_DIMENSION: u32 = 177;
-const DIMENSION_STEP: u32 = 4;
-const DIMENSION_REMAINDER: u32 = 1;
-const DIMENSION_VERSION_OFFSET: u32 = 17;
+const MIN_DIMENSION: usize = 21;
+const MAX_DIMENSION: usize = 177;
+const DIMENSION_STEP: usize = 4;
+const DIMENSION_REMAINDER: usize = 1;
+const DIMENSION_VERSION_OFFSET: usize = 17;
 const VERSION_INFO_FIRST_VERSION: usize = 7;
 const MAX_VERSION_INFO_ERRORS: u32 = 3;
 
@@ -50,14 +50,14 @@ pub const VERSION_DECODE_INFO: [u32; 34] = [
 #[derive(Debug)]
 pub struct Version {
     version_number: u32,
-    alignment_pattern_centers: Box<[u32]>,
+    alignment_pattern_centers: Box<[usize]>,
     ec_blocks: Box<[ECBlocks]>,
     total_codewords: usize,
 }
 impl Version {
     pub(super) fn new(
         version_number: u32,
-        alignment_pattern_centers: Box<[u32]>,
+        alignment_pattern_centers: Box<[usize]>,
         ec_blocks: [ECBlocks; 4],
     ) -> Self {
         let mut total = 0;
@@ -79,7 +79,7 @@ impl Version {
         self.version_number
     }
 
-    pub const fn alignment_pattern_centers(&self) -> &[u32] {
+    pub const fn alignment_pattern_centers(&self) -> &[usize] {
         &self.alignment_pattern_centers
     }
 
@@ -87,7 +87,7 @@ impl Version {
         self.total_codewords
     }
 
-    pub fn dimension(&self) -> u32 {
+    pub fn dimension(&self) -> usize {
         Self::dimension_for_number(self.version_number)
     }
 
@@ -113,7 +113,7 @@ impl Version {
     /// Returns Version for a QR Code of that dimension.
     /// Version 1 has dimension 21. Returns an invalid-format error if
     /// dimension is less than 21 or (dimension - 1) % 4 != 0.
-    pub fn provisional_for_dimension(dimension: u32) -> Result<VersionRef> {
+    pub fn provisional_for_dimension(dimension: usize) -> Result<VersionRef> {
         if dimension % DIMENSION_STEP != DIMENSION_REMAINDER || dimension < MIN_DIMENSION {
             return Err(Error::InvalidFormat {
                 message: format!(
@@ -123,7 +123,7 @@ impl Version {
             }
             .into());
         }
-        Self::for_number((dimension - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP)
+        Self::for_number(((dimension - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP) as u32)
     }
 
     pub fn for_number(version_number: u32) -> Result<VersionRef> {
@@ -133,14 +133,12 @@ impl Version {
             }
             .into());
         }
-        let version_index = usize::try_from(version_number - 1).map_err(|_| Error::InvalidState {
-            message: format!("QR version {version_number} does not fit in usize").into(),
-        })?;
+        let version_index = (version_number - 1) as usize;
         Ok(&VERSIONS[version_index])
     }
 
-    pub const fn dimension_for_number(version_number: u32) -> u32 {
-        DIMENSION_VERSION_OFFSET + DIMENSION_STEP * version_number
+    pub const fn dimension_for_number(version_number: u32) -> usize {
+        DIMENSION_VERSION_OFFSET + DIMENSION_STEP * version_number as usize
     }
 
     pub fn decode_version_information_pair(version_bits: [Option<u32>; 2]) -> Result<VersionRef> {
@@ -163,10 +161,7 @@ impl Version {
         if best_difference <= MAX_VERSION_INFO_ERRORS
             && let Some(best_version) = best_version
         {
-            let best_version = u32::try_from(best_version).map_err(|_| Error::InvalidState {
-                message: "best QR version index does not fit in u32".into(),
-            })?;
-            return Self::for_number(best_version);
+            return Self::for_number(best_version as u32);
         }
         Err(Error::InvalidState {
             message: "required internal state is missing".into(),
@@ -174,7 +169,7 @@ impl Version {
         .into())
     }
 
-    fn is_valid_dimensions(width: u32, height: u32) -> bool {
+    fn is_valid_dimensions(width: usize, height: usize) -> bool {
         width == height
             && (MIN_DIMENSION..=MAX_DIMENSION).contains(&width)
             && width % DIMENSION_STEP == DIMENSION_REMAINDER
@@ -186,7 +181,7 @@ impl Version {
 
     pub fn number_from_matrix(bit_matrix: &BitMatrix) -> Option<u32> {
         Self::is_valid_dimensions(bit_matrix.width(), bit_matrix.height())
-            .then_some((bit_matrix.width() - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP)
+            .then_some(((bit_matrix.width() - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP) as u32)
     }
 
     /// See ISO 18004:2006 Annex E

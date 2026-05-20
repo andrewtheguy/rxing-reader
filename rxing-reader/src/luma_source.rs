@@ -7,7 +7,7 @@ use anyhow::Result;
 #[derive(Debug)]
 pub struct Luma8LuminanceSource<'a> {
     /// image dimension in form (x,y)
-    dimensions: (u32, u32),
+    dimensions: (usize, usize),
     /// raw data for luma 8
     data: Cow<'a, [u8]>,
 }
@@ -24,19 +24,19 @@ impl LuminanceSource for Luma8LuminanceSource<'_> {
     }
 
     fn width(&self) -> usize {
-        self.dimensions.0 as usize
+        self.dimensions.0
     }
 
     fn height(&self) -> usize {
-        self.dimensions.1 as usize
+        self.dimensions.1
     }
 }
 
 impl<'a> Luma8LuminanceSource<'a> {
-    pub fn new(source: impl Into<Cow<'a, [u8]>>, width: u32, height: u32) -> Result<Self> {
+    pub fn new(source: impl Into<Cow<'a, [u8]>>, width: usize, height: usize) -> Result<Self> {
         let data = source.into();
-        let expected = (width as usize)
-            .checked_mul(height as usize)
+        let expected = width
+            .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
                 message: format!(
                     "Luma8LuminanceSource::new: image dimensions overflow usize ({width} x {height})"
@@ -63,20 +63,20 @@ impl<'a> Luma8LuminanceSource<'a> {
 /// pixels that don't fit a full `factor × factor` block are dropped (truncating
 /// division). `factor` must be ≥ 1; `factor == 1` returns a copy. Useful as a
 /// pyramid-layer step for `try_harder`-style multi-resolution QR decoding.
-pub fn downscale_luma_buffer(
-    src: &[u8],
-    width: u32,
-    height: u32,
-    factor: u32,
-) -> Result<(Vec<u8>, u32, u32)> {
+pub fn downscale_luma_buffer<'a>(
+    src: &'a [u8],
+    width: usize,
+    height: usize,
+    factor: usize,
+) -> Result<(Cow<'a, [u8]>, usize, usize)> {
     if factor == 0 {
         return Err(Error::InvalidArgument {
             message: format!("downscale_luma_buffer: factor must be at least 1 (got {factor})").into(),
         }
         .into());
     }
-    let expected = (width as usize)
-        .checked_mul(height as usize)
+    let expected = width
+        .checked_mul(height)
         .ok_or_else(|| Error::InvalidArgument {
             message: format!(
                 "downscale_luma_buffer: image dimensions overflow usize ({width} x {height})"
@@ -94,23 +94,20 @@ pub fn downscale_luma_buffer(
     let new_w = width / factor;
     let new_h = height / factor;
     if factor == 1 {
-        return Ok((src.to_vec(), new_w, new_h));
+        return Ok((Cow::Borrowed(src), new_w, new_h));
     }
-    let factor_us = factor as usize;
-    let w_us = width as usize;
-    let new_w_us = new_w as usize;
-    let mut out = vec![0u8; new_w_us * new_h as usize];
-    let half_area = (factor_us * factor_us) / 2;
-    for dy in 0..new_h as usize {
-        for dx in 0..new_w_us {
+    let mut out = vec![0u8; new_w * new_h];
+    let half_area = (factor * factor) / 2;
+    for dy in 0..new_h {
+        for dx in 0..new_w {
             let mut sum = half_area;
-            for ty in 0..factor_us {
-                for tx in 0..factor_us {
-                    sum += src[(dy * factor_us + ty) * w_us + (dx * factor_us + tx)] as usize;
+            for ty in 0..factor {
+                for tx in 0..factor {
+                    sum += usize::from(src[(dy * factor + ty) * width + (dx * factor + tx)]);
                 }
             }
-            out[dy * new_w_us + dx] = (sum / (factor_us * factor_us)) as u8;
+            out[dy * new_w + dx] = (sum / (factor * factor)) as u8;
         }
     }
-    Ok((out, new_w, new_h))
+    Ok((Cow::Owned(out), new_w, new_h))
 }

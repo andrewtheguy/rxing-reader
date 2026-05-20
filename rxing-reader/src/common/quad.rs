@@ -249,10 +249,10 @@ impl From<[Point; 4]> for Quadrilateral {
     }
 }
 
-impl TryFrom<&Vec<Point>> for Quadrilateral {
+impl TryFrom<&[Point]> for Quadrilateral {
     type Error = anyhow::Error;
 
-    fn try_from(value: &Vec<Point>) -> Result<Self, Self::Error> {
+    fn try_from(value: &[Point]) -> Result<Self, Self::Error> {
         if value.len() == 4 {
             Ok(Self([value[0], value[1], value[2], value[3]]))
         } else {

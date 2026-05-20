@@ -32,8 +32,8 @@ pub trait GridSampler {
     fn sample_grid(
         &self,
         image: &BitMatrix,
-        dimension_x: u32,
-        dimension_y: u32,
+        dimension_x: usize,
+        dimension_y: usize,
         controls: &[SamplerControl],
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
@@ -43,7 +43,7 @@ pub trait GridSampler {
             .into());
         }
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
-        let mut points = vec![Point::default(); dimension_x as usize];
+        let mut points = vec![Point::default(); dimension_x];
         for y in 0..dimension_y {
             let i_value = y as f32 + 0.5;
 
@@ -60,13 +60,13 @@ pub trait GridSampler {
             self.check_and_nudge_points(image, &mut points)?;
             for (x, point) in points.iter().enumerate() {
                 if image
-                    .try_get(point.x as u32, point.y as u32)
+                    .try_at_point(*point)
                     .ok_or(Error::NotFound {
                         message: "grid point transformed outside image bounds".into(),
                     })?
                 {
                     // Black(-ish) pixel
-                    bits.set(x as u32, y);
+                    bits.set(x, y);
                 }
             }
         }

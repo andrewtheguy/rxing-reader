@@ -83,8 +83,8 @@ fn find_pattern(view: PatternView<'_>) -> Result<PatternView<'_>> {
 
 /// Locate the finder patterns for the symbol.
 pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatterns {
-    const MIN_SKIP: u32 = 3; // 1 pixel/module times 3 modules/center
-    const MAX_MODULES_FAST: u32 = 20 * 4 + 17; // support up to version 20 for mobile clients
+    const MIN_SKIP: usize = 3; // 1 pixel/module times 3 modules/center
+    const MAX_MODULES_FAST: usize = 20 * 4 + 17; // support up to version 20 for mobile clients
 
     // Let's assume that the maximum version QR Code we support takes up 1/4 the height of the
     // image, and then account for the center being 3 modules in size. This gives the smallest
@@ -465,7 +465,7 @@ fn locate_alignment_pattern(
 
 pub fn read_version(
     image: &BitMatrix,
-    dimension: u32,
+    dimension: usize,
     mod2_pix: PerspectiveTransform,
 ) -> Result<VersionRef> {
     let mut bits = [None, None];
@@ -476,7 +476,11 @@ pub fn read_version(
         let mut valid = true;
         'read_version_bits: for y in (0..=5).rev() {
             for x in ((dimension - 11)..=(dimension - 9)).rev() {
-                let module = if mirror { point_i(y, x) } else { point_i(x, y) };
+                let module = if mirror {
+                    point(y as f32, x as f32)
+                } else {
+                    point(x as f32, y as f32)
+                };
                 let Some(pixel) = mod2_pix.transform_point(module.centered()) else {
                     valid = false;
                     break 'read_version_bits;
@@ -494,6 +498,15 @@ pub fn read_version(
     }
 
     Version::decode_version_information_pair(bits)
+}
+
+fn module_dimension(dimension: i32) -> Result<usize> {
+    usize::try_from(dimension).map_err(|_| {
+        Error::NotFound {
+            message: "QR pattern was not detected".into(),
+        }
+        .into()
+    })
 }
 
 pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorResult> {
@@ -517,6 +530,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
     };
 
     let mut dimension = best.dim;
+    let mut dimension_usize = module_dimension(dimension)?;
     let module_size = (best.ms + 1.0) as i32;
 
     let mut br = ConcentricPattern {
@@ -575,22 +589,24 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
         Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
     )?;
 
-    if dimension >= Version::dimension_for_number(7) as i32 {
+    if dimension_usize >= Version::dimension_for_number(7) {
         let version =
-            read_version(image, dimension as u32, mod_to_pix).map_err(|_| Error::NotFound {
+            read_version(image, dimension_usize, mod_to_pix).map_err(|_| Error::NotFound {
                 message: "QR pattern was not detected".into(),
             })?;
-        let version_dimension = version.dimension() as i32;
+        let version_dimension = version.dimension();
+        let version_dimension_i32 = version_dimension as i32;
 
         // if the version bits are garbage -> discard the detection
-        if (version_dimension - dimension).abs() > 8 {
+        if (version_dimension_i32 - dimension).abs() > 8 {
             return Err(Error::NotFound {
                 message: "QR pattern was not detected".into(),
             }
             .into());
         }
-        if version_dimension != dimension {
-            dimension = version_dimension;
+        if version_dimension_i32 != dimension {
+            dimension = version_dimension_i32;
+            dimension_usize = version_dimension;
             mod_to_pix = mod2_pix(
                 dimension,
                 br_offset,
@@ -604,7 +620,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
         // project the alignment pattern at module coordinates x/y to pixel coordinate based on current mod2_pix
         let project_m2_p = |x, y, mod2_pix: &PerspectiveTransform| -> Result<Point> {
             mod2_pix
-                .transform_point(Point::centered(point_i(ap_m[x], ap_m[y])))
+                .transform_point(point(ap_m[x] as f32, ap_m[y] as f32).centered())
                 .ok_or_else(|| {
                     Error::NotFound {
                         message: "QR pattern was not detected".into(),
@@ -734,12 +750,13 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
                 let x1 = ap_m[x + 1];
                 let y0 = ap_m[y];
                 let y1 = ap_m[y + 1];
+                let module_left = x0 - usize::from(x == 0) * 6;
+                let module_top = y0 - usize::from(y == 0) * 6;
+                let module_right = x1 + usize::from(x == n - 1) * 7;
+                let module_bottom = y1 + usize::from(y == n - 1) * 7;
                 rois.push(SamplerControl {
-                    p0: point_i(x0 - u32::from(x == 0) * 6, y0 - u32::from(y == 0) * 6),
-                    p1: point_i(
-                        x1 + u32::from(x == n - 1) * 7,
-                        y1 + u32::from(y == n - 1) * 7,
-                    ),
+                    p0: point(module_left as f32, module_top as f32),
+                    p1: point(module_right as f32, module_bottom as f32),
                     transform: PerspectiveTransform::quadrilateral_to_quadrilateral(
                         Quadrilateral::rectangle_from_xy(
                             x0 as f32, x1 as f32, y0 as f32, y1 as f32, None,
@@ -763,7 +780,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
             }
         }
         let grid_sampler = DefaultGridSampler;
-        let sampled = grid_sampler.sample_grid(image, dimension as u32, dimension as u32, &rois)?;
+        let sampled = grid_sampler.sample_grid(image, dimension_usize, dimension_usize, &rois)?;
         let result = DetectorResult::new(sampled);
         return Ok(result);
     }
@@ -771,10 +788,10 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
     let grid_sampler = DefaultGridSampler;
     let sampled = grid_sampler.sample_grid(
         image,
-        dimension as u32,
-        dimension as u32,
+        dimension_usize,
+        dimension_usize,
         &[SamplerControl {
-            p1: point_i(dimension as u32, dimension as u32),
+            p1: point(dimension_usize as f32, dimension_usize as f32),
             p0: point_i(0, 0),
             transform: mod_to_pix,
         }],
