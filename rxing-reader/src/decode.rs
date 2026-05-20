@@ -34,13 +34,12 @@ pub struct QrSymbol {
 
 impl QrSymbol {
     /// Move the metadata + payload out of a finished `DecoderResult`. Returns
-    /// `None` when the result is missing required QR metadata (e.g. the EC
-    /// level was never plumbed in). Callers should have verified
-    /// `decoder_result.is_valid()` first; the `debug_assert!` catches an
-    /// invariant violation in dev builds, and returning `None` in release
-    /// builds keeps the decode loop alive instead of panicking.
+    /// `None` when the result is invalid or missing required QR metadata
+    /// (e.g. the EC level was never plumbed in).
     pub(crate) fn from_decoder_result(decoder_result: DecoderResult) -> Option<Self> {
-        debug_assert!(decoder_result.is_valid());
+        if !decoder_result.is_valid() {
+            return None;
+        }
         let version = decoder_result.version();
         let error_correction_level = decoder_result.error_correction_level()?;
         let mask = decoder_result.mask();
@@ -195,5 +194,21 @@ pub fn decode_qr_codes_luma(
         }
         cur_w = next_w;
         cur_h = next_h;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        QrSymbol,
+        common::detect::DecoderResult,
+        qrcode::ErrorCorrectionLevel,
+    };
+
+    #[test]
+    fn rejects_invalid_decoder_result_even_when_format_metadata_exists() {
+        let decoder_result = DecoderResult::default().with_format(1, ErrorCorrectionLevel::L, 0);
+
+        assert!(QrSymbol::from_decoder_result(decoder_result).is_none());
     }
 }

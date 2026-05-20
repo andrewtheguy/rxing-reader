@@ -46,7 +46,6 @@ impl QrReader {
             if let Ok(detector_result) = detector_result {
                 let decoder_result = decode(detector_result.bits());
                 if let Ok(decoder_result) = decoder_result
-                    && decoder_result.is_valid()
                     && let Some(symbol) = QrSymbol::from_decoder_result(decoder_result)
                 {
                     used_fps.push(fp_set.bl);

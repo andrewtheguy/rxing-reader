@@ -347,6 +347,9 @@ fn poly_add_scaled_in_place(field: &QrField, target: &mut Vec<u8>, term: &[u8], 
     if scale == 0 || poly_is_zero(term) {
         return;
     }
+
+    // Callers only subtract while the target degree is at least the term
+    // degree; a violation here is an implementation bug in polynomial division.
     debug_assert!(target.len() >= term.len());
 
     // Multiplication by x^degree_diff appends low-degree zero terms, so the
