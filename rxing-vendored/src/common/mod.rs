@@ -1,5 +1,4 @@
 pub mod detector;
-pub mod reedsolomon;
 
 use crate::Point;
 

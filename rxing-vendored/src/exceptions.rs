@@ -20,8 +20,6 @@ pub enum Exceptions {
     ReaderException(String),
     #[error("WriterException{}", if .0.is_empty() { String::new()  } else { format!(" - {}", .0) })]
     WriterException(String),
-    #[error("ReedSolomonException{}", if .0.is_empty() { String::new()  } else { format!(" - {}", .0) })]
-    ReedSolomonException(String),
     #[error("IndexOutOfBoundsException{}", if .0.is_empty() { String::new()  } else { format!(" - {}", .0) })]
     IndexOutOfBoundsException(String),
     #[error("RuntimeException{}", if .0.is_empty() { String::new()  } else { format!(" - {}", .0) })]
@@ -76,11 +74,6 @@ impl Exceptions {
     pub const WRITER: Self = Self::WriterException(String::new());
     pub fn writer_with<I: Into<String>>(x: I) -> Self {
         Self::WriterException(x.into())
-    }
-
-    pub const REED_SOLOMON: Self = Self::ReedSolomonException(String::new());
-    pub fn reed_solomon_with<I: Into<String>>(x: I) -> Self {
-        Self::ReedSolomonException(x.into())
     }
 
     pub const INDEX_OUT_OF_BOUNDS: Self = Self::IndexOutOfBoundsException(String::new());
