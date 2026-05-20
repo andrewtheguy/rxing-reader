@@ -582,7 +582,7 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
     const PREV_IDX: isize = -1;
 
     if view.size() < min_size {
-        return Err(Error::InvalidState.into());
+        return Err(Error::InvalidState(None).into());
     }
 
     let mut window = view.sub_view(0, Some(LEN));
@@ -602,7 +602,7 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         window.skip_pair();
     }
 
-    Err(Error::InvalidState.into())
+    Err(Error::InvalidState(None).into())
 }
 
 pub fn find_left_guard<'a, const LEN: usize, const SUM: usize, const IS_SPARCE: bool>(
@@ -652,7 +652,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
 ) -> Result<[PatternType; LEN]> {
     let module_size: f32 = Into::<usize>::into(view.sum(Some(LEN))) as f32 / SUM as f32;
     if !module_size.is_finite() || module_size <= f32::EPSILON {
-        return Err(Error::NotFound.into());
+        return Err(Error::NotFound(None).into());
     }
     let mut err = SUM as isize;
     let mut is = [PatternType::default(); LEN];
@@ -665,7 +665,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
     }
 
     if err.abs() > 1 {
-        return Err(Error::NotFound.into());
+        return Err(Error::NotFound(None).into());
     }
 
     if err != 0 {
@@ -678,7 +678,7 @@ pub fn normalized_pattern<const LEN: usize, const SUM: usize>(
                 .enumerate()
                 .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         };
-        let (mi, _) = mi.ok_or(Error::InvalidState)?;
+        let (mi, _) = mi.ok_or(Error::InvalidState(None))?;
         is[mi] += err as PatternType;
     }
 

@@ -6,7 +6,7 @@ use super::StructuredAppendInfo;
 
 const SYMBOLOGY_MODIFIER_MODEL_1: u8 = b'0';
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct DecoderResult<T>
 where
     T: Copy + Clone + Default + Eq + PartialEq,
@@ -18,7 +18,7 @@ where
     structured_append: StructuredAppendInfo,
     is_mirrored: bool, // = false;
     reader_init: bool, // = false;
-    error: Option<String>,
+    error: Option<Arc<anyhow::Error>>,
     extra: Arc<T>,
 }
 
@@ -145,11 +145,11 @@ where
         self
     }
 
-    pub fn error(&self) -> Option<&str> {
+    pub fn error(&self) -> Option<&anyhow::Error> {
         self.error.as_deref()
     }
     pub fn set_error(&mut self, error: Option<anyhow::Error>) {
-        self.error = error.map(|error| error.to_string())
+        self.error = error.map(Arc::new)
     }
     pub fn with_error(mut self, error: Option<anyhow::Error>) -> DecoderResult<T> {
         self.set_error(error);

@@ -90,7 +90,7 @@ pub trait GridSampler {
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Error::NotFound.into());
+            return Err(Error::NotFound(None).into());
         }
         let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
         let mut points = vec![Point::default(); dimension_x as usize];
@@ -170,7 +170,7 @@ pub trait GridSampler {
         for point in points.iter_mut().take(max_offset) {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Error::NotFound.into());
+                return Err(Error::NotFound(None).into());
             }
             nudged = false;
             if x == -1 {
@@ -195,7 +195,7 @@ pub trait GridSampler {
         for point in points.iter_mut().rev().take(max_offset).rev() {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
-                return Err(Error::NotFound.into());
+                return Err(Error::NotFound(None).into());
             }
             nudged = false;
             if x == -1 {

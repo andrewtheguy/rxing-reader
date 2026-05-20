@@ -202,10 +202,10 @@ impl<'a> MonochromeRectangleDetector<'_> {
                     }
                 }
             } else {
-                return Err(Error::NotFound.into());
+                return Err(Error::NotFound(None).into());
             }
         }
-        Err(Error::NotFound.into())
+        Err(Error::NotFound(None).into())
     }
 
     /**

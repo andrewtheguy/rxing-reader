@@ -120,7 +120,7 @@ impl BitArray {
 
     pub fn set_range(&mut self, start: usize, end: usize) -> Result<()> {
         if end < start || end > self.bits.len() {
-            return Err(Error::InvalidArgument.into());
+            return Err(Error::InvalidArgument(None).into());
         }
         if end == start {
             return Ok(());
@@ -135,7 +135,7 @@ impl BitArray {
 
     pub fn is_range(&self, start: usize, end: usize, value: bool) -> Result<bool> {
         if end < start || end > self.bits.len() {
-            return Err(Error::InvalidArgument.into());
+            return Err(Error::InvalidArgument(None).into());
         }
         if end == start {
             return Ok(true);

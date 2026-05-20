@@ -183,7 +183,7 @@ impl Version {
             return Self::get_version_for_number(best_version);
         }
         // If we didn't find a close enough match, fail
-        Err(Error::NotFound.into())
+        Err(Error::NotFound(None).into())
     }
 
     /**

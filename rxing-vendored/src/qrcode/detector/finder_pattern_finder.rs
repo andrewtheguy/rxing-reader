@@ -689,7 +689,7 @@ impl<'a> FinderPatternFinder<'_> {
         let start_size = self.possible_centers.len();
         if start_size < 3 {
             // Couldn't find enough finder patterns
-            return Err(Error::NotFound.into());
+            return Err(Error::NotFound(None).into());
         }
 
         self.possible_centers
@@ -706,19 +706,19 @@ impl<'a> FinderPatternFinder<'_> {
 
         for i in 0..self.possible_centers.len() {
             let Some(fpi) = self.possible_centers.get(i) else {
-                return Err(Error::NotFound.into());
+                return Err(Error::NotFound(None).into());
             };
             let min_module_size = fpi.get_estimated_module_size();
 
             for j in (i + 1)..(self.possible_centers.len() - 1) {
                 let Some(fpj) = self.possible_centers.get(j) else {
-                    return Err(Error::NotFound.into());
+                    return Err(Error::NotFound(None).into());
                 };
                 let squares0 = Self::squared_distance(fpi, fpj);
 
                 for k in (j + 1)..(self.possible_centers.len()) {
                     let Some(fpk) = self.possible_centers.get(k) else {
-                        return Err(Error::NotFound.into());
+                        return Err(Error::NotFound(None).into());
                     };
                     let max_module_size = fpk.get_estimated_module_size();
                     if max_module_size > min_module_size * 1.4 {
@@ -751,12 +751,12 @@ impl<'a> FinderPatternFinder<'_> {
         }
 
         if distortion == f64::MAX {
-            return Err(Error::NotFound.into());
+            return Err(Error::NotFound(None).into());
         }
 
-        let p1 = best_patterns[0].ok_or(Error::NotFound)?;
-        let p2 = best_patterns[1].ok_or(Error::NotFound)?;
-        let p3 = best_patterns[2].ok_or(Error::NotFound)?;
+        let p1 = best_patterns[0].ok_or(Error::NotFound(None))?;
+        let p2 = best_patterns[1].ok_or(Error::NotFound(None))?;
+        let p3 = best_patterns[2].ok_or(Error::NotFound(None))?;
 
         Ok([p1, p2, p3])
     }

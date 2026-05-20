@@ -65,7 +65,7 @@ impl BitMatrixParser {
             return self
                 .parsed_format_info
                 .as_ref()
-                .ok_or_else(|| Error::Parse.into());
+                .ok_or_else(|| Error::Parse(None).into());
         }
 
         // Read top-left format info bits
@@ -98,7 +98,7 @@ impl BitMatrixParser {
 
         self.parsed_format_info
             .as_ref()
-            .ok_or_else(|| Error::InvalidFormat.into())
+            .ok_or_else(|| Error::InvalidFormat(None).into())
     }
 
     /**
@@ -150,7 +150,7 @@ impl BitMatrixParser {
             self.parsed_version = Some(the_parsed_version);
             return Ok(the_parsed_version);
         }
-        Err(Error::InvalidFormat.into())
+        Err(Error::InvalidFormat(None).into())
     }
 
     fn copy_bit(&self, i: u32, j: u32, version_bits: u32) -> u32 {
@@ -231,7 +231,7 @@ impl BitMatrixParser {
         }
 
         if result_offset != version.get_total_codewords() as usize {
-            return Err(Error::InvalidFormat.into());
+            return Err(Error::InvalidFormat(None).into());
         }
         Ok(result)
     }

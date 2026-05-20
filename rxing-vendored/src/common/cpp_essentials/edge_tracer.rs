@@ -201,7 +201,7 @@ impl<'a> EdgeTracer<'_> {
                         if self.white_at(p_edge) {
                             // if we are not making any progress, we still have another endless loop bug
                             if self.p == p_edge.centered() {
-                                return Err(Error::InvalidState.into());
+                                return Err(Error::InvalidState(None).into());
                             }
                             self.p = p_edge.centered();
 

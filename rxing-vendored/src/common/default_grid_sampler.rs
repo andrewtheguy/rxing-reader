@@ -34,7 +34,7 @@ impl GridSampler for DefaultGridSampler {
         controls: &[SamplerControl],
     ) -> Result<(BitMatrix, [Point; 4])> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Error::NotFound.into());
+            return Err(Error::NotFound(None).into());
         }
 
         for SamplerControl { p0, p1, transform } in controls {
@@ -50,7 +50,7 @@ impl GridSampler for DefaultGridSampler {
                 || !is_inside(p1.x - 1.0, p1.y - 1.0)
                 || !is_inside(p0.x, p1.y - 1.0)
             {
-                return Err(Error::NotFound.into());
+                return Err(Error::NotFound(None).into());
             }
         }
 
@@ -60,7 +60,7 @@ impl GridSampler for DefaultGridSampler {
                 for x in (p0.x as i32)..(p1.x as i32) {
                     let p = transform
                         .transform_point(Point::from((x, y)).centered())
-                        .ok_or(Error::NotFound)?;
+                        .ok_or(Error::NotFound(None))?;
 
                     // Due to a "numerical instability" in the PerspectiveTransform generation/application it has been observed
                     // that even though all boundary grid points get projected inside the image, it can still happen that an
@@ -68,7 +68,7 @@ impl GridSampler for DefaultGridSampler {
                     // The following check takes 100% care of the issue and turned out to be less of a performance impact than feared.
                     // TODO: Check some mathematical/numercial property of mod2_pix to determine if it is a perspective transforation.
                     if !image.is_in(p) {
-                        return Err(Error::NotFound.into());
+                        return Err(Error::NotFound(None).into());
                     }
 
                     if image.get_point(p) {

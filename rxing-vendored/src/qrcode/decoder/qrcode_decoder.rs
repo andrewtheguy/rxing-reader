@@ -116,7 +116,7 @@ pub fn decode_bitmatrix_with_hints(
             if let Some(fe) = fe {
                 Err(fe)
             } else {
-                Err(ce.unwrap_or_else(|| Error::Checksum.into()))
+                Err(ce.unwrap_or_else(|| Error::Checksum(None).into()))
             }
         }
         Err(er) => Err(er),
