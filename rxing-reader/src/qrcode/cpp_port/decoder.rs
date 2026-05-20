@@ -451,7 +451,7 @@ impl DataBlock {
 
         let shorter_blocks_total_codewords = result[0].codewords.len();
         let mut longer_blocks_start_at = result.len() - 1;
-        loop {
+        while longer_blocks_start_at > 0 {
             let num_codewords = result[longer_blocks_start_at].codewords.len();
 
             if num_codewords == shorter_blocks_total_codewords {
@@ -459,7 +459,9 @@ impl DataBlock {
             }
             longer_blocks_start_at -= 1;
         }
-        longer_blocks_start_at += 1;
+        if result[longer_blocks_start_at].codewords.len() == shorter_blocks_total_codewords {
+            longer_blocks_start_at += 1;
+        }
 
         let shorter_blocks_num_data_codewords =
             shorter_blocks_total_codewords - ec_blocks.get_eccodewords_per_block() as usize;
