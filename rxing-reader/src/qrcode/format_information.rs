@@ -185,7 +185,10 @@ impl FormatInformation {
                 for ref_pattern in QR_MASKED_PATTERNS {
                     let pattern = ref_pattern ^ FORMAT_INFO_MASK_QR;
                     let hamming_dist = ((bits_item ^ mask) ^ pattern).count_ones();
-                    let data = u8::try_from(pattern >> FORMAT_INFO_DATA_SHIFT).ok()?;
+                    // QR_MASKED_PATTERNS entries are 15-bit u16 values, so shifting by
+                    // FORMAT_INFO_DATA_SHIFT (10) leaves at most 5 bits — always fits in u8.
+                    let data = u8::try_from(pattern >> FORMAT_INFO_DATA_SHIFT)
+                        .expect("FORMAT_INFO table yields <=5-bit values");
                     let candidate = FormatInfoCandidate {
                         hamming_distance: hamming_dist,
                         data,

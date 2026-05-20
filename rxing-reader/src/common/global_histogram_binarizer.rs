@@ -169,10 +169,7 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
                 * from_first
                 * (second_peak as isize - x)
                 * (max_bucket_count - buckets[x as usize]) as isize;
-            if best_valley_score
-                .map(|best_score| score > best_score)
-                .unwrap_or(true)
-            {
+            if best_valley_score.is_none_or(|best_score| score > best_score) {
                 best_valley = x;
                 best_valley_score = Some(score);
             }
