@@ -1,15 +1,19 @@
+use std::borrow::Cow;
+
 use thiserror::Error;
+
+type ErrorMessage = Cow<'static, str>;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("invalid argument: {message}")]
-    InvalidArgument { message: String },
+    InvalidArgument { message: ErrorMessage },
     #[error("invalid state: {message}")]
-    InvalidState { message: String },
+    InvalidState { message: ErrorMessage },
     #[error("not found: {message}")]
-    NotFound { message: String },
+    NotFound { message: ErrorMessage },
     #[error("invalid format: {message}")]
-    InvalidFormat { message: String },
+    InvalidFormat { message: ErrorMessage },
     #[error("checksum failed: {message}")]
-    Checksum { message: String },
+    Checksum { message: ErrorMessage },
 }

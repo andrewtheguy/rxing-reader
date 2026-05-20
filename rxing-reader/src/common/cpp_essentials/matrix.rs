@@ -13,7 +13,7 @@ impl<T: Default + Copy> Matrix<T> {
         let size = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: format!("Matrix::new: width * height overflow ({width} x {height})"),
+                message: format!("Matrix::new: width * height overflow ({width} x {height})").into(),
             })?;
         Ok(Self {
             width,
@@ -22,14 +22,14 @@ impl<T: Default + Copy> Matrix<T> {
         })
     }
 
-    fn get_offset(x: usize, y: usize, width: usize) -> usize {
+    fn offset(x: usize, y: usize, width: usize) -> usize {
         y * width + x
     }
 
     pub fn get(&self, x: usize, y: usize) -> Option<T> {
         if x >= self.width || y >= self.height {
             None
-        } else if let Some(Some(d)) = self.data.get(Self::get_offset(x, y, self.width)) {
+        } else if let Some(Some(d)) = self.data.get(Self::offset(x, y, self.width)) {
             Some(*d)
         } else {
             None
@@ -42,11 +42,11 @@ impl<T: Default + Copy> Matrix<T> {
                 message: format!(
                     "set: coordinates ({x}, {y}) outside {}x{} matrix",
                     self.width, self.height
-                ),
+                ).into(),
             }
             .into());
         }
-        let offset = Self::get_offset(x, y, self.width);
+        let offset = Self::offset(x, y, self.width);
         self.data[offset] = Some(value);
         Ok(value)
     }

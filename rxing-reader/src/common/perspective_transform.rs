@@ -74,7 +74,7 @@ impl PerspectiveTransform {
     pub fn quadrilateral_to_quadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
         if !src.is_convex() || !dst.is_convex() {
             return Err(Error::InvalidState {
-                message: "required internal state is missing".to_owned(),
+                message: "required internal state is missing".into(),
             }
             .into());
         }
@@ -99,7 +99,7 @@ impl PerspectiveTransform {
     pub fn transform_points_single(&self, points: &mut [Point]) -> Result<()> {
         for point in points.iter_mut() {
             *point = self.transform_point(*point).ok_or(Error::NotFound {
-                message: "barcode pattern was not detected".to_owned(),
+                message: "barcode pattern was not detected".into(),
             })?;
         }
         Ok(())
@@ -130,7 +130,7 @@ impl PerspectiveTransform {
             let denominator = d1.cross(d2);
             if denominator.abs() < DENOMINATOR_EPSILON {
                 return Err(Error::InvalidState {
-                    message: "required internal state is missing".to_owned(),
+                    message: "required internal state is missing".into(),
                 }
                 .into());
             }

@@ -25,7 +25,7 @@ impl QrReader {
         hints: &DecodeHints,
         count: u32,
     ) -> anyhow::Result<Vec<Vec<u8>>> {
-        let bin_img = image.get_black_matrix()?;
+        let bin_img = image.black_matrix()?;
         let max_symbols = count;
         let try_harder = hints.try_harder;
 

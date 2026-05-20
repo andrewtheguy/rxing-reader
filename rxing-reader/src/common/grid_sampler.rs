@@ -35,7 +35,7 @@ pub trait GridSampler {
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
             return Err(Error::NotFound {
-                message: "barcode pattern was not detected".to_owned(),
+                message: "barcode pattern was not detected".into(),
             }
             .into());
         }
@@ -59,7 +59,7 @@ pub trait GridSampler {
                 if image
                     .try_get(point.x as u32, point.y as u32)
                     .ok_or(Error::NotFound {
-                        message: "grid point transformed outside image bounds".to_owned(),
+                        message: "grid point transformed outside image bounds".into(),
                     })?
                 {
                     // Black(-ish) pixel
@@ -86,8 +86,8 @@ pub trait GridSampler {
     ///
     /// Returns a not-found error if an endpoint is lies outside the image boundaries
     fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
-        let width = image.get_width();
-        let height = image.get_height();
+        let width = image.width();
+        let height = image.height();
         // Check and nudge points from start until we see some that are OK:
         let mut nudged;
         if points.is_empty() {
@@ -98,7 +98,7 @@ pub trait GridSampler {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".to_owned(),
+                    message: "barcode pattern was not detected".into(),
                 }
                 .into());
             }
@@ -126,7 +126,7 @@ pub trait GridSampler {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < -1 || x > width as i32 || y < -1 || y > height as i32 {
                 return Err(Error::NotFound {
-                    message: "barcode pattern was not detected".to_owned(),
+                    message: "barcode pattern was not detected".into(),
                 }
                 .into());
             }

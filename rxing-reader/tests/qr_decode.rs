@@ -690,3 +690,145 @@ fn decodes_three_qr_codes_in_single_image() {
     assert_eq!(sample_hits, 2, "expected qr_sample payload twice");
     assert_eq!(complex_hits, 1, "expected qr_code_complex payload once");
 }
+
+// ---------------------------------------------------------------------------
+// QR encoding-mode coverage. The fixtures above all happen to be encoded in
+// QR Byte mode (their payloads contain at least one character outside the
+// numeric / alphanumeric subsets), so they only exercise
+// `decode_byte_segment`. The two fixtures below pin the other two ISO-18004
+// data modes that the `qrcode` module actually decodes:
+//
+// * `qr_numeric.png` — pure-digit payload that the encoder packs into
+//   Numeric mode (3 digits per 10 bits). Exercises `decode_numeric_segment`
+//   including the trailing-group unpack (the 36-digit payload is exactly
+//   12 three-digit groups, so a regression that mis-handles the 2- or
+//   1-digit terminal group would not surface here — that's intentional;
+//   it isolates the steady-state 10-bit loop).
+//
+// * `qr_base45_alphanumeric.png` — base45-encoded binary payload that, by
+//   construction, uses only the 45-character QR alphanumeric charset
+//   (`0-9 A-Z` plus ` $%*+-./:`), so the encoder picks Alphanumeric mode
+//   (2 chars per 11 bits). The test base45-decodes the decoded string and
+//   asserts byte-for-byte equality with the original bytes, so it pins
+//   both `decode_alphanumeric_segment` and the round-trip contract used by
+//   real-world consumers (EU Digital COVID Certificate, etc.).
+//
+// Both fixtures are produced one-off by `/tmp/qrgen` (a small Rust
+// generator using the `qrcode` crate's low-level `Bits` API to force the
+// encoding mode) and committed to the repo so tests do not depend on the
+// generator at run time.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn decodes_numeric_mode_qr_in_every_combination() {
+    let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_numeric.png");
+    let expected = b"012345678901234567890123456789012345";
+    for combo in ALL_COMBOS {
+        let bytes = decode_combo(&rgba, w, h, combo)
+            .unwrap_or_else(|| panic!("qr_numeric.png failed to decode for combo={:?}", combo));
+        assert_eq!(
+            bytes.as_slice(),
+            expected.as_slice(),
+            "unexpected bytes for combo={:?}",
+            combo
+        );
+    }
+}
+
+const BASE45_ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+
+/// Minimal RFC 9285 base45 decoder. Returns `None` on any out-of-charset
+/// character, malformed trailing group, or 16-bit overflow.
+fn base45_decode(input: &[u8]) -> Option<Vec<u8>> {
+    fn idx(c: u8) -> Option<u16> {
+        BASE45_ALPHABET.iter().position(|&b| b == c).map(|i| i as u16)
+    }
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 3 <= input.len() {
+        // Per RFC 9285 the value packed into a 3-char group is bounded by
+        // u16::MAX (0xFFFF), so a `u16` overflow on the additions would
+        // already signal a malformed input. Use a `u32` for the intermediate
+        // so we can detect that overflow instead of wrapping silently.
+        let n = idx(input[i])? as u32
+            + idx(input[i + 1])? as u32 * 45
+            + idx(input[i + 2])? as u32 * 45 * 45;
+        if n > 0xFFFF {
+            return None;
+        }
+        out.push((n / 256) as u8);
+        out.push((n % 256) as u8);
+        i += 3;
+    }
+    match input.len() - i {
+        0 => Some(out),
+        2 => {
+            // Same u16-overflow concern as the 3-char branch above; a single
+            // byte's value is bounded by 0xFF so a 2-char group whose decoded
+            // value exceeds that is malformed.
+            let n = idx(input[i])? as u32 + idx(input[i + 1])? as u32 * 45;
+            if n > 0xFF {
+                return None;
+            }
+            out.push(n as u8);
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+#[test]
+fn decodes_base45_alphanumeric_mode_qr_and_round_trips() {
+    let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_base45_alphanumeric.png");
+    // Raw bytes the generator base45-encoded into the QR alphanumeric payload.
+    // The 0x00 / 0xff / 0xde 0xad 0xbe 0xef bytes guarantee the payload cannot
+    // round-trip as plain ASCII — the base45 layer is load-bearing.
+    let expected_raw: &[u8] =
+        b"\x00\xff\x01\xfe rxing-reader base45 round-trip \xde\xad\xbe\xef";
+    for combo in ALL_COMBOS {
+        let bytes = decode_combo(&rgba, w, h, combo).unwrap_or_else(|| {
+            panic!(
+                "qr_base45_alphanumeric.png failed to decode for combo={:?}",
+                combo
+            )
+        });
+        // Every byte returned by the decoder must be in the base45 charset —
+        // if any wasn't, the encoder would have spilled into Byte mode and
+        // this fixture would no longer cover `decode_alphanumeric_segment`.
+        for &b in &bytes {
+            assert!(
+                BASE45_ALPHABET.contains(&b),
+                "decoded byte {:#x} outside base45 charset for combo={:?} \
+                 (fixture is no longer pure-alphanumeric)",
+                b,
+                combo
+            );
+        }
+        let decoded = base45_decode(&bytes).unwrap_or_else(|| {
+            panic!(
+                "base45 decode failed for combo={:?}; got {:?}",
+                combo,
+                String::from_utf8_lossy(&bytes)
+            )
+        });
+        assert_eq!(
+            decoded.as_slice(),
+            expected_raw,
+            "base45 round-trip mismatch for combo={:?}",
+            combo
+        );
+    }
+}
+
+#[test]
+fn base45_decode_round_trips_known_vectors() {
+    // Sanity test on the in-test base45 decoder so a bug here doesn't masquerade
+    // as a QR decode regression. Vectors from RFC 9285 §4.4 ("AB" → "BB8",
+    // "Hello!!" → "%69 VD92EX0") plus the empty string.
+    assert_eq!(base45_decode(b"").unwrap(), b"");
+    assert_eq!(base45_decode(b"BB8").unwrap(), b"AB");
+    assert_eq!(base45_decode(b"%69 VD92EX0").unwrap(), b"Hello!!");
+    // Out-of-charset and malformed inputs are rejected.
+    assert!(base45_decode(b"!!!").is_none(), "rejects non-charset");
+    assert!(base45_decode(b"B").is_none(), "rejects 1-char trailing group");
+}

@@ -49,7 +49,11 @@ pub trait BitMatrixCursorTrait {
 
     fn set_direction(&mut self, dir: Point);
 
-    fn step(&mut self, s: Option<f32>) -> bool;
+    fn step_by(&mut self, distance: f32) -> bool;
+
+    fn step(&mut self) -> bool {
+        self.step_by(1.0)
+    }
 
     fn turned_back(&self) -> Self;
 
@@ -58,11 +62,13 @@ pub trait BitMatrixCursorTrait {
     /// - `backup`: whether or not to backup one step so we land in front of the edge
     ///
     /// Returns number of steps taken or 0 if moved outside of range/image.
-    fn step_to_edge(&mut self, nth: Option<i32>, range: Option<i32>, backup: Option<bool>) -> i32;
+    fn step_to_edge(&mut self, nth: i32, range: i32, backup: bool) -> i32;
 
-    fn step_along_edge(&mut self, dir: Direction, skip_corner: Option<bool>) -> bool {
-        let skip_corner = skip_corner.unwrap_or_default();
+    fn step_along_edge(&mut self, dir: Direction) -> bool {
+        self.step_along_edge_with_corner_skip(dir, false)
+    }
 
+    fn step_along_edge_with_corner_skip(&mut self, dir: Direction, skip_corner: bool) -> bool {
         if !self.edge_at_direction(dir).is_valid() {
             self.turn(dir);
         } else if self.edge_at_front().is_valid() {
@@ -75,11 +81,11 @@ pub trait BitMatrixCursorTrait {
             }
         }
 
-        let mut ret = self.step(None);
+        let mut ret = self.step();
 
         if ret && skip_corner && !self.edge_at_direction(dir).is_valid() {
             self.turn(dir);
-            ret = self.step(None);
+            ret = self.step();
         }
 
         ret

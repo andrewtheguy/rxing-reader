@@ -59,7 +59,7 @@ impl Mode {
                 Ok(Self::Hanzi)
             }
             _ => Err(Error::InvalidArgument {
-                message: format!("{bits} is not valid"),
+                message: format!("{bits} is not valid").into(),
             }
             .into()),
         }
@@ -69,8 +69,8 @@ impl Mode {
     ///
     /// The returned value is the number of bits used to encode the count of
     /// characters that follow this mode indicator.
-    pub fn get_character_count_bits(&self, version: &Version) -> u8 {
-        let number = version.get_version_number();
+    pub fn character_count_bits_u8(&self, version: &Version) -> u8 {
+        let number = version.number();
 
         let offset = if number <= 9 {
             0
@@ -79,10 +79,10 @@ impl Mode {
         } else {
             2
         };
-        self.get_character_counts()[offset]
+        self.character_counts()[offset]
     }
 
-    fn get_character_counts(&self) -> &[u8] {
+    fn character_counts(&self) -> &[u8] {
         match self {
             Mode::Terminator => &[0, 0, 0],
             Mode::Numeric => &[10, 12, 14],
@@ -97,7 +97,7 @@ impl Mode {
         }
     }
 
-    pub fn get_bits(&self) -> u8 {
+    pub fn bits(&self) -> u8 {
         match self {
             Mode::Terminator => 0x00,
             Mode::Numeric => 0x01,
@@ -112,12 +112,12 @@ impl Mode {
         }
     }
 
-    pub fn get_terminator_bit_length(version: &Version) -> u8 {
+    pub fn terminator_bit_length(version: &Version) -> u8 {
         let _ = version;
         4
     }
 
-    pub fn get_codec_mode_bits_length(version: &Version) -> u8 {
+    pub fn codec_mode_bits_length(version: &Version) -> u8 {
         let _ = version;
         4
     }
@@ -132,7 +132,7 @@ impl Mode {
         }
 
         Err(Error::InvalidFormat {
-            message: format!("Invalid QR codec mode bits 0x{bits:X}"),
+            message: format!("Invalid QR codec mode bits 0x{bits:X}").into(),
         }
         .into())
     }
@@ -142,13 +142,13 @@ impl Mode {
     /// The returned value is the number of bits used to encode the count of
     /// characters that follow this mode indicator.
     pub fn character_count_bits(&self, version: &Version) -> u32 {
-        self.get_character_count_bits(version) as u32
+        self.character_count_bits_u8(version) as u32
     }
 }
 
 impl From<Mode> for u8 {
     fn from(value: Mode) -> Self {
-        value.get_bits()
+        value.bits()
     }
 }
 
@@ -166,7 +166,7 @@ impl TryFrom<u32> for Mode {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value > u32::from(u8::MAX) {
             return Err(Error::InvalidArgument {
-                message: format!("{value} is not valid"),
+                message: format!("{value} is not valid").into(),
             }
             .into());
         }

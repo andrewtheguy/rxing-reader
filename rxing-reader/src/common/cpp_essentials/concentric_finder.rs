@@ -29,7 +29,7 @@ pub fn read_symmetric_pattern<const N: usize, Cursor: BitMatrixCursorTrait>(
     let mut cuo = cur.turned_back();
 
     let mut next = |cur: &mut Cursor, i: isize| {
-        let v = cur.step_to_edge(Some(1), Some(range), None);
+        let v = cur.step_to_edge(1, range, false);
         res[(s_2 + i) as usize] = (res[(s_2 + i) as usize] as i32 + v) as u16;
         if range != 0 {
             range -= v;
@@ -102,7 +102,7 @@ pub fn check_symmetric_pattern<
     }
 
     if is_pattern::<E2E, LEN, SUM, false>(
-        &PatternView::new(&res),
+        &PatternView::from_bars(res.as_slice()),
         &FixedPattern::<LEN, SUM, false>::with_reference(pattern),
         None,
         0.0,
@@ -113,7 +113,7 @@ pub fn check_symmetric_pattern<
     }
 
     if update_position {
-        cur.step(Some((res[s_2] as i32 / 2 - (center_bwd - 1)) as f32));
+        cur.step_by((res[s_2] as i32 / 2 - (center_bwd - 1)) as f32);
     }
 
     res.into_iter().sum::<PatternType>() as i32
@@ -130,7 +130,7 @@ pub fn average_edge_pixels<T: BitMatrixCursorTrait>(
         if !cur.is_in_self() {
             return None;
         }
-        cur.step_to_edge(Some(1), Some(range), None);
+        cur.step_to_edge(1, range, false);
         sum += cur.p().centered() + (cur.p() + cur.back()).centered();
     }
     Some(sum / (2 * num_of_edges) as f32)
@@ -173,7 +173,7 @@ pub fn center_of_ring(
     let inner = nth < 0;
     let nth = nth.abs();
     let mut cur = EdgeTracer::new(image, center, point(0.0, 1.0));
-    if cur.step_to_edge(Some(nth), Some(radius), Some(inner)) == 0 {
+    if cur.step_to_edge(nth, radius, inner) == 0 {
         return None;
     }
     cur.turn_right(); // move clock wise and keep edge on the right/left depending on backup
@@ -199,7 +199,7 @@ pub fn center_of_ring(
                     point(1.0, 3.0),
                 )) as u32;
 
-        if !cur.step_along_edge(edge_dir, None) {
+        if !cur.step_along_edge(edge_dir) {
             return None;
         }
 
@@ -260,7 +260,7 @@ pub fn collect_ring_points(
     let center_i = center.floor();
     let radius = range;
     let mut cur = EdgeTracer::new(image, center_i, point(0.0, 1.0));
-    if cur.step_to_edge(Some(edge_index), Some(radius), Some(backup)) == 0 {
+    if cur.step_to_edge(edge_index, radius, backup) == 0 {
         return Vec::default();
     }
     cur.turn_right(); // move clock wise and keep edge on the right/left depending on backup
@@ -285,7 +285,7 @@ pub fn collect_ring_points(
                     point(1.0, 3.0),
                 )) as u32;
 
-        if !cur.step_along_edge(edge_dir, None) {
+        if !cur.step_along_edge(edge_dir) {
             return Vec::default();
         }
 
@@ -524,7 +524,7 @@ pub fn locate_concentric_pattern<const E2E: bool, const LEN: usize, const SUM: u
     range: i32,
 ) -> Option<ConcentricPattern> {
     let mut cur = EdgeTracer::new(image, center.floor(), Point::default());
-    let mut min_spread = image.get_width() as i32;
+    let mut min_spread = image.width() as i32;
     let mut max_spread = 0_i32;
 
     // TODO: setting max_error to 1 can subtantially help with detecting symbols with low print quality resulting in damaged
@@ -579,12 +579,12 @@ pub fn finetune_concentric_pattern_center(
 ) -> Option<Point> {
     // make sure we have at least one path of white around the center
     if let Some(res1) = center_of_ring(image, center.floor(), range, 1, true) {
-        if !image.get_point(res1) {
+        if !image.at_point(res1) {
             return None;
         }
         // and then either at least one more ring around that
         if let Some(res2) = center_of_rings(image, res1, range, finder_pattern_size / 2) {
-            return if image.get_point(res2) {
+            return if image.at_point(res2) {
                 Some(res2)
             } else {
                 None
@@ -598,7 +598,7 @@ pub fn finetune_concentric_pattern_center(
         if let Some(res2) =
             center_of_double_cross(image, res1.floor(), range, finder_pattern_size / 2 + 1)
         {
-            return if image.get_point(res2) {
+            return if image.at_point(res2) {
                 Some(res2)
             } else {
                 None

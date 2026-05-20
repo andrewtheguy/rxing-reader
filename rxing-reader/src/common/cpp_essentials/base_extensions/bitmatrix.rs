@@ -22,7 +22,7 @@ impl BitMatrix {
                     && sample_x < self.width() as f32
                     && y_offset >= 0.0
                     && y_offset < self.height() as f32
-                    && self.get_point(point(sample_x, y_offset))
+                    && self.at_point(point(sample_x, y_offset))
                 {
                     result.set(x, y);
                 }
@@ -30,26 +30,6 @@ impl BitMatrix {
         }
 
         Ok(result)
-    }
-
-    pub fn get_top_left_on_bit_with_position(&self, left: &mut u32, top: &mut u32) -> bool {
-        let Some(Point { x, y }) = self.get_top_left_on_bit() else {
-            return false;
-        };
-        *left = x as u32;
-        *top = y as u32;
-
-        true
-    }
-
-    pub fn get_bottom_right_on_bit_with_position(&self, right: &mut u32, bottom: &mut u32) -> bool {
-        let Some(Point { x, y }) = self.get_bottom_right_on_bit() else {
-            return false;
-        };
-        *right = x as u32;
-        *bottom = y as u32;
-
-        true
     }
 
     pub fn find_bounding_box(
@@ -65,13 +45,16 @@ impl BitMatrix {
         let mut width = width;
         let mut height = height;
 
-        let mut right = 0;
-        let mut bottom = 0;
-        if !self.get_top_left_on_bit_with_position(&mut left, &mut top)
-            || !self.get_bottom_right_on_bit_with_position(&mut right, &mut bottom)
-            || bottom - top + 1 < min_size
-            || right - left + 1 < min_size
-        {
+        let (Some(Point { x: left_on_bit, y: top_on_bit }), Some(Point { x: right_on_bit, y: bottom_on_bit })) =
+            (self.top_left_on_bit(), self.bottom_right_on_bit())
+        else {
+            return (false, left, top, width, height);
+        };
+        left = left_on_bit as u32;
+        top = top_on_bit as u32;
+        let mut right = right_on_bit as u32;
+        let bottom = bottom_on_bit as u32;
+        if bottom - top + 1 < min_size || right - left + 1 < min_size {
             return (false, left, top, width, height);
         }
 

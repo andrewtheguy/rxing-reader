@@ -57,7 +57,7 @@ pub enum CharacterSet {
 }
 
 impl CharacterSet {
-    fn get_encoding(&self) -> Option<&'static encoding_rs::Encoding> {
+    fn encoding(&self) -> Option<&'static encoding_rs::Encoding> {
         match self {
             CharacterSet::ISO8859_2 => Some(encoding_rs::ISO_8859_2),
             CharacterSet::ISO8859_3 => Some(encoding_rs::ISO_8859_3),
@@ -101,7 +101,7 @@ impl CharacterSet {
             CharacterSet::UTF32BE => {
                 if !input.len().is_multiple_of(4) {
                     return Err(Error::InvalidFormat {
-                        message: "Invalid UTF-32BE: trailing bytes".to_owned(),
+                        message: "Invalid UTF-32BE: trailing bytes".into(),
                     }
                     .into());
                 }
@@ -111,7 +111,7 @@ impl CharacterSet {
                         let val = u32::from_be_bytes([c[0], c[1], c[2], c[3]]);
                         char::from_u32(val).ok_or_else(|| {
                             Error::InvalidFormat {
-                                message: "Invalid UTF-32BE".to_owned(),
+                                message: "Invalid UTF-32BE".into(),
                             }
                             .into()
                         })
@@ -121,7 +121,7 @@ impl CharacterSet {
             CharacterSet::UTF32LE => {
                 if !input.len().is_multiple_of(4) {
                     return Err(Error::InvalidFormat {
-                        message: "Invalid UTF-32LE: trailing bytes".to_owned(),
+                        message: "Invalid UTF-32LE: trailing bytes".into(),
                     }
                     .into());
                 }
@@ -131,7 +131,7 @@ impl CharacterSet {
                         let val = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
                         char::from_u32(val).ok_or_else(|| {
                             Error::InvalidFormat {
-                                message: "Invalid UTF-32LE".to_owned(),
+                                message: "Invalid UTF-32LE".into(),
                             }
                             .into()
                         })
@@ -146,7 +146,7 @@ impl CharacterSet {
                 for &b in input {
                     if b > 0x7F {
                         return Err(Error::InvalidFormat {
-                            message: "Invalid ASCII".to_owned(),
+                            message: "Invalid ASCII".into(),
                         }
                         .into());
                     }
@@ -155,18 +155,18 @@ impl CharacterSet {
                 Ok(s)
             }
             _ => {
-                if let Some(enc) = self.get_encoding() {
+                if let Some(enc) = self.encoding() {
                     let (res, _, had_errors) = enc.decode(input);
                     if had_errors {
                         return Err(Error::InvalidFormat {
-                            message: "Could not decode character".to_owned(),
+                            message: "Could not decode character".into(),
                         }
                         .into());
                     }
                     Ok(res.into_owned())
                 } else {
                     Err(Error::InvalidFormat {
-                        message: "Unsupported encoding".to_owned(),
+                        message: "Unsupported encoding".into(),
                     }
                     .into())
                 }

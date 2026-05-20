@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::borrow::Cow;
 
 use anyhow::Result as RxingResult;
 
@@ -52,7 +52,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     if !results.is_empty() {
         return results;
     }
-    if try_invert && let Ok(matrix) = bitmap.get_black_matrix_mut() {
+    if try_invert && let Ok(matrix) = bitmap.black_matrix_mut() {
         matrix.flip_self();
         return QrReader
             .decode_set_number_with_hints(bitmap, hints, max_number_of_symbols)
@@ -63,7 +63,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
 
 /// Try one resolution and close-pass combination using the selected binarizer.
 pub fn decode_one_layer(
-    source: Luma8LuminanceSource,
+    source: Luma8LuminanceSource<'_>,
     hints: &DecodeHints,
     use_hybrid_binarizer: bool,
     max_number_of_symbols: u32,
@@ -99,7 +99,7 @@ pub fn decode_qr_codes_luma(
     let hints = DecodeHints { try_harder };
 
     if !try_harder {
-        let source = Luma8LuminanceSource::new(luma.to_vec(), width, height)?;
+        let source = Luma8LuminanceSource::new(luma, width, height)?;
         return Ok(decode_one_layer(
             source,
             &hints,
@@ -110,12 +110,12 @@ pub fn decode_qr_codes_luma(
         ));
     }
 
-    let mut cur_luma: Arc<Vec<u8>> = Arc::new(luma.to_vec());
+    let mut cur_luma = Cow::Borrowed(luma);
     let mut cur_w = width;
     let mut cur_h = height;
     loop {
         for &close in &[false, true] {
-            let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h)?;
+            let source = Luma8LuminanceSource::new(cur_luma.as_ref(), cur_w, cur_h)?;
             let results = decode_one_layer(
                 source,
                 &hints,
@@ -134,8 +134,8 @@ pub fn decode_qr_codes_luma(
             return Ok(Vec::new());
         }
         let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(cur_luma.as_slice(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)?;
-        cur_luma = Arc::new(next_luma);
+            downscale_luma_buffer(cur_luma.as_ref(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)?;
+        cur_luma = Cow::Owned(next_luma);
         cur_w = next_w;
         cur_h = next_h;
     }

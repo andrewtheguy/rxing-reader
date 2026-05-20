@@ -51,10 +51,10 @@ impl Version {
         ec_blocks: [ECBlocks; 4],
     ) -> Self {
         let mut total = 0;
-        let ec_codewords = ec_blocks[1].get_eccodewords_per_block();
-        let ecb_array = ec_blocks[1].get_ecblocks();
+        let ec_codewords = ec_blocks[1].ec_codewords_per_block();
+        let ecb_array = ec_blocks[1].blocks();
         for ecb in ecb_array {
-            total += ecb.get_count() * (ecb.get_data_codewords() + ec_codewords);
+            total += ecb.count() * (ecb.data_codewords() + ec_codewords);
         }
 
         Self {
@@ -65,32 +65,32 @@ impl Version {
         }
     }
 
-    pub const fn get_version_number(&self) -> u32 {
+    pub const fn number(&self) -> u32 {
         self.version_number
     }
 
-    pub const fn get_alignment_pattern_centers(&self) -> &[u32] {
+    pub const fn alignment_pattern_centers(&self) -> &[u32] {
         &self.alignment_pattern_centers
     }
 
-    pub const fn get_total_codewords(&self) -> u32 {
+    pub const fn total_codewords(&self) -> u32 {
         self.total_codewords
     }
 
-    pub fn get_dimension_for_version(&self) -> u32 {
+    pub fn dimension(&self) -> u32 {
         Self::dimension_of_version(self.version_number)
     }
 
-    pub fn get_ecblocks_for_level(&self, ec_level: ErrorCorrectionLevel) -> Result<&ECBlocks> {
+    pub fn ec_blocks_for_level(&self, ec_level: ErrorCorrectionLevel) -> Result<&ECBlocks> {
         self.ec_blocks
-            .get(ec_level.get_ordinal() as usize)
+            .get(ec_level.ordinal() as usize)
             .ok_or_else(|| {
                 Error::InvalidArgument {
                     message: format!(
                         "ErrorCorrectionLevel ordinal {} out of range for {} EC blocks",
-                        ec_level.get_ordinal(),
+                        ec_level.ordinal(),
                         self.ec_blocks.len()
-                    ),
+                    ).into(),
                 }
                 .into()
             })
@@ -103,22 +103,23 @@ impl Version {
     /// Returns Version for a QR Code of that dimension.
     /// Version 1 has dimension 21. Returns an invalid-format error if
     /// dimension is less than 21 or (dimension - 1) % 4 != 0.
-    pub fn get_provisional_version_for_dimension(dimension: u32) -> Result<VersionRef> {
+    pub fn provisional_for_dimension(dimension: u32) -> Result<VersionRef> {
         if dimension % 4 != 1 || dimension < 21 {
             return Err(Error::InvalidFormat {
                 message: format!(
                     "QR dimension {dimension} is invalid (expected >= 21 and (dimension - 1) % 4 == 0)"
-                ),
+                )
+                .into(),
             }
             .into());
         }
-        Self::get_version_for_number((dimension - 17) / 4)
+        Self::for_number((dimension - 17) / 4)
     }
 
-    pub fn get_version_for_number(version_number: u32) -> Result<VersionRef> {
+    pub fn for_number(version_number: u32) -> Result<VersionRef> {
         if !(1..=40).contains(&version_number) {
             return Err(Error::InvalidArgument {
-                message: format!("QR version {version_number} is out of spec (expected 1..=40)"),
+                message: format!("QR version {version_number} is out of spec (expected 1..=40)").into(),
             }
             .into());
         }
@@ -127,7 +128,7 @@ impl Version {
 
     /// See ISO 18004:2006 Annex E
     pub fn build_function_pattern(&self) -> Result<BitMatrix> {
-        let dimension = self.get_dimension_for_version();
+        let dimension = self.dimension();
         let mut bit_matrix = BitMatrix::with_single_dimension(dimension)?;
 
         // Top left finder pattern + separator + format
@@ -190,23 +191,23 @@ impl ECBlocks {
         }
     }
 
-    pub const fn get_eccodewords_per_block(&self) -> u32 {
+    pub const fn ec_codewords_per_block(&self) -> u32 {
         self.ec_codewords_per_block
     }
 
-    pub fn get_num_blocks(&self) -> u32 {
+    pub fn num_blocks(&self) -> u32 {
         let mut total = 0;
         for ec_block in self.ec_blocks.iter() {
-            total += ec_block.get_count();
+            total += ec_block.count();
         }
         total
     }
 
-    pub fn get_total_eccodewords(&self) -> u32 {
-        self.ec_codewords_per_block * self.get_num_blocks()
+    pub fn total_ec_codewords(&self) -> u32 {
+        self.ec_codewords_per_block * self.num_blocks()
     }
 
-    pub fn get_ecblocks(&self) -> &[Ecb] {
+    pub fn blocks(&self) -> &[Ecb] {
         &self.ec_blocks
     }
 }
@@ -228,11 +229,11 @@ impl Ecb {
         }
     }
 
-    pub const fn get_count(&self) -> u32 {
+    pub const fn count(&self) -> u32 {
         self.count
     }
 
-    pub const fn get_data_codewords(&self) -> u32 {
+    pub const fn data_codewords(&self) -> u32 {
         self.data_codewords
     }
 }

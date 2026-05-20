@@ -105,7 +105,7 @@ pub fn to_alpha_numeric_char(value: u32) -> Result<char> {
             message: format!(
                 "to_alpha_numeric_char: value {value} out of range (expected 0..{})",
                 ALPHANUMERIC_CHARS.len()
-            ),
+            ).into(),
         }
         .into());
     }
@@ -198,7 +198,7 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
     Err(Error::InvalidFormat {
         message: format!(
             "parse_ecivalue: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
-        ),
+        ).into(),
     }
     .into())
 }
@@ -213,7 +213,7 @@ pub fn parse_ecivalue(bits: &mut BitSource) -> Result<Eci> {
 /// - `bits`: the stream of bits that might have a terminator code
 /// - `version`: the QR code version
 pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
-    let bits_required = Mode::get_terminator_bit_length(version); //super::qr_codec_mode::TerminatorBitsLength(version);
+    let bits_required = Mode::terminator_bit_length(version);
     let bits_available = std::cmp::min(bits.available(), bits_required as usize);
     Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
 }
@@ -232,7 +232,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
         eci_modifier_offset: 1,
         ai_flag: AIFlag::None,
     };
-    let mode_bit_length = Mode::get_codec_mode_bits_length(version);
+    let mode_bit_length = Mode::codec_mode_bits_length(version);
 
     let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
@@ -245,7 +245,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                 }
                 Mode::Fnc1SecondPosition => {
                     if !result.is_empty() {
-                        return Err(Error::InvalidFormat { message: "AIM Application Indicator (FNC1 in second position) at illegal position".to_owned() }.into());
+                        return Err(Error::InvalidFormat { message: "AIM Application Indicator (FNC1 in second position) at illegal position".into() }.into());
                     }
                     result.symbology.modifier = b'5';
                     // ISO/IEC 18004:2015 7.4.8.3 AIM Application Indicator (FNC1 in second position), "00-99" or "A-Za-z"
@@ -261,7 +261,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                         return Err(Error::InvalidFormat {
                             message: format!(
                                 "Invalid AIM Application Indicator value {app_ind} (expected 0..=99, 165..=190, or 197..=222)"
-                            ),
+                            ).into(),
                         }
                         .into());
                     }
@@ -285,7 +285,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                         return Err(Error::InvalidFormat {
                             message: format!(
                                 "Unsupported HANZI subset {subset} (only GB2312_SUBSET = 1 is supported)"
-                            ),
+                            ).into(),
                         }
                         .into());
                     }
@@ -307,7 +307,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                             return Err(Error::InvalidFormat {
                                 message: format!(
                                     "Invalid CodecMode {other:?} encountered in data segment (count={count})"
-                                ),
+                                ).into(),
                             }
                             .into());
                         }
@@ -324,7 +324,7 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
     if !Version::has_valid_size(bits) {
         return Err(Error::InvalidFormat {
-            message: format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()),
+            message: format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()).into(),
         }
         .into());
     }
@@ -333,7 +333,7 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
             "Invalid format information in {}x{} symbol: {e}",
             bits.width(),
             bits.height()
-        ),
+        ).into(),
     })?;
 
     let version = read_version(bits).map_err(|e| Error::InvalidFormat {
@@ -341,7 +341,7 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
             "Invalid version in {}x{} QR symbol: {e}",
             bits.width(),
             bits.height()
-        ),
+        ).into(),
     })?;
 
     // Read codewords
@@ -350,40 +350,40 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
         return Err(Error::InvalidFormat {
             message: format!(
                 "Failed to read codewords for version {} ({}x{} symbol)",
-                version.get_version_number(),
+                version.number(),
                 bits.width(),
                 bits.height()
-            ),
+            ).into(),
         }
         .into());
     }
 
     // Separate into data blocks
     let data_blocks: Vec<DataBlock> =
-        DataBlock::get_data_blocks(&codewords, version, format_info.error_correction_level)?;
+        DataBlock::data_blocks(&codewords, version, format_info.error_correction_level)?;
     if data_blocks.is_empty() {
         return Err(Error::InvalidFormat {
             message: format!(
                 "Failed to get data blocks for version {} (codewords={}, ec_level={:?})",
-                version.get_version_number(),
+                version.number(),
                 codewords.len(),
                 format_info.error_correction_level
-            ),
+            ).into(),
         }
         .into());
     }
 
     // Count total number of data bytes
     let op =
-        |total_bytes, data_block: &DataBlock| total_bytes + data_block.get_num_data_codewords();
+        |total_bytes, data_block: &DataBlock| total_bytes + data_block.num_data_codewords();
     let total_bytes = data_blocks.iter().fold(0, op);
     let mut result_bytes = vec![0u8; total_bytes as usize];
     let mut result_iterator = 0;
 
     // Error-correct and copy data blocks together into a stream of bytes
-    for data_block in data_blocks.iter() {
-        let mut codeword_bytes = data_block.get_codewords().to_vec();
-        let num_data_codewords = data_block.get_num_data_codewords() as usize;
+    for data_block in data_blocks {
+        let num_data_codewords = data_block.num_data_codewords() as usize;
+        let mut codeword_bytes = data_block.codewords;
 
         correct_errors(&mut codeword_bytes, num_data_codewords)?;
 
@@ -409,31 +409,31 @@ impl DataBlock {
         }
     }
 
-    fn get_data_blocks(
+    fn data_blocks(
         raw_codewords: &[u8],
         version: VersionRef,
         ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
-        if raw_codewords.len() as u32 != version.get_total_codewords() {
+        if raw_codewords.len() as u32 != version.total_codewords() {
             return Err(Error::InvalidArgument {
                 message: format!(
                     "raw codewords length {} does not match expected total codewords {}",
                     raw_codewords.len(),
-                    version.get_total_codewords()
-                ),
+                    version.total_codewords()
+                ).into(),
             }
             .into());
         }
 
-        let ec_blocks = version.get_ecblocks_for_level(ec_level)?;
+        let ec_blocks = version.ec_blocks_for_level(ec_level)?;
 
         let mut result = Vec::new();
         let mut num_result_blocks = 0;
-        for ec_block in ec_blocks.get_ecblocks() {
-            for _ in 0..ec_block.get_count() {
-                let num_data_codewords = ec_block.get_data_codewords();
+        for ec_block in ec_blocks.blocks() {
+            for _ in 0..ec_block.count() {
+                let num_data_codewords = ec_block.data_codewords();
                 let num_block_codewords =
-                    ec_blocks.get_eccodewords_per_block() + num_data_codewords;
+                    ec_blocks.ec_codewords_per_block() + num_data_codewords;
                 result.push(DataBlock::new(
                     num_data_codewords,
                     vec![0u8; num_block_codewords as usize],
@@ -445,7 +445,7 @@ impl DataBlock {
         if result.is_empty() {
             return Err(Error::InvalidArgument {
                 message: "result block list is empty; possible data corruption or misconfiguration"
-                    .to_owned(),
+                    .into(),
             }
             .into());
         }
@@ -465,7 +465,7 @@ impl DataBlock {
         }
 
         let shorter_blocks_num_data_codewords =
-            shorter_blocks_total_codewords - ec_blocks.get_eccodewords_per_block() as usize;
+            shorter_blocks_total_codewords - ec_blocks.ec_codewords_per_block() as usize;
         let mut raw_codewords_offset = 0;
         for i in 0..shorter_blocks_num_data_codewords {
             for result_j in result.iter_mut().take(num_result_blocks) {
@@ -492,18 +492,15 @@ impl DataBlock {
         Ok(result)
     }
 
-    fn get_num_data_codewords(&self) -> u32 {
+    fn num_data_codewords(&self) -> u32 {
         self.num_data_codewords
     }
 
-    fn get_codewords(&self) -> &[u8] {
-        &self.codewords
-    }
 }
 
 fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
     correct_qr_errors(codeword_bytes, num_data_codewords).map_err(|e| Error::Checksum {
-        message: format!("{e:?}"),
+        message: format!("{e:?}").into(),
     })?;
     Ok(())
 }

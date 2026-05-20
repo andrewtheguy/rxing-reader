@@ -30,18 +30,18 @@ pub trait LuminanceSource {
     /// - `y`: The row to fetch, which must be in `[0, height)`.
     ///
     /// Returns the luminance data for the row.
-    fn get_row(&self, y: usize) -> Option<Cow<'_, [u8]>>;
+    fn row(&self, y: usize) -> Option<Cow<'_, [u8]>>;
 
     /// Fetches row-major luminance data for the underlying image.
     ///
     /// Returns row-major luminance values. Implementations may return a backing
     /// buffer that is larger than `width * height`; callers should only read the
     /// image region described by the dimensions.
-    fn get_matrix(&self) -> Cow<'_, [u8]>;
+    fn matrix(&self) -> Cow<'_, [u8]>;
 
     /// Returns the width of the source image.
-    fn get_width(&self) -> usize;
+    fn width(&self) -> usize;
 
     /// Returns the height of the source image.
-    fn get_height(&self) -> usize;
+    fn height(&self) -> usize;
 }

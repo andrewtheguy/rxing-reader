@@ -61,11 +61,17 @@ impl BitArray {
         }
     }
 
-    pub fn get_size(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.bits.len()
     }
 
-    pub fn get_size_in_bytes(&self) -> usize {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bits.is_empty()
+    }
+
+    pub fn byte_len(&self) -> usize {
         self.bits.len().div_ceil(8)
     }
 
@@ -90,7 +96,7 @@ impl BitArray {
         self.bits.set(i, !v);
     }
 
-    pub fn get_next_set(&self, from: usize) -> usize {
+    pub fn next_set(&self, from: usize) -> usize {
         let size = self.bits.len();
         if from >= size {
             return size;
@@ -101,7 +107,7 @@ impl BitArray {
             .unwrap_or(size)
     }
 
-    pub fn get_next_unset(&self, from: usize) -> usize {
+    pub fn next_unset(&self, from: usize) -> usize {
         let size = self.bits.len();
         if from >= size {
             return size;
@@ -124,7 +130,7 @@ impl BitArray {
             return Err(Error::InvalidArgument {
                 message: format!(
                     "set_range: start={start}, end={end} out of range for bit array of length {len}"
-                ),
+                ).into(),
             }
             .into());
         }
@@ -145,7 +151,7 @@ impl BitArray {
             return Err(Error::InvalidArgument {
                 message: format!(
                     "is_range: start={start}, end={end} out of range for bit array of length {len}"
-                ),
+                ).into(),
             }
             .into());
         }
@@ -165,7 +171,7 @@ impl BitArray {
     pub fn append_bits(&mut self, value: BaseType, num_bits: usize) -> Result<()> {
         if num_bits > BASE_BITS {
             return Err(Error::InvalidArgument {
-                message: format!("num bits must be between 0 and {}", BaseType::BITS),
+                message: format!("num bits must be between 0 and {}", BaseType::BITS).into(),
             }
             .into());
         }
@@ -190,7 +196,7 @@ impl BitArray {
                     "xor: bit array sizes differ (self={}, other={})",
                     self.bits.len(),
                     other.bits.len(),
-                ),
+                ).into(),
             }
             .into());
         }
@@ -214,7 +220,7 @@ impl BitArray {
         }
     }
 
-    pub fn get_bit_array(&self) -> &[BaseType] {
+    pub fn words(&self) -> &[BaseType] {
         self.bits.as_raw_slice()
     }
 
@@ -251,8 +257,8 @@ impl From<BitArray> for Vec<u8> {
 
 impl From<&BitArray> for Vec<u8> {
     fn from(value: &BitArray) -> Self {
-        let mut array = vec![0; value.get_size_in_bytes()];
-        value.to_bytes(0, &mut array, 0, value.get_size_in_bytes());
+        let mut array = vec![0; value.byte_len()];
+        value.to_bytes(0, &mut array, 0, value.byte_len());
         array
     }
 }
@@ -358,7 +364,7 @@ mod tests {
         let bytes = [0b1000_0001, 0b0101_1010, 0];
         let bits = BitArray::from(bytes.to_vec());
 
-        assert_eq!(bits.get_size(), bytes.len() * 8);
+        assert_eq!(bits.len(), bytes.len() * 8);
         assert_eq!(Vec::<u8>::from(bits), bytes);
     }
 
@@ -368,6 +374,6 @@ mod tests {
 
         bits.set_bulk(5, 0b101);
 
-        assert_eq!(bits.get_bit_array()[0], 0b101);
+        assert_eq!(bits.words()[0], 0b101);
     }
 }

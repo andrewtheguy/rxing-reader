@@ -39,11 +39,7 @@ pub trait RegressionLineTrait {
 
     fn set_direction_inward(&mut self, d: Point);
 
-    fn evaluate_max_distance(
-        &mut self,
-        max_signed_dist: Option<f64>,
-        update_points: Option<bool>,
-    ) -> bool;
+    fn evaluate_max_distance_with(&mut self, max_signed_dist: f64, update_points: bool) -> bool;
 
     fn is_high_res(&self) -> bool;
     fn a(&self) -> f32;

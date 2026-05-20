@@ -1,60 +1,53 @@
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 
 use crate::{Error, LuminanceSource};
 use anyhow::Result;
 
 /// A simple luma8 source for bytes.
 #[derive(Debug)]
-pub struct Luma8LuminanceSource {
+pub struct Luma8LuminanceSource<'a> {
     /// image dimension in form (x,y)
     dimensions: (u32, u32),
     /// raw data for luma 8
-    data: Arc<Vec<u8>>,
+    data: Cow<'a, [u8]>,
 }
-impl LuminanceSource for Luma8LuminanceSource {
-    fn get_row(&'_ self, y: usize) -> Option<Cow<'_, [u8]>> {
-        let chunk_size = self.dimensions.0 as usize;
-        let row_skip = y;
-        let column_skip = 0;
-        let column_take = self.dimensions.0 as usize;
-
-        let data_start = (chunk_size * row_skip) + column_skip;
-        let data_end = (chunk_size * row_skip) + column_skip + column_take;
-
-        let row = &self.data[data_start..data_end];
-
-        Some(Cow::Borrowed(row))
+impl LuminanceSource for Luma8LuminanceSource<'_> {
+    fn row(&'_ self, y: usize) -> Option<Cow<'_, [u8]>> {
+        let width = self.width();
+        let data_start = width.checked_mul(y)?;
+        let data_end = data_start.checked_add(width)?;
+        self.data.get(data_start..data_end).map(Cow::Borrowed)
     }
 
-    fn get_matrix(&self) -> Cow<'_, [u8]> {
-        Cow::Borrowed(self.data.as_slice())
+    fn matrix(&self) -> Cow<'_, [u8]> {
+        Cow::Borrowed(self.data.as_ref())
     }
 
-    fn get_width(&self) -> usize {
+    fn width(&self) -> usize {
         self.dimensions.0 as usize
     }
 
-    fn get_height(&self) -> usize {
+    fn height(&self) -> usize {
         self.dimensions.1 as usize
     }
 }
 
-impl Luma8LuminanceSource {
-    pub fn new(source: impl Into<Arc<Vec<u8>>>, width: u32, height: u32) -> Result<Self> {
+impl<'a> Luma8LuminanceSource<'a> {
+    pub fn new(source: impl Into<Cow<'a, [u8]>>, width: u32, height: u32) -> Result<Self> {
         let data = source.into();
         let expected = (width as usize)
             .checked_mul(height as usize)
             .ok_or_else(|| Error::InvalidArgument {
                 message: format!(
                     "Luma8LuminanceSource::new: image dimensions overflow usize ({width} x {height})"
-                ),
+                ).into(),
             })?;
         if data.len() != expected {
             return Err(Error::InvalidArgument {
                 message: format!(
                     "Luma8LuminanceSource::new: luma length {} != width*height ({expected})",
                     data.len()
-                ),
+                ).into(),
             }
             .into());
         }
@@ -79,7 +72,7 @@ pub fn downscale_luma_buffer(
 ) -> Result<(Vec<u8>, u32, u32)> {
     if factor == 0 {
         return Err(Error::InvalidArgument {
-            message: format!("downscale_luma_buffer: factor must be at least 1 (got {factor})"),
+            message: format!("downscale_luma_buffer: factor must be at least 1 (got {factor})").into(),
         }
         .into());
     }
@@ -88,14 +81,14 @@ pub fn downscale_luma_buffer(
         .ok_or_else(|| Error::InvalidArgument {
             message: format!(
                 "downscale_luma_buffer: image dimensions overflow usize ({width} x {height})"
-            ),
+            ).into(),
         })?;
     if src.len() != expected {
         return Err(Error::InvalidArgument {
             message: format!(
                 "downscale_luma_buffer: src.len() {} must equal width * height ({expected})",
                 src.len()
-            ),
+            ).into(),
         }
         .into());
     }

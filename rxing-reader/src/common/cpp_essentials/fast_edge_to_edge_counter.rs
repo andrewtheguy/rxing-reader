@@ -24,7 +24,7 @@ impl FastEdgeToEdgeCounter<'_> {
         let image_len = width
             .checked_mul(height)
             .ok_or_else(|| Error::InvalidArgument {
-                message: format!("FastEdgeToEdgeCounter: image size overflow ({width} x {height})"),
+                message: format!("FastEdgeToEdgeCounter: image size overflow ({width} x {height})").into(),
             })?;
         if !(0..image_len).contains(&p) {
             return Err(Error::InvalidArgument {
@@ -32,7 +32,8 @@ impl FastEdgeToEdgeCounter<'_> {
                     "FastEdgeToEdgeCounter: cursor index {p} is outside image of size {width}x{height} (cursor=({}, {}))",
                     cur.p().x,
                     cur.p().y,
-                ),
+                )
+                .into(),
             }
             .into());
         }
@@ -84,7 +85,7 @@ impl FastEdgeToEdgeCounter<'_> {
                 return 0;
             };
 
-            if self.under_array.get_index(idx_pt) != self.under_array.get_index(self.p as usize) {
+            if self.under_array.at_index(idx_pt) != self.under_array.at_index(self.p as usize) {
                 break;
             }
         }
