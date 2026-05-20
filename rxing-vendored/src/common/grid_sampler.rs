@@ -115,8 +115,7 @@ pub trait GridSampler {
                 if image
                     .try_get(point.x as u32, point.y as u32)
                     .ok_or(Error::NotFound {
-                        message: "index out of bounds, see documentation in file for explanation"
-                            .to_owned(),
+                        message: "grid point transformed outside image bounds".to_owned(),
                     })?
                 {
                     // Black(-ish) pixel

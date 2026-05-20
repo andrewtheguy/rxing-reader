@@ -27,7 +27,11 @@ pub fn get_bit(bit_matrix: &BitMatrix, x: u32, y: u32, mirrored: Option<bool>) -
 pub fn read_version(bit_matrix: &BitMatrix, qr_type: Type) -> Result<VersionRef> {
     if !Version::has_valid_size(bit_matrix) {
         return Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: matrix size {}x{} is not a valid QR size",
+                bit_matrix.width(),
+                bit_matrix.height(),
+            ),
         }
         .into());
     }
@@ -167,9 +171,13 @@ pub fn read_qrcodewords(
 
         x -= 2;
     }
-    if (result.len()) != version.get_total_codewords() as usize {
+    let expected_codewords = version.get_total_codewords() as usize;
+    let actual_codewords = result.len();
+    if actual_codewords != expected_codewords {
         return Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
+            ),
         }
         .into());
     }
@@ -234,9 +242,13 @@ pub fn read_mqrcodewords(
 
         x -= 2;
     }
-    if (result.len()) != version.get_total_codewords() as usize {
+    let expected_codewords = version.get_total_codewords() as usize;
+    let actual_codewords = result.len();
+    if actual_codewords != expected_codewords {
         return Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
+            ),
         }
         .into());
     }
@@ -347,9 +359,13 @@ pub fn read_qrcodewords_model1(
     }
 
     result[0] &= 0xf; // ignore corner
-    if (result.len()) != version.get_total_codewords() as usize {
+    let expected_codewords = version.get_total_codewords() as usize;
+    let actual_codewords = result.len();
+    if actual_codewords != expected_codewords {
         return Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
+            ),
         }
         .into());
     }
@@ -399,9 +415,13 @@ pub fn read_rmqrcodewords(
 
         x -= 2
     }
-    if (result.len()) != version.get_total_codewords() as usize {
+    let expected_codewords = version.get_total_codewords() as usize;
+    let actual_codewords = result.len();
+    if actual_codewords != expected_codewords {
         return Err(Error::InvalidFormat {
-            message: "QR data is malformed".to_owned(),
+            message: format!(
+                "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
+            ),
         }
         .into());
     }

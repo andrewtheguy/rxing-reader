@@ -69,11 +69,13 @@ impl<'a> BitSource<'a> {
      * Returns an invalid-argument error if num_bits isn't in [1,32] or more than is available
      */
     pub fn read_bits(&mut self, num_bits: usize) -> Result<u32> {
-        if !(1..=32).contains(&num_bits) || num_bits > self.available() {
-            return Err(Error::InvalidArgument {
-                message: num_bits.to_string(),
+        let available_bits = self.available();
+        if !(1..=32).contains(&num_bits) || num_bits > available_bits {
+            let mut message = format!("invalid num_bits: {num_bits}; expected 1..=32");
+            if num_bits > available_bits {
+                message.push_str(&format!("; available bits: {available_bits}"));
             }
-            .into());
+            return Err(Error::InvalidArgument { message }.into());
         }
 
         let mut result: u32 = 0;
@@ -118,11 +120,13 @@ impl<'a> BitSource<'a> {
     }
 
     pub fn peek_bits(&self, num_bits: usize) -> Result<u32> {
-        if !(1..=32).contains(&num_bits) || num_bits > self.available() {
-            return Err(Error::InvalidArgument {
-                message: num_bits.to_string(),
+        let available_bits = self.available();
+        if !(1..=32).contains(&num_bits) || num_bits > available_bits {
+            let mut message = format!("invalid num_bits: {num_bits}; expected 1..=32");
+            if num_bits > available_bits {
+                message.push_str(&format!("; available bits: {available_bits}"));
             }
-            .into());
+            return Err(Error::InvalidArgument { message }.into());
         }
 
         let mut bit_offset = self.bit_offset;
