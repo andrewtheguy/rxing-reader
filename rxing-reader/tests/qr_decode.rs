@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use image::ImageReader;
-use rxing::{
+use rxing_reader::{
     BarcodeFormat, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
     common::HybridBinarizer,
     decode::{decode_inner, rgba_to_luma},

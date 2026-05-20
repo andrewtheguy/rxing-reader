@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "rxing-vendored",
+  "rxing-reader",
   "rxing-wasm",
 ]
 resolver = "3"

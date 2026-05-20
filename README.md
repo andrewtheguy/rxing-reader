@@ -4,7 +4,7 @@ Standalone Rust workspace for the QR reader used by `qrcodesecureshare`.
 
 ## Crates
 
-- `rxing-vendored`: trimmed QR-reading fork of `rxing`.
+- `rxing-reader`: trimmed QR-reading fork of `rxing`.
 - `rxing-wasm`: `wasm-bindgen` wrapper published as `@andrewtheguy/rxing-wasm`.
 
 ## Commands
