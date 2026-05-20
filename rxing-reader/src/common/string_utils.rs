@@ -23,7 +23,7 @@ const ASSUME_SHIFT_JIS: bool = false;
 /// Returns the guessed character set.
 ///
 /// The heuristic currently distinguishes Shift JIS, UTF-8, ISO-8859-1,
-/// UTF-16 via byte-order mark, and encodings explicitly supplied in `hints`.
+/// and UTF-16 via byte-order mark from `bytes`. No external hints are accepted.
 pub fn guess_charset(bytes: &[u8]) -> Option<CharacterSet> {
     // First try UTF-16, assuming anything with its BOM is UTF-16
 

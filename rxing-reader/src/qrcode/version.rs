@@ -101,7 +101,8 @@ impl Version {
     /// - `dimension`: dimension in modules
     ///
     /// Returns Version for a QR Code of that dimension.
-    /// Returns an invalid-format error if dimension is not 1 mod 4 or dimension less than 17
+    /// Version 1 has dimension 21. Returns an invalid-format error if
+    /// dimension is less than 21 or (dimension - 1) % 4 != 0.
     pub fn get_provisional_version_for_dimension(dimension: u32) -> Result<VersionRef> {
         if dimension % 4 != 1 || dimension < 21 {
             return Err(Error::InvalidFormat {

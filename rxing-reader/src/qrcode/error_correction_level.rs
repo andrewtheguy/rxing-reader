@@ -58,7 +58,7 @@ impl ErrorCorrectionLevel {
             ErrorCorrectionLevel::M => 0x00,
             ErrorCorrectionLevel::Q => 0x03,
             ErrorCorrectionLevel::H => 0x02,
-            ErrorCorrectionLevel::Invalid => 0x00,
+            ErrorCorrectionLevel::Invalid => 0xFF,
         }
     }
 
@@ -126,5 +126,23 @@ impl Display for ErrorCorrectionLevel {
             ErrorCorrectionLevel::H => "H",
             ErrorCorrectionLevel::Invalid => "_",
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrorCorrectionLevel;
+
+    #[test]
+    fn invalid_value_uses_distinct_sentinel() {
+        assert_eq!(ErrorCorrectionLevel::Invalid.get_value(), 0xFF);
+        assert_ne!(
+            ErrorCorrectionLevel::Invalid.get_value(),
+            ErrorCorrectionLevel::M.get_value()
+        );
+        assert_eq!(
+            u8::from(ErrorCorrectionLevel::Invalid),
+            ErrorCorrectionLevel::Invalid.get_value()
+        );
     }
 }

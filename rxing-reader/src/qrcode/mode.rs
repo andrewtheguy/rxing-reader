@@ -127,10 +127,8 @@ impl Mode {
     ///
     /// Returns an invalid-format error if `bits` does not correspond to a known mode.
     pub fn codec_mode_for_bits(bits: u32) -> Result<Self> {
-        let bits = bits as usize;
-
         if (0x00..=0x05).contains(&bits) || (0x07..=0x09).contains(&bits) || bits == 0x0d {
-            return Mode::try_from(bits as u32);
+            return Mode::try_from(bits);
         }
 
         Err(Error::InvalidFormat {
@@ -144,23 +142,7 @@ impl Mode {
     /// The returned value is the number of bits used to encode the count of
     /// characters that follow this mode indicator.
     pub fn character_count_bits(&self, version: &Version) -> u32 {
-        let number = version.get_version_number() as usize;
-        let i = if number <= 9 {
-            0
-        } else if number <= 26 {
-            1
-        } else {
-            2
-        };
-
-        match self {
-	 Mode::Numeric=>      [10, 12, 14][i],
-	 Mode::Alphanumeric=> [9, 11, 13][i],
-	 Mode::Byte=>         [8, 16, 16][i],
-	 Mode::Kanji|    //    [[fallthrough]];
-	 Mode::Hanzi=>        [8, 10, 12][i],
-	_=>                     0,
-	}
+        self.get_character_count_bits(version) as u32
     }
 }
 
