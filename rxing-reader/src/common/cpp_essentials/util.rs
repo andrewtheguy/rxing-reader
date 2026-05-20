@@ -49,4 +49,3 @@ pub fn append_bit(val: &mut i32, bit: bool) {
 
     *val |= i32::from(bit)
 }
-

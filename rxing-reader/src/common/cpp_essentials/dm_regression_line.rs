@@ -177,5 +177,4 @@ impl DMRegressionLine {
         RegressionLineTrait::evaluate(&mut new, &[point_1, point_2]);
         new
     }
-
 }

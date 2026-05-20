@@ -50,5 +50,4 @@ impl<T: Default + Copy> Matrix<T> {
         self.data[offset] = Some(value);
         Ok(value)
     }
-
 }

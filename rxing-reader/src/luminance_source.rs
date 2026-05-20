@@ -44,5 +44,4 @@ pub trait LuminanceSource {
 
     /// Returns the height of the source image.
     fn get_height(&self) -> usize;
-
 }

@@ -37,7 +37,6 @@ impl LuminanceSource for Luma8LuminanceSource {
     fn get_height(&self) -> usize {
         self.dimensions.1 as usize
     }
-
 }
 
 impl Luma8LuminanceSource {

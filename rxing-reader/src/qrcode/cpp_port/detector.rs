@@ -754,4 +754,3 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
     let result = QRCodeDetectorResult::new(sampled);
     Ok(result)
 }
-

@@ -11,10 +11,10 @@ use crate::common::cpp_essentials::DecoderResult;
 use crate::common::{
     AIFlag, BitMatrix, BitSource, CharacterSet, ECIStringBuilder, Eci, SymbologyIdentifier,
 };
-use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
 use crate::qrcode::cpp_port::bitmatrix_parser::{
     read_codewords, read_format_information, read_version,
 };
+use crate::qrcode::{ErrorCorrectionLevel, Mode, Version, VersionRef};
 
 /// See specification GBT 18284-2000
 pub fn decode_hanzi_segment(
@@ -222,10 +222,7 @@ pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool>
 ///
 /// See ISO 18004:2006, 6.4.3 - 6.4.7
 // ZXING_EXPORT_TEST_ONLY
-pub fn decode_bit_stream(
-    bytes: &[u8],
-    version: &Version,
-) -> Result<DecoderResult> {
+pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResult> {
     let mut bits = BitSource::new(bytes);
     let mut result = ECIStringBuilder::default();
     result.symbology = SymbologyIdentifier {

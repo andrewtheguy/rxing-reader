@@ -8,7 +8,6 @@ pub struct EdgeTracer<'a> {
 
     pub(crate) p: Point, // current position
     d: Point,            // current direction
-
 }
 
 impl BitMatrixCursorTrait for EdgeTracer<'_> {

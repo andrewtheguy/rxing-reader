@@ -158,4 +158,3 @@ pub struct SamplerControl {
     pub p1: Point,
     pub transform: PerspectiveTransform,
 }
-

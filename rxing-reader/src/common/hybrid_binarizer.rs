@@ -67,7 +67,6 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
             .into()
         })
     }
-
 }
 
 // This class uses 5x5 blocks to compute local luminance, where each block is 8x8 pixels.

@@ -67,7 +67,6 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
             .into()
         })
     }
-
 }
 
 impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {

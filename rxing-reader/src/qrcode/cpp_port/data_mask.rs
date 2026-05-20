@@ -29,4 +29,3 @@ pub fn get_data_mask_bit(mask_index: u32, x: u32, y: u32) -> Result<bool> {
     }
     .into())
 }
-

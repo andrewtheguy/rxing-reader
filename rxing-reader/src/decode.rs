@@ -96,9 +96,7 @@ pub fn decode_qr_codes_luma(
     use_hybrid_binarizer: bool,
     max_number_of_symbols: u32,
 ) -> RxingResult<Vec<Vec<u8>>> {
-    let hints = DecodeHints {
-        try_harder,
-    };
+    let hints = DecodeHints { try_harder };
 
     if !try_harder {
         let source = Luma8LuminanceSource::new(luma.to_vec(), width, height)?;

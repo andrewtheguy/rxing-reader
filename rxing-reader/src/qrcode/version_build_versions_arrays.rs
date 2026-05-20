@@ -1,4 +1,4 @@
-use super::{Ecb, ECBlocks, Version};
+use super::{ECBlocks, Ecb, Version};
 
 macro_rules! qr_version {
     (
