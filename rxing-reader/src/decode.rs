@@ -4,14 +4,67 @@ use anyhow::Result as RxingResult;
 
 use crate::{
     Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
-    common::{GlobalHistogramBinarizer, HybridBinarizer},
+    common::{
+        Eci, GlobalHistogramBinarizer, HybridBinarizer, SymbologyIdentifier,
+        detect::{DecoderResult, StructuredAppendInfo},
+    },
     downscale_luma_buffer,
-    qrcode::QrReader,
+    qrcode::{ErrorCorrectionLevel, Mode, QrReader},
 };
 
 /// Pyramid downscale threshold and factor used by try-harder QR scanning.
 pub const PYRAMID_DOWNSCALE_THRESHOLD: usize = 500;
 pub const PYRAMID_DOWNSCALE_FACTOR: usize = 3;
+
+/// Per-symbol output from the QR decode pipeline: payload bytes plus the
+/// metadata extracted from the QR symbol (version, EC level, mask, the data
+/// modes encountered, structured-append header when present, ECIs invoked,
+/// and the symbology identifier the decoder produced).
+#[derive(Debug, Clone)]
+pub struct QrSymbol {
+    pub bytes: Vec<u8>,
+    pub version: u32,
+    pub error_correction_level: ErrorCorrectionLevel,
+    pub mask: u8,
+    pub modes: Vec<Mode>,
+    pub structured_append: Option<StructuredAppendInfo>,
+    pub ecis: Vec<Eci>,
+    pub symbology: SymbologyIdentifier,
+}
+
+impl QrSymbol {
+    /// Move the metadata + payload out of a finished `DecoderResult`. Returns
+    /// `None` when the result is invalid or missing required QR metadata
+    /// (e.g. the EC level was never plumbed in).
+    pub(crate) fn from_decoder_result(decoder_result: DecoderResult) -> Option<Self> {
+        if !decoder_result.is_valid() {
+            return None;
+        }
+        let version = decoder_result.version();
+        let error_correction_level = decoder_result.error_correction_level()?;
+        let mask = decoder_result.mask();
+        let modes = decoder_result.modes().to_vec();
+        let structured_append = decoder_result.structured_append();
+        let content = decoder_result.into_content();
+        let symbology = content.symbology;
+        let ecis: Vec<Eci> = content
+            .eci_positions
+            .iter()
+            .map(|(eci, _, _)| *eci)
+            .collect();
+        let bytes = content.into_bytes();
+        Some(QrSymbol {
+            bytes,
+            version,
+            error_correction_level,
+            mask,
+            modes,
+            structured_append,
+            ecis,
+            symbology,
+        })
+    }
+}
 
 pub fn rgba_to_luma(rgba: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
     let expected = width
@@ -44,7 +97,7 @@ pub fn decode_with_optional_invert<B: Binarizer>(
     hints: &DecodeHints,
     max_number_of_symbols: usize,
     try_invert: bool,
-) -> Vec<Vec<u8>> {
+) -> Vec<QrSymbol> {
     let results = QrReader
         .decode_with_hints(bitmap, hints, max_number_of_symbols)
         .unwrap_or_default();
@@ -68,7 +121,7 @@ pub fn decode_one_layer(
     max_number_of_symbols: usize,
     try_invert: bool,
     close: bool,
-) -> Vec<Vec<u8>> {
+) -> Vec<QrSymbol> {
     if use_hybrid_binarizer {
         let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
         if close && bitmap.close().is_err() {
@@ -84,8 +137,10 @@ pub fn decode_one_layer(
     }
 }
 
-/// Decode QR payload bytes from a luma image through the shared pyramid,
-/// close-pass, binarizer, and optional-inversion pipeline.
+/// Decode QR symbols from a luma image through the shared pyramid,
+/// close-pass, binarizer, and optional-inversion pipeline. Returns one
+/// [`QrSymbol`] per detected QR code, each carrying the payload bytes
+/// alongside version/EC/mask/modes metadata.
 pub fn decode_qr_codes_luma(
     luma: &[u8],
     width: usize,
@@ -94,7 +149,7 @@ pub fn decode_qr_codes_luma(
     try_invert: bool,
     use_hybrid_binarizer: bool,
     max_number_of_symbols: usize,
-) -> RxingResult<Vec<Vec<u8>>> {
+) -> RxingResult<Vec<QrSymbol>> {
     let hints = DecodeHints { try_harder };
 
     if !try_harder {
@@ -139,5 +194,21 @@ pub fn decode_qr_codes_luma(
         }
         cur_w = next_w;
         cur_h = next_h;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        QrSymbol,
+        common::detect::DecoderResult,
+        qrcode::ErrorCorrectionLevel,
+    };
+
+    #[test]
+    fn rejects_invalid_decoder_result_even_when_format_metadata_exists() {
+        let decoder_result = DecoderResult::default().with_format(1, ErrorCorrectionLevel::L, 0);
+
+        assert!(QrSymbol::from_decoder_result(decoder_result).is_none());
     }
 }

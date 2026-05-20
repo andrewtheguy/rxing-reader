@@ -1,4 +1,5 @@
-use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
+use rxing_reader::json_view::{SymbolView, symbol_to_view};
+use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 use wasm_bindgen::prelude::*;
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
@@ -19,7 +20,7 @@ fn read_luma(
     use_hybrid_binarizer: bool,
     binarizer_fallback: bool,
     max_number_of_symbols: usize,
-) -> Result<Vec<Vec<u8>>, JsValue> {
+) -> Result<Vec<QrSymbol>, JsValue> {
     let primary = decode_qr_codes_luma(
         &luma,
         width,
@@ -84,7 +85,9 @@ fn read_luma(
 /// Returns a JS `Array` of `Uint8Array`, one per detected symbol (empty when
 /// none are found). Returns `Err` only for invalid input (e.g. mismatched
 /// buffer length). Callers that need a string must decode the bytes
-/// themselves (e.g. `new TextDecoder().decode(bytes)`).
+/// themselves (e.g. `new TextDecoder().decode(bytes)`). For per-symbol
+/// metadata (version, EC level, mask, modes, etc.) use
+/// [`read_qr_codes_rgba_detailed`].
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)] // wasm-bindgen call shape; packing into a struct hurts the JS side
 pub fn read_qr_codes_rgba(
@@ -101,7 +104,7 @@ pub fn read_qr_codes_rgba(
     let height = height as usize;
     let max_number_of_symbols = max_number_of_symbols as usize;
     let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
-    let payloads = read_luma(
+    let symbols = read_luma(
         luma,
         width,
         height,
@@ -112,9 +115,61 @@ pub fn read_qr_codes_rgba(
         max_number_of_symbols,
     )?;
 
-    let out = js_sys::Array::new_with_length(payloads.len() as u32);
-    for (i, bytes) in payloads.into_iter().enumerate() {
-        out.set(i as u32, js_sys::Uint8Array::from(bytes.as_slice()).into());
+    let out = js_sys::Array::new_with_length(symbols.len() as u32);
+    for (i, symbol) in symbols.into_iter().enumerate() {
+        out.set(i as u32, js_sys::Uint8Array::from(symbol.bytes.as_slice()).into());
     }
     Ok(out)
+}
+
+/// Read every QR code in raw RGBA pixels, returning a JS `Array` of objects
+/// — one per detected symbol — carrying both the payload and the QR
+/// metadata extracted during decoding.
+///
+/// Each entry has the shape:
+/// ```js
+/// {
+///   version: 4,                       // 1..=40
+///   error_correction_level: "M",       // "L"|"M"|"Q"|"H"
+///   mask: 3,                          // 0..=7
+///   modes: ["Byte"],                  // unique data modes in encounter order
+///   structured_append: { index, count, parity } | undefined,
+///   ecis: ["UTF8", ...],
+///   symbology: { code: "Q", modifier: "1", ai_flag: "None" },
+///   // exactly one of:
+///   text: "hello"                     // when the payload decodes as UTF-8
+///   // or:
+///   bytes_b64: "..."                  // when it does not
+/// }
+/// ```
+/// Argument semantics match [`read_qr_codes_rgba`].
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn read_qr_codes_rgba_detailed(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    try_harder: bool,
+    try_invert: bool,
+    use_hybrid_binarizer: bool,
+    binarizer_fallback: bool,
+    max_number_of_symbols: u32,
+) -> Result<JsValue, JsValue> {
+    let width = width as usize;
+    let height = height as usize;
+    let max_number_of_symbols = max_number_of_symbols as usize;
+    let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
+    let symbols = read_luma(
+        luma,
+        width,
+        height,
+        try_harder,
+        try_invert,
+        use_hybrid_binarizer,
+        binarizer_fallback,
+        max_number_of_symbols,
+    )?;
+
+    let views: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
+    serde_wasm_bindgen::to_value(&views).map_err(|e| JsValue::from_str(&e.to_string()))
 }

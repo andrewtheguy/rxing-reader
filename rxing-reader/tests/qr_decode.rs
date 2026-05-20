@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use image::ImageReader;
-use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
+use rxing_reader::{Mode, QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 
 fn load_image_as_rgba(relative_path: &str) -> (Vec<u8>, usize, usize) {
     let mut full = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -39,6 +39,16 @@ fn decode_combo(
     h: usize,
     (try_harder, try_invert, use_hybrid_binarizer): (bool, bool, bool),
 ) -> Option<Vec<u8>> {
+    decode_combo_symbol(rgba, w, h, (try_harder, try_invert, use_hybrid_binarizer))
+        .map(|s| s.bytes)
+}
+
+fn decode_combo_symbol(
+    rgba: &[u8],
+    w: usize,
+    h: usize,
+    (try_harder, try_invert, use_hybrid_binarizer): (bool, bool, bool),
+) -> Option<QrSymbol> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
     decode_qr_codes_luma(&luma, w, h, try_harder, try_invert, use_hybrid_binarizer, 1)
         .expect("decode")
@@ -50,12 +60,22 @@ fn decode_combo(
 fn decodes_qr_sample_png_in_every_combination() {
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_sample.png");
     for combo in ALL_COMBOS {
-        let bytes = decode_combo(&rgba, w, h, combo)
+        let symbol = decode_combo_symbol(&rgba, w, h, combo)
             .unwrap_or_else(|| panic!("qr_sample.png failed to decode for combo={:?}", combo));
         assert_eq!(
-            bytes.as_slice(),
+            symbol.bytes.as_slice(),
             b"jfghjghjghfkghjkghj",
             "unexpected bytes for combo={:?}",
+            combo
+        );
+        // Metadata pinned from a one-off observation against the fixture so
+        // future decoder regressions (mis-reading version / EC / mask /
+        // mode) trip the test.
+        assert_eq!(symbol.version, 2, "version for combo={:?}", combo);
+        assert_eq!(
+            symbol.modes,
+            vec![Mode::Byte],
+            "expected Byte mode for combo={:?}",
             combo
         );
     }
@@ -81,7 +101,7 @@ fn decodes_qr_code_complex_png_in_every_combination() {
 fn decodes_real_fountain_byte_mode_fixture_in_every_combination() {
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/fountain_binary_real.png");
     for combo in ALL_COMBOS {
-        let bytes = decode_combo(&rgba, w, h, combo).unwrap_or_else(|| {
+        let symbol = decode_combo_symbol(&rgba, w, h, combo).unwrap_or_else(|| {
             panic!(
                 "fountain_binary_real.png failed to decode for combo={:?}",
                 combo
@@ -90,9 +110,15 @@ fn decodes_real_fountain_byte_mode_fixture_in_every_combination() {
         // Binary fountain payload starts with magic bytes 0xff 0xfd; the bytes-only
         // path returns the raw QR BYTE-mode payload without any UTF-8/Latin-1 mangling.
         assert_eq!(
-            &bytes[..2],
+            &symbol.bytes[..2],
             [0xff, 0xfd],
             "wrong magic prefix for combo={:?}",
+            combo
+        );
+        assert!(
+            symbol.modes.contains(&Mode::Byte),
+            "expected Byte mode in {:?} for combo={:?}",
+            symbol.modes,
             combo
         );
     }
@@ -584,7 +610,11 @@ fn rotated_and_inverted_qr_sample_requires_try_invert() {
 /// (0 = unlimited).
 fn decode_all(rgba: &[u8], w: usize, h: usize, count: usize) -> Vec<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
-    decode_qr_codes_luma(&luma, w, h, false, false, true, count).unwrap_or_default()
+    decode_qr_codes_luma(&luma, w, h, false, false, true, count)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| s.bytes)
+        .collect()
 }
 
 const QR_COMPLEX_TEXT: &[u8] = b"https://qr-code-styling.com";
@@ -723,12 +753,18 @@ fn decodes_numeric_mode_qr_in_every_combination() {
     let (rgba, w, h) = load_image_as_rgba("tests/fixtures/qr_numeric.png");
     let expected = b"012345678901234567890123456789012345";
     for combo in ALL_COMBOS {
-        let bytes = decode_combo(&rgba, w, h, combo)
+        let symbol = decode_combo_symbol(&rgba, w, h, combo)
             .unwrap_or_else(|| panic!("qr_numeric.png failed to decode for combo={:?}", combo));
         assert_eq!(
-            bytes.as_slice(),
+            symbol.bytes.as_slice(),
             expected.as_slice(),
             "unexpected bytes for combo={:?}",
+            combo
+        );
+        assert_eq!(
+            symbol.modes,
+            vec![Mode::Numeric],
+            "expected Numeric mode only for combo={:?}",
             combo
         );
     }
@@ -785,7 +821,7 @@ fn decodes_base45_alphanumeric_mode_qr_and_round_trips() {
     let expected_raw: &[u8] =
         b"\x00\xff\x01\xfe rxing-reader base45 round-trip \xde\xad\xbe\xef";
     for combo in ALL_COMBOS {
-        let bytes = decode_combo(&rgba, w, h, combo).unwrap_or_else(|| {
+        let symbol = decode_combo_symbol(&rgba, w, h, combo).unwrap_or_else(|| {
             panic!(
                 "qr_base45_alphanumeric.png failed to decode for combo={:?}",
                 combo
@@ -794,7 +830,7 @@ fn decodes_base45_alphanumeric_mode_qr_and_round_trips() {
         // Every byte returned by the decoder must be in the base45 charset —
         // if any wasn't, the encoder would have spilled into Byte mode and
         // this fixture would no longer cover `decode_alphanumeric_segment`.
-        for &b in &bytes {
+        for &b in &symbol.bytes {
             assert!(
                 BASE45_ALPHABET.contains(&b),
                 "decoded byte {:#x} outside base45 charset for combo={:?} \
@@ -803,11 +839,17 @@ fn decodes_base45_alphanumeric_mode_qr_and_round_trips() {
                 combo
             );
         }
-        let decoded = base45_decode(&bytes).unwrap_or_else(|| {
+        assert_eq!(
+            symbol.modes,
+            vec![Mode::Alphanumeric],
+            "expected Alphanumeric mode only for combo={:?}",
+            combo
+        );
+        let decoded = base45_decode(&symbol.bytes).unwrap_or_else(|| {
             panic!(
                 "base45 decode failed for combo={:?}; got {:?}",
                 combo,
-                String::from_utf8_lossy(&bytes)
+                String::from_utf8_lossy(&symbol.bytes)
             )
         });
         assert_eq!(
@@ -818,6 +860,16 @@ fn decodes_base45_alphanumeric_mode_qr_and_round_trips() {
         );
     }
 }
+
+// TODO: add a Kanji-mode QR fixture (`qr_kanji.png`) and a matching test
+// asserting `symbol.modes == vec![Mode::Kanji]`. rxing-reader implements
+// `decode_kanji_segment` (Shift_JIS double-byte → UTF-16BE bytes per QR
+// spec) but there is no fixture exercising it end-to-end. Generation
+// requires a QR encoder that forces Kanji mode (the `qrcode` crate's
+// low-level `Bits::push_kanji_data` does this); commit the rendered PNG
+// to `tests/fixtures/qr_kanji.png` and pin both the bytes and the modes
+// metadata. The other supported data modes (Numeric, Alphanumeric, Byte)
+// are already covered above.
 
 #[test]
 fn base45_decode_round_trips_known_vectors() {

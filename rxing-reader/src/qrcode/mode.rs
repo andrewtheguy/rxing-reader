@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+use std::fmt;
+
 use crate::Error;
 use anyhow::Result;
 
@@ -148,5 +150,23 @@ impl TryFrom<u32> for Mode {
             message: format!("{value} is not valid").into(),
         })?;
         Self::for_bits(value)
+    }
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Mode::Terminator => "Terminator",
+            Mode::Numeric => "Numeric",
+            Mode::Alphanumeric => "Alphanumeric",
+            Mode::StructuredAppend => "StructuredAppend",
+            Mode::Byte => "Byte",
+            Mode::Fnc1FirstPosition => "Fnc1FirstPosition",
+            Mode::Eci => "Eci",
+            Mode::Kanji => "Kanji",
+            Mode::Fnc1SecondPosition => "Fnc1SecondPosition",
+            Mode::Hanzi => "Hanzi",
+        };
+        f.write_str(s)
     }
 }

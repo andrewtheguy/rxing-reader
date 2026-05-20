@@ -7,8 +7,8 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use clap::{Parser, ValueEnum};
 use image::ImageReader;
-use rxing_reader::{decode_qr_codes_luma, rgba_to_luma};
-use serde::Serialize;
+use rxing_reader::json_view::{SymbolView, symbol_to_view};
+use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 
 const MAX_HTTP_BODY: u64 = 64 * 1024 * 1024;
 
@@ -33,13 +33,6 @@ enum Format {
     Json,
 }
 
-#[derive(Serialize)]
-#[serde(untagged)]
-enum Entry {
-    Text { text: String },
-    BytesB64 { bytes_b64: String },
-}
-
 fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
@@ -59,8 +52,8 @@ fn run() -> Result<ExitCode> {
         Format::Text => 1,
         Format::Json => 0,
     };
-    let results = decode_payloads(&rgba, w, h, max)?;
-    render(&results, cli.format)
+    let symbols = decode_symbols(&rgba, w, h, max)?;
+    render(symbols, cli.format)
 }
 
 fn load_bytes(source: &str) -> Result<Vec<u8>> {
@@ -107,7 +100,7 @@ fn decode_image_bytes(bytes: &[u8]) -> Result<(Vec<u8>, usize, usize)> {
     Ok((rgba.into_raw(), w, h))
 }
 
-fn decode_payloads(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<Vec<u8>>> {
+fn decode_symbols(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<QrSymbol>> {
     let luma = rgba_to_luma(rgba, w, h).map_err(anyhow::Error::msg)?;
     let primary = decode_qr_codes_luma(&luma, w, h, true, true, true, max)?;
     if !primary.is_empty() {
@@ -117,28 +110,20 @@ fn decode_payloads(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<Ve
     Ok(fallback)
 }
 
-fn render(results: &[Vec<u8>], format: Format) -> Result<ExitCode> {
+fn render(symbols: Vec<QrSymbol>, format: Format) -> Result<ExitCode> {
     match format {
-        Format::Text => match results.first() {
+        Format::Text => match symbols.into_iter().next() {
             None => Ok(ExitCode::from(1)),
-            Some(bytes) => {
-                match std::str::from_utf8(bytes) {
+            Some(symbol) => {
+                match std::str::from_utf8(&symbol.bytes) {
                     Ok(s) => println!("{s}"),
-                    Err(_) => println!("base64:{}", BASE64.encode(bytes)),
+                    Err(_) => println!("base64:{}", BASE64.encode(&symbol.bytes)),
                 }
                 Ok(ExitCode::SUCCESS)
             }
         },
         Format::Json => {
-            let entries: Vec<Entry> = results
-                .iter()
-                .map(|bytes| match std::str::from_utf8(bytes) {
-                    Ok(s) => Entry::Text { text: s.to_string() },
-                    Err(_) => Entry::BytesB64 {
-                        bytes_b64: BASE64.encode(bytes),
-                    },
-                })
-                .collect();
+            let entries: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
             let mut stdout = io::stdout().lock();
             serde_json::to_writer(&mut stdout, &entries).context("writing JSON to stdout")?;
             stdout.write_all(b"\n").context("writing trailing newline")?;

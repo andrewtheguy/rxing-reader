@@ -2,6 +2,9 @@ mod common;
 mod decode;
 mod error;
 
+#[cfg(feature = "serde")]
+pub mod json_view;
+
 use binarizer::Binarizer;
 use binary_bitmap::BinaryBitmap;
 use decode_hints::DecodeHints;
@@ -10,7 +13,9 @@ use luma_source::{Luma8LuminanceSource, downscale_luma_buffer};
 use luminance_source::LuminanceSource;
 use point::{Point, point, point_i};
 
-pub use decode::{decode_qr_codes_luma, rgba_to_luma};
+pub use common::{AIFlag, Eci, SymbologyIdentifier, detect::StructuredAppendInfo};
+pub use decode::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
+pub use qrcode::{ErrorCorrectionLevel, Mode};
 
 mod qrcode;
 
