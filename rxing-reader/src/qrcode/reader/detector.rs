@@ -56,13 +56,22 @@ const SUM: usize = 7;
 const PATTERN: FixedPattern<LEN, SUM, false> = FixedPattern::new([1, 1, 3, 1, 1]);
 const E2E: bool = true;
 
+/// Search-window multiplier applied to the finder-pattern row sum when locating
+/// the concentric pattern. The window is widened to tolerate strongly skewed
+/// samples where the on-row run lengths underestimate the true pattern extent.
+const SKEW_TOLERANCE_MULTIPLIER: i32 = 3;
+
+/// Step size (in module widths) for the 3x3 neighbour search around the initial
+/// alignment-pattern estimate in [`locate_alignment_pattern`].
+const ALIGNMENT_SEARCH_RADIUS_MULTIPLIER: f32 = 2.25;
+
 fn find_pattern(view: PatternView<'_>) -> Result<PatternView<'_>> {
     find_left_guard_by::<LEN, _>(
         view,
         LEN,
         |view: &PatternView, space_in_pixel: Option<f32>| {
             // perform a fast plausibility test for 1:1:3:1:1 pattern
-            if view[2] < 2 as PatternType * std::cmp::max(view[0], view[4])
+            if view[2] < 2u16 * std::cmp::max(view[0], view[4])
                 || view[2] < std::cmp::max(view[1], view[3])
             {
                 return false;
@@ -120,8 +129,8 @@ pub fn find_finder_patterns(image: &BitMatrix, try_harder: bool) -> FinderPatter
                     image,
                     &PATTERN.into(),
                     p,
-                    next.iter().sum::<u16>() as i32 * 3,
-                ); // 3 for very skewed samples
+                    next.iter().sum::<u16>() as i32 * SKEW_TOLERANCE_MULTIPLIER,
+                );
                 if let Some(p) = pattern {
                     res.push(p);
                 }
@@ -347,7 +356,7 @@ pub fn trace_line(
     let mut cur_i = EdgeTracer::new(image, cur.p, Point::main_direction(cur.d()));
     // make sure cur_i positioned such that the white->black edge is directly behind
     // Test image: fix-traceline.jpg
-    while !bool::from(cur_i.edge_at_back()) {
+    while !cur_i.edge_at_back().is_black() {
         if cur_i.edge_at_left().into() {
             cur_i.turn_right();
         } else if cur_i.edge_at_right().into() {
@@ -420,7 +429,7 @@ pub fn locate_alignment_pattern(
     ] {
         let Some(cor) = center_of_ring(
             image,
-            (estimate + module_size as f32 * 2.25 * d).floor(),
+            (estimate + module_size as f32 * ALIGNMENT_SEARCH_RADIUS_MULTIPLIER * d).floor(),
             module_size * 3,
             1,
             false,
@@ -648,7 +657,8 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
                     continue;
                 }
 
-                // find the two closest valid alignment pattern pixel positions both horizontally and vertically
+                // find the two closest valid alignment pattern pixel positions both horizontally and vertically.
+                // The offset walks outward in alternating directions: i=2→+1, 3→-1, 4→+2, 5→-2, ...
                 let mut hori = Vec::new();
                 let mut verti = Vec::new();
                 let mut i = 2;
