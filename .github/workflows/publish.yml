@@ -78,10 +78,20 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-amd64
+            bin: rxing-cli
+            archive_ext: tar.gz
           - os: ubuntu-24.04-arm
             target: linux-arm64
+            bin: rxing-cli
+            archive_ext: tar.gz
           - os: macos-latest
             target: macos-arm64
+            bin: rxing-cli
+            archive_ext: tar.gz
+          - os: windows-latest
+            target: windows-amd64
+            bin: rxing-cli.exe
+            archive_ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -89,12 +99,19 @@ jobs:
       - run: cargo build -p rxing-cli --release
 
       - name: Package binary
+        shell: bash
         env:
           TAG: ${{ needs.prepare.outputs.tag }}
           TARGET: ${{ matrix.target }}
+          BIN: ${{ matrix.bin }}
+          EXT: ${{ matrix.archive_ext }}
         run: |
-          archive="rxing-cli-${TAG}-${TARGET}.tar.gz"
-          tar -C target/release -czvf "$archive" rxing-cli
+          archive="rxing-cli-${TAG}-${TARGET}.${EXT}"
+          if [[ "${EXT}" == "zip" ]]; then
+            (cd target/release && 7z a "../../${archive}" "${BIN}")
+          else
+            tar -C target/release -czvf "${archive}" "${BIN}"
+          fi
           echo "ARCHIVE=${archive}" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
