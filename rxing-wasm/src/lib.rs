@@ -19,7 +19,7 @@ fn read_inner(
     use_hybrid_binarizer: bool,
     binarizer_fallback: bool,
     max_number_of_symbols: u32,
-) -> Vec<Vec<u8>> {
+) -> Result<Vec<Vec<u8>>, JsValue> {
     let primary = decode_inner(
         &luma,
         width,
@@ -28,9 +28,10 @@ fn read_inner(
         try_invert,
         use_hybrid_binarizer,
         max_number_of_symbols,
-    );
+    )
+    .map_err(|e| JsValue::from_str(&e.to_string()))?;
     if !primary.is_empty() || !binarizer_fallback {
-        return primary;
+        return Ok(primary);
     }
     decode_inner(
         &luma,
@@ -41,6 +42,7 @@ fn read_inner(
         !use_hybrid_binarizer,
         max_number_of_symbols,
     )
+    .map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Read every QR code in raw RGBA pixels, returning each payload's raw bytes.
@@ -105,7 +107,7 @@ pub fn read_qr_codes_rgba(
         use_hybrid_binarizer,
         binarizer_fallback,
         max_number_of_symbols,
-    );
+    )?;
 
     let out = js_sys::Array::new_with_length(payloads.len() as u32);
     for (i, bytes) in payloads.into_iter().enumerate() {

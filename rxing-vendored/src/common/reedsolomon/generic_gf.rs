@@ -67,13 +67,17 @@ impl GenericGF {
     /**
      * @return the monomial representing coefficient * x^degree
      */
-    pub fn build_monomial(source: GenericGFRef, degree: usize, coefficient: i32) -> GenericGFPoly {
+    pub fn build_monomial(
+        source: GenericGFRef,
+        degree: usize,
+        coefficient: i32,
+    ) -> Result<GenericGFPoly> {
         if coefficient == 0 {
-            return GenericGFPoly::new(source, &[0]).unwrap();
+            return GenericGFPoly::new(source, &[0]);
         }
         let mut coefficients = vec![0; degree + 1];
         coefficients[0] = coefficient;
-        GenericGFPoly::new(source, &coefficients).unwrap()
+        GenericGFPoly::new(source, &coefficients)
     }
 
     /**
@@ -122,8 +126,8 @@ impl GenericGF {
         if a == 0 || b == 0 {
             return 0;
         }
-        let a_loc: usize = a as usize; //.try_into().unwrap();
-        let b_loc: usize = b as usize; //.try_into().unwrap();
+        let a_loc: usize = a as usize;
+        let b_loc: usize = b as usize;
         let comb_loc: usize = (self.log_table[a_loc] + self.log_table[b_loc]) as usize;
         self.exp_table[comb_loc % (self.size - 1)]
     }

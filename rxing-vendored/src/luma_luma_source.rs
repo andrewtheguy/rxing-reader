@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::LuminanceSource;
 use crate::common::Result;
+use crate::{Exceptions, LuminanceSource};
 
 /// A simple luma8 source for bytes. Supports cropping and 90° counter-clockwise
 /// rotation; 45° rotation is not supported.
@@ -170,20 +170,33 @@ impl Luma8LuminanceSource {
 }
 
 impl Luma8LuminanceSource {
-    pub fn new(source: impl Into<Arc<Vec<u8>>>, width: u32, height: u32) -> Self {
-        Self {
-            dimensions: (width, height),
-            data: source.into(),
-            inverted: false,
+    pub fn new(source: impl Into<Arc<Vec<u8>>>, width: u32, height: u32) -> Result<Self> {
+        let data = source.into();
+        let expected = (width as usize)
+            .checked_mul(height as usize)
+            .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+        if data.len() != expected {
+            return Err(Exceptions::illegal_argument_with(format!(
+                "luma length {} != width*height ({expected})",
+                data.len()
+            )));
         }
+        Ok(Self {
+            dimensions: (width, height),
+            data,
+            inverted: false,
+        })
     }
 
-    pub fn with_empty_image(width: usize, height: usize) -> Self {
-        Self {
+    pub fn with_empty_image(width: usize, height: usize) -> Result<Self> {
+        let size = width
+            .checked_mul(height)
+            .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+        Ok(Self {
             dimensions: (width as u32, height as u32),
-            data: vec![0u8; width * height].into(),
+            data: vec![0u8; size].into(),
             inverted: false,
-        }
+        })
     }
 
     pub fn get_matrix_mut(&mut self) -> &mut Vec<u8> {
@@ -207,17 +220,25 @@ pub fn downscale_luma_buffer(
     width: u32,
     height: u32,
     factor: u32,
-) -> (Vec<u8>, u32, u32) {
-    assert!(factor >= 1, "downscale factor must be at least 1");
-    assert_eq!(
-        src.len(),
-        (width as usize) * (height as usize),
-        "downscale_luma_buffer: src.len() must equal width * height",
-    );
+) -> Result<(Vec<u8>, u32, u32)> {
+    if factor == 0 {
+        return Err(Exceptions::illegal_argument_with(
+            "downscale factor must be at least 1",
+        ));
+    }
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .ok_or_else(|| Exceptions::illegal_argument_with("image dimensions overflow"))?;
+    if src.len() != expected {
+        return Err(Exceptions::illegal_argument_with(format!(
+            "downscale_luma_buffer: src.len() {} must equal width * height ({expected})",
+            src.len()
+        )));
+    }
     let new_w = width / factor;
     let new_h = height / factor;
     if factor == 1 {
-        return (src.to_vec(), new_w, new_h);
+        return Ok((src.to_vec(), new_w, new_h));
     }
     let factor_us = factor as usize;
     let w_us = width as usize;
@@ -235,7 +256,7 @@ pub fn downscale_luma_buffer(
             out[dy * new_w_us + dx] = (sum / (factor_us * factor_us)) as u8;
         }
     }
-    (out, new_w, new_h)
+    Ok((out, new_w, new_h))
 }
 
 #[cfg(test)]
@@ -248,9 +269,9 @@ mod tests {
 
         let src_rect = vec![0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0];
 
-        let square = Luma8LuminanceSource::new(src_square, 3, 3);
-        let rect_tall = Luma8LuminanceSource::new(src_rect.clone(), 3, 4);
-        let rect_wide = Luma8LuminanceSource::new(src_rect, 4, 3);
+        let square = Luma8LuminanceSource::new(src_square, 3, 3).expect("source");
+        let rect_tall = Luma8LuminanceSource::new(src_rect.clone(), 3, 4).expect("source");
+        let rect_wide = Luma8LuminanceSource::new(src_rect, 4, 3).expect("source");
 
         let rotated_square = square.rotate_counter_clockwise().expect("rotate");
         let rotated_wide_rect = rect_wide.rotate_counter_clockwise().expect("rotate");

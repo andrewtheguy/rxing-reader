@@ -45,9 +45,9 @@ pub fn read_symmetric_pattern<const N: usize, Cursor: BitMatrixCursorTrait>(
     cur: &mut Cursor,
     range: i32,
 ) -> Option<Pattern<N>> {
-    assert!(N % 2 == 1);
-
-    assert!(range > 0);
+    if N % 2 != 1 || range <= 0 {
+        return None;
+    }
 
     let mut range = range;
 
@@ -89,9 +89,13 @@ pub fn check_symmetric_pattern<
 ) -> i32 {
     let mut range = range;
 
-    let mut cur_fwd: FastEdgeToEdgeCounter = FastEdgeToEdgeCounter::new(cur);
+    let Ok(mut cur_fwd) = FastEdgeToEdgeCounter::new(cur) else {
+        return 0;
+    };
     let binding = cur.turned_back();
-    let mut cur_bwd: FastEdgeToEdgeCounter = FastEdgeToEdgeCounter::new(&binding);
+    let Ok(mut cur_bwd) = FastEdgeToEdgeCounter::new(&binding) else {
+        return 0;
+    };
 
     let center_fwd = cur_fwd.step_to_next_edge(range as u32) as i32;
     if center_fwd == 0 {
@@ -102,7 +106,9 @@ pub fn check_symmetric_pattern<
         return 0;
     }
 
-    assert!(range > 0);
+    if range <= 0 {
+        return 0;
+    }
     let mut res: PatternRow = PatternRow::new(vec![0; LEN]);
     let s_2 = (res.len()) / 2;
     res[s_2] = (center_fwd + center_bwd - 1) as u16; // -1 because the starting pixel is counted twice

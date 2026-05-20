@@ -401,22 +401,24 @@ pub fn locate_alignment_pattern(
         point(1.0, 1.0),
         point(-1.0, 1.0),
     ] {
-        let cor = center_of_ring(
+        let Some(cor) = center_of_ring(
             image,
             (estimate + module_size as f32 * 2.25 * d).floor(),
             module_size * 3,
             1,
             false,
-        );
+        ) else {
+            continue;
+        };
 
         // if we did not land on a black pixel the concentric pattern finder will fail
-        if cor.is_none() || !image.get_point(cor.unwrap()) {
+        if !image.get_point(cor) {
             continue;
         }
 
-        if let Some(cor1) = center_of_ring(image, cor.unwrap().floor(), module_size, 1, true)
+        if let Some(cor1) = center_of_ring(image, cor.floor(), module_size, 1, true)
             && let Some(cor2) =
-                center_of_ring(image, cor.unwrap().floor(), module_size * 3, -2, true)
+                center_of_ring(image, cor.floor(), module_size * 3, -2, true)
             && Point::distance(cor1, cor2) < module_size as f32 / 2.0
         {
             let res = (cor1 + cor2) / 2.0;
@@ -536,23 +538,23 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<QRCodeDetec
     )?;
 
     if dimension >= Version::symbol_size(7, Type::Model2).x {
-        let version = read_version(image, dimension as u32, mod_to_pix);
+        let version =
+            read_version(image, dimension as u32, mod_to_pix).map_err(|_| Exceptions::NOT_FOUND)?;
+        let version_dimension = version.get_dimension_for_version() as i32;
 
         // if the version bits are garbage -> discard the detection
-        if version.is_err()
-            || (version.as_ref().unwrap().get_dimension_for_version() as i32 - dimension).abs() > 8
-        {
+        if (version_dimension - dimension).abs() > 8 {
             return Err(Exceptions::NOT_FOUND);
         }
-        if version.as_ref().unwrap().get_dimension_for_version() as i32 != dimension {
-            dimension = version.as_ref().unwrap().get_dimension_for_version() as i32;
+        if version_dimension != dimension {
+            dimension = version_dimension;
             mod_to_pix = mod2_pix(
                 dimension,
                 br_offset,
                 Quadrilateral::from([fp.tl.p, fp.tr.p, br.p, fp.bl.p]),
             )?;
         }
-        let ap_m = version.as_ref().unwrap().get_alignment_pattern_centers(); // alignment pattern positions in modules
+        let ap_m = version.get_alignment_pattern_centers(); // alignment pattern positions in modules
         let mut ap_p = Matrix::new(ap_m.len(), ap_m.len())?; // found/guessed alignment pattern positions in pixels
         let n = (ap_m.len()) - 1;
 

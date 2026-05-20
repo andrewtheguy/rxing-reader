@@ -284,13 +284,13 @@ impl<'a> PatternView<'a> {
         }
         if index >= 0 {
             let fetch_spot = ((self.start + self.current) as isize + index) as usize;
-            return Some(self.data.0[fetch_spot]);
+            return self.data.0.get(fetch_spot).copied();
         }
         if index.abs() > (self.start + self.current) as isize {
             return None;
         }
         let fetch_spot = ((self.start + self.current) as isize + index) as usize;
-        Some(self.data.0[fetch_spot])
+        self.data.0.get(fetch_spot).copied()
     }
 }
 
@@ -320,10 +320,13 @@ impl std::ops::Index<usize> for PatternView<'_> {
             return &self.data[index];
         }
 
-        if index >= self.data.0.len() {
-            panic!("array index out of bounds")
+        match self.data.0.get(self.start + self.current + index) {
+            Some(value) => value,
+            None => panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.count, index
+            ),
         }
-        self.data.0.get(self.start + self.current + index).unwrap()
     }
 }
 
@@ -563,7 +566,7 @@ pub fn is_right_guard<const N: usize, const SUM: usize, const IS_SPARCE: bool>(
     let space_in_pixel = if view.is_at_last_bar() {
         None
     } else {
-        Some(view.end().unwrap().into())
+        view.end().map(Into::into)
     };
 
     const E2E: bool = false;

@@ -277,7 +277,11 @@ impl<'a> WhiteRectangleDetector<'_> {
                 return Err(Exceptions::NOT_FOUND);
             }
 
-            Ok(self.center_edges(y.unwrap(), z.unwrap(), x.unwrap(), t.unwrap()))
+            let (Some(y), Some(z), Some(x), Some(t)) = (y, z, x, t) else {
+                return Err(Exceptions::NOT_FOUND);
+            };
+
+            Ok(self.center_edges(y, z, x, t))
         } else {
             Err(Exceptions::NOT_FOUND)
         }

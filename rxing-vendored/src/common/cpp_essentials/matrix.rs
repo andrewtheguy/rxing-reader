@@ -79,34 +79,32 @@ impl<T: Default + Clone + Copy> Matrix<T> {
     }
 
     pub fn set_point(&mut self, p: Point, value: T) -> Result<T> {
-        assert!(
-            p.x.is_finite() && p.y.is_finite(),
-            "set_point: non-finite coordinates ({}, {})",
-            p.x,
-            p.y
-        );
-        assert!(
-            p.x >= 0.0 && p.y >= 0.0,
-            "set_point: negative coordinates ({}, {})",
-            p.x,
-            p.y
-        );
+        if !p.x.is_finite() || !p.y.is_finite() {
+            return Err(Exceptions::illegal_argument_with(format!(
+                "set_point: non-finite coordinates ({}, {})",
+                p.x, p.y
+            )));
+        }
+        if p.x < 0.0 || p.y < 0.0 {
+            return Err(Exceptions::index_out_of_bounds_with(format!(
+                "set_point: negative coordinates ({}, {})",
+                p.x, p.y
+            )));
+        }
         let x = f64::from(p.x);
         let y = f64::from(p.y);
-        assert!(
-            x < self.width as f64 && y < self.height as f64,
-            "set_point: coordinates ({}, {}) outside {}x{} matrix",
-            p.x,
-            p.y,
-            self.width,
-            self.height
-        );
-        assert!(
-            x <= usize::MAX as f64 && y <= usize::MAX as f64,
-            "set_point: coordinates ({}, {}) cannot be represented as usize",
-            p.x,
-            p.y
-        );
+        if x >= self.width as f64 || y >= self.height as f64 {
+            return Err(Exceptions::index_out_of_bounds_with(format!(
+                "set_point: coordinates ({}, {}) outside {}x{} matrix",
+                p.x, p.y, self.width, self.height
+            )));
+        }
+        if x > usize::MAX as f64 || y > usize::MAX as f64 {
+            return Err(Exceptions::index_out_of_bounds_with(format!(
+                "set_point: coordinates ({}, {}) cannot be represented as usize",
+                p.x, p.y
+            )));
+        }
         self.set(p.x as usize, p.y as usize, value)
     }
 

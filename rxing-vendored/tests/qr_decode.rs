@@ -46,6 +46,7 @@ fn decode_combo(
 ) -> Option<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
     decode_inner(&luma, w, h, try_harder, try_invert, use_hybrid_binarizer, 1)
+        .expect("decode inner")
         .into_iter()
         .next()
 }
@@ -583,7 +584,7 @@ fn rotated_and_inverted_qr_sample_requires_try_invert() {
 /// is forwarded verbatim to `decode_set_number_with_hints` (0 = unlimited).
 fn decode_all(rgba: &[u8], w: u32, h: u32, count: u32) -> Vec<Vec<u8>> {
     let luma = rgba_to_luma(rgba, w, h).expect("luma");
-    let source = Luma8LuminanceSource::new(luma, w, h);
+    let source = Luma8LuminanceSource::new(luma, w, h).expect("luma source");
     let mut bitmap = BinaryBitmap::new(HybridBinarizer::new(source));
     let hints = DecodeHints {
         possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),

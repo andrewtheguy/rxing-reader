@@ -1,4 +1,7 @@
-use crate::common::BitMatrix;
+use crate::{
+    Exceptions,
+    common::{BitMatrix, Result},
+};
 
 use super::BitMatrixCursorTrait;
 
@@ -11,7 +14,7 @@ pub struct FastEdgeToEdgeCounter<'a> {
 }
 
 impl FastEdgeToEdgeCounter<'_> {
-    pub fn new<T: BitMatrixCursorTrait>(cur: &'_ T) -> FastEdgeToEdgeCounter<'_> {
+    pub fn new<T: BitMatrixCursorTrait>(cur: &'_ T) -> Result<FastEdgeToEdgeCounter<'_>> {
         let stride = cur.d().y as isize * cur.img().width() as isize + cur.d().x as isize;
         // Cursor positions use the BitMatrix row-major index. Keep row/column
         // signed until after the bounds check so negative rows do not mirror to
@@ -19,10 +22,14 @@ impl FastEdgeToEdgeCounter<'_> {
         let width = cur.img().width() as isize;
         let height = cur.img().height() as isize;
         let p = cur.p().y as isize * width + cur.p().x as isize;
-        assert!(
-            (0..width * height).contains(&p),
-            "FastEdgeToEdgeCounter: cursor position is outside the image"
-        );
+        let image_len = width.checked_mul(height).ok_or_else(|| {
+            Exceptions::illegal_argument_with("FastEdgeToEdgeCounter: image size overflow")
+        })?;
+        if !(0..image_len).contains(&p) {
+            return Err(Exceptions::index_out_of_bounds_with(
+                "FastEdgeToEdgeCounter: cursor position is outside the image",
+            ));
+        }
         let p = p as u32;
 
         let max_steps_x: i32 = if cur.d().x != 0.0 {
@@ -45,13 +52,13 @@ impl FastEdgeToEdgeCounter<'_> {
         };
         let steps_to_border = std::cmp::min(max_steps_x, max_steps_y);
 
-        FastEdgeToEdgeCounter {
+        Ok(FastEdgeToEdgeCounter {
             p,
             stride,
             steps_to_border,
             _arr: cur.p().y as isize * stride,
             under_array: cur.img(),
-        }
+        })
     }
 
     pub fn step_to_next_edge(&mut self, range: u32) -> u32 {
@@ -67,7 +74,9 @@ impl FastEdgeToEdgeCounter<'_> {
                 }
             }
 
-            let idx_pt = self.get_array_check_index(steps);
+            let Some(idx_pt) = self.get_array_check_index(steps) else {
+                return 0;
+            };
 
             if self.under_array.get_index(idx_pt) != self.under_array.get_index(self.p as usize) {
                 break;
@@ -87,15 +96,11 @@ impl FastEdgeToEdgeCounter<'_> {
     }
 
     #[inline(always)]
-    fn get_array_check_index(&self, steps: i32) -> usize {
+    fn get_array_check_index(&self, steps: i32) -> Option<usize> {
         let idx = self.p as isize + (steps as isize * self.stride);
-        assert!(
-            idx >= 0,
-            "get_array_check_index: computed negative index (p={}, stride={}, steps={})",
-            self.p,
-            self.stride,
-            steps
-        );
-        idx as usize
+        if idx < 0 {
+            return None;
+        }
+        Some(idx as usize)
     }
 }

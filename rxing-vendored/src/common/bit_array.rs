@@ -403,7 +403,9 @@ impl BitArray {
 
         // check if we've already done the rever operation once
         if self.reversed.is_some() {
-            self.bits = self.reversed.replace(self.bits.clone()).unwrap();
+            if let Some(reversed) = self.reversed.replace(self.bits.clone()) {
+                self.bits = reversed;
+            }
             return;
         }
 

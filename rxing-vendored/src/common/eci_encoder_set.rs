@@ -16,6 +16,8 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::{Exceptions, common::Result};
+
 use super::{CharacterSet, Eci};
 
 const ENCODERS: [CharacterSet; 14] = [
@@ -87,11 +89,10 @@ impl ECIEncoderSet {
         };
 
         //Walk over the input string and see if all characters can be encoded with the list of encoders
-        for i in 0..string_to_encode.len() {
+        for c in &string_to_encode {
             let mut can_encode = false;
             for encoder in &needed_encoders {
-                let c = string_to_encode.get(i).unwrap();
-                if (fnc1.is_some() && c == fnc1.as_ref().unwrap()) || encoder.encode(c).is_ok() {
+                if fnc1.is_some_and(|fnc1| *c == fnc1) || encoder.encode(c).is_ok() {
                     can_encode = true;
                     break;
                 }
@@ -99,7 +100,7 @@ impl ECIEncoderSet {
             if !can_encode {
                 //for the character at position i we don't yet have an encoder in the list
                 for encoder in ENCODERS.iter() {
-                    if encoder.encode(string_to_encode.get(i).unwrap()).is_ok() {
+                    if encoder.encode(c).is_ok() {
                         //Good, we found an encoder that can encode the character. We add him to the list and continue scanning
                         //the input
                         needed_encoders.push(*encoder);
@@ -134,8 +135,6 @@ impl ECIEncoderSet {
         if let Some(pc) = priority_charset.as_ref() {
             priority_encoder_index_value = encoders.iter().position(|enc| enc == pc);
         }
-        //invariants
-        assert_eq!(encoders[0], CharacterSet::ISO8859_1);
         Self {
             encoders,
             priority_encoder_index: priority_encoder_index_value,
@@ -150,28 +149,25 @@ impl ECIEncoderSet {
         self.encoders.is_empty()
     }
 
-    pub fn get_charset_name(&self, index: usize) -> Option<&'static str> {
-        if index < self.len() {
-            Some(self.encoders[index].get_charset_name())
-        } else {
-            None
-        }
+    pub fn get_charset_name(&self, index: usize) -> Result<&'static str> {
+        Ok(self.get_charset(index)?.get_charset_name())
     }
 
-    pub fn get_charset(&self, index: usize) -> Option<CharacterSet> {
-        if index < self.len() {
-            Some(self.encoders[index])
-        } else {
-            None
-        }
+    pub fn get_charset(&self, index: usize) -> Result<CharacterSet> {
+        self.encoders
+            .get(index)
+            .copied()
+            .ok_or_else(|| Exceptions::index_out_of_bounds_with(index.to_string()))
     }
 
-    pub fn get_eci(&self, encoder_index: usize) -> Eci {
-        if encoder_index < self.len() {
-            self.encoders[encoder_index].into()
-        } else {
-            Eci::Unknown
+    pub fn get_eci(&self, encoder_index: usize) -> Result<Eci> {
+        let eci = Eci::from(self.get_charset(encoder_index)?);
+        if eci == Eci::Unknown {
+            return Err(Exceptions::illegal_state_with(format!(
+                "no ECI assignment for encoder index {encoder_index}"
+            )));
         }
+        Ok(eci)
     }
 
     /*
@@ -181,32 +177,20 @@ impl ECIEncoderSet {
         self.priority_encoder_index
     }
 
-    pub fn can_encode(&self, c: &str, encoder_index: usize) -> Option<bool> {
-        if encoder_index < self.len() {
-            let encoder = self.encoders[encoder_index];
-            let enc_data = encoder.encode(c);
+    pub fn can_encode(&self, c: &str, encoder_index: usize) -> Result<bool> {
+        let encoder = self.get_charset(encoder_index)?;
+        let enc_data = encoder.encode(c);
 
-            Some(enc_data.is_ok())
-        } else {
-            None
-        }
+        Ok(enc_data.is_ok())
     }
 
-    pub fn encode_char(&self, c: &str, encoder_index: usize) -> Option<Vec<u8>> {
-        if encoder_index < self.len() {
-            let encoder = self.encoders[encoder_index];
-            encoder.encode(c).ok()
-        } else {
-            None
-        }
+    pub fn encode_char(&self, c: &str, encoder_index: usize) -> Result<Vec<u8>> {
+        let encoder = self.get_charset(encoder_index)?;
+        encoder.encode(c)
     }
 
-    pub fn encode_string(&self, s: &str, encoder_index: usize) -> Option<Vec<u8>> {
-        if encoder_index < self.len() {
-            let encoder = self.encoders[encoder_index];
-            encoder.encode(s).ok()
-        } else {
-            None
-        }
+    pub fn encode_string(&self, s: &str, encoder_index: usize) -> Result<Vec<u8>> {
+        let encoder = self.get_charset(encoder_index)?;
+        encoder.encode(s)
     }
 }

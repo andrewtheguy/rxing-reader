@@ -282,22 +282,14 @@ impl CharacterSet {
                         "Invalid UTF-32BE: trailing bytes",
                     ));
                 }
-                let u32s: Result<Vec<u32>, _> = input
+                input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_be_bytes([c[0], c[1], c[2], c[3]]);
-                        if char::from_u32(val).is_some() {
-                            Ok(val)
-                        } else {
-                            Err(())
-                        }
+                        char::from_u32(val)
+                            .ok_or_else(|| Exceptions::format_with("Invalid UTF-32BE"))
                     })
-                    .collect();
-                let u32s = u32s.map_err(|_| Exceptions::format_with("Invalid UTF-32BE"))?;
-                Ok(u32s
-                    .into_iter()
-                    .map(|u| char::from_u32(u).unwrap())
-                    .collect())
+                    .collect()
             }
             CharacterSet::UTF32LE => {
                 if !input.len().is_multiple_of(4) {
@@ -305,22 +297,14 @@ impl CharacterSet {
                         "Invalid UTF-32LE: trailing bytes",
                     ));
                 }
-                let u32s: Result<Vec<u32>, _> = input
+                input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
-                        if char::from_u32(val).is_some() {
-                            Ok(val)
-                        } else {
-                            Err(())
-                        }
+                        char::from_u32(val)
+                            .ok_or_else(|| Exceptions::format_with("Invalid UTF-32LE"))
                     })
-                    .collect();
-                let u32s = u32s.map_err(|_| Exceptions::format_with("Invalid UTF-32LE"))?;
-                Ok(u32s
-                    .into_iter()
-                    .map(|u| char::from_u32(u).unwrap())
-                    .collect())
+                    .collect()
             }
             CharacterSet::Binary | CharacterSet::ISO8859_1 => {
                 Ok(input.iter().map(|&b| char::from(b)).collect())

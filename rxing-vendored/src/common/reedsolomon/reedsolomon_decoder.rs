@@ -78,11 +78,9 @@ impl ReedSolomonDecoder {
         let Ok(syndrome) = GenericGFPoly::new(self.field, &syndrome_coefficients) else {
             return Err(Exceptions::REED_SOLOMON);
         };
-        let sigma_omega = self.run_euclidean_algorithm(
-            &GenericGF::build_monomial(self.field, two_s as usize, 1),
-            &syndrome,
-            two_s as usize,
-        )?;
+        let monomial = GenericGF::build_monomial(self.field, two_s as usize, 1)?;
+        let sigma_omega =
+            self.run_euclidean_algorithm(&monomial, &syndrome, two_s as usize)?;
         let sigma = &sigma_omega[0];
         let omega = &sigma_omega[1];
         let error_locations = self.find_error_locations(sigma)?;
@@ -117,8 +115,8 @@ impl ReedSolomonDecoder {
 
         let mut r_last = a;
         let mut r = b;
-        let mut t_last = r_last.get_zero();
-        let mut t = r_last.get_one();
+        let mut t_last = r_last.get_zero()?;
+        let mut t = r_last.get_one()?;
 
         // Run Euclidean algorithm until r's degree is less than r/2
         while 2 * r.get_degree() >= degree_limit {
@@ -133,7 +131,7 @@ impl ReedSolomonDecoder {
                 return Err(Exceptions::reed_solomon_with("r_{i-1} was zero"));
             }
             r = r_last_last;
-            let mut q = r.get_zero();
+            let mut q = r.get_zero()?;
             let denominator_leading_term = r_last.get_coefficient(r_last.get_degree());
             let dlt_inverse = self.field.inverse(denominator_leading_term)?;
             while r.get_degree() >= r_last.get_degree() && !r.is_zero() {
@@ -141,7 +139,8 @@ impl ReedSolomonDecoder {
                 let scale = self
                     .field
                     .multiply(r.get_coefficient(r.get_degree()), dlt_inverse);
-                q = q.add_or_subtract(&GenericGF::build_monomial(self.field, degree_diff, scale))?;
+                let monomial = GenericGF::build_monomial(self.field, degree_diff, scale)?;
+                q = q.add_or_subtract(&monomial)?;
                 r = r.add_or_subtract(&r_last.multiply_by_monomial(degree_diff, scale)?)?;
             }
 
@@ -162,8 +161,8 @@ impl ReedSolomonDecoder {
         let Ok(inverse) = self.field.inverse(sigma_tilde_at_zero) else {
             return Err(Exceptions::reed_solomon_with("ArithmetricException"));
         };
-        let sigma = t.multiply_with_scalar(inverse);
-        let omega = r.multiply_with_scalar(inverse);
+        let sigma = t.multiply_with_scalar(inverse)?;
+        let omega = r.multiply_with_scalar(inverse)?;
         Ok(vec![sigma, omega])
     }
 

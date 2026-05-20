@@ -178,6 +178,36 @@ impl ECIInput for MinimalECIInput {
     }
 }
 impl MinimalECIInput {
+    fn fnc1_value(fnc1: Option<&str>) -> Result<Option<u16>> {
+        let Some(fnc1) = fnc1 else {
+            return Ok(None);
+        };
+        let mut chars = fnc1.chars();
+        let Some(ch) = chars.next() else {
+            return Err(Exceptions::illegal_argument_with(
+                "fnc1 marker cannot be empty",
+            ));
+        };
+        if chars.next().is_some() {
+            return Err(Exceptions::illegal_argument_with(
+                "fnc1 marker must be a single character",
+            ));
+        }
+        if (ch as u32) > u16::MAX as u32 {
+            return Err(Exceptions::illegal_argument_with(
+                "fnc1 marker must fit in u16",
+            ));
+        }
+        Ok(Some(ch as u16))
+    }
+
+    fn first_char(value: &str) -> Result<char> {
+        value
+            .chars()
+            .next()
+            .ok_or_else(|| Exceptions::illegal_argument_with("empty character segment"))
+    }
+
     /**
      * Constructs a minimal input
      *
@@ -194,6 +224,7 @@ impl MinimalECIInput {
         priority_charset: Option<CharacterSet>,
         fnc1: Option<&str>,
     ) -> Result<Self> {
+        let fnc1_value = Self::fnc1_value(fnc1)?;
         let string_to_encode = string_to_encode_input.graphemes(true).collect::<Vec<&str>>();
         let encoder_set = ECIEncoderSet::new(string_to_encode_input, priority_charset, fnc1);
         let bytes = if encoder_set.len() == 1 {
@@ -201,24 +232,20 @@ impl MinimalECIInput {
             string_to_encode
                 .iter()
                 .map(|c| {
-                    if fnc1.is_some() && c == fnc1.as_ref().unwrap() {
-                        1000
+                    if fnc1.is_some_and(|fnc1| *c == fnc1) {
+                        Ok(FNC1)
                     } else {
-                        c.chars().next().unwrap() as u16
+                        Ok(Self::first_char(c)? as u16)
                     }
                 })
-                .collect()
+                .collect::<Result<Vec<_>>>()?
         } else {
             Self::encode_minimally(&string_to_encode, &encoder_set, fnc1)?
         };
 
         Ok(Self {
             bytes,
-            fnc1: if let Some(fnc1_exists) = fnc1 {
-                fnc1_exists.chars().next().unwrap() as u16
-            } else {
-                1000
-            },
+            fnc1: fnc1_value.unwrap_or(FNC1),
         })
     }
 
@@ -244,16 +271,23 @@ impl MinimalECIInput {
         Ok(self.bytes[index] == FNC1)
     }
 
-    fn add_edge(edges: &mut [Vec<Option<Arc<InputEdge>>>], to: usize, edge: Arc<InputEdge>) {
-        if edges[to][edge.encoder_index].is_none()
-            || edges[to][edge.encoder_index]
-                .as_ref()
-                .unwrap()
-                .cached_total_size
-                > edge.cached_total_size
-        {
-            edges[to][edge.encoder_index] = Some(edge.clone());
+    fn add_edge(
+        edges: &mut [Vec<Option<Arc<InputEdge>>>],
+        to: usize,
+        edge: Arc<InputEdge>,
+    ) -> Result<()> {
+        let slot = edges
+            .get_mut(to)
+            .and_then(|row| row.get_mut(edge.encoder_index))
+            .ok_or_else(|| Exceptions::index_out_of_bounds_with(to.to_string()))?;
+        let should_replace = match slot {
+            Some(existing) => existing.cached_total_size > edge.cached_total_size,
+            None => true,
+        };
+        if should_replace {
+            *slot = Some(edge);
         }
+        Ok(())
     }
 
     fn add_edges(
@@ -264,30 +298,29 @@ impl MinimalECIInput {
         previous: Option<Arc<InputEdge>>,
         fnc1: Option<&str>,
     ) -> Result<()> {
-        let ch = string_to_encode[from];
+        let ch = string_to_encode
+            .get(from)
+            .copied()
+            .ok_or_else(|| Exceptions::index_out_of_bounds_with(from.to_string()))?;
 
         let mut start = 0;
         let mut end = encoder_set.len();
         if let Some(pei) = encoder_set.get_priority_encoder_index()
-            && ((fnc1.is_some()
-                && ch.chars().next().unwrap() == fnc1.as_ref().unwrap().chars().next().unwrap())
-                || encoder_set.can_encode(ch, pei).unwrap())
+            && (fnc1.is_some_and(|fnc1| ch == fnc1) || encoder_set.can_encode(ch, pei)?)
         {
             start = pei;
             end = start + 1;
         }
 
         for i in start..end {
-            if (fnc1.is_some()
-                && ch.chars().next().unwrap() == fnc1.as_ref().unwrap().chars().next().unwrap())
-                || encoder_set.can_encode(ch, i).unwrap()
+            if fnc1.is_some_and(|fnc1| ch == fnc1) || encoder_set.can_encode(ch, i)?
             {
                 let edge = InputEdge::new(ch, encoder_set, i, previous.clone(), fnc1)?;
                 Self::add_edge(
                     edges,
                     from + 1,
                     Arc::new(edge),
-                );
+                )?;
             }
         }
         Ok(())
@@ -339,14 +372,10 @@ impl MinimalECIInput {
             if c.is_fnc1() {
                 ints_al.push(1000);
             } else {
-                encoder_set
-                    .encode_char(&c.c, c.encoder_index)
-                    .unwrap_or_default()
-                    .iter()
-                    .rev()
-                    .for_each(|&byte| {
-                        ints_al.push(byte as u16);
-                    });
+                let encoded = encoder_set.encode_char(&c.c, c.encoder_index)?;
+                encoded.iter().rev().for_each(|&byte| {
+                    ints_al.push(byte as u16);
+                });
             }
             let previous_encoder_index = if let Some(prev) = &c.previous {
                 prev.encoder_index
@@ -355,7 +384,7 @@ impl MinimalECIInput {
             };
 
             if previous_encoder_index != c.encoder_index {
-                ints_al.push(256_u16 + encoder_set.get_eci(c.encoder_index) as u16);
+                ints_al.push(256_u16 + encoder_set.get_eci(c.encoder_index)? as u16);
             }
             current = c.previous.clone();
         }
@@ -391,9 +420,9 @@ impl InputEdge {
         } else {
             encoder_set
                 .encode_char(c, encoder_index)
-                .ok_or_else(|| {
+                .map_err(|e| {
                     Exceptions::illegal_argument_with(format!(
-                        "failed to encode \"{c}\" with encoder index {encoder_index}"
+                        "failed to encode \"{c}\" with encoder index {encoder_index}: {e}"
                     ))
                 })?
                 .len()
@@ -439,16 +468,19 @@ impl fmt::Display for MinimalECIInput {
             if i > 0 {
                 result.push_str(", ");
             }
-            if self.is_eci(i).unwrap() {
+            if self.is_eci(i).map_err(|_| fmt::Error)? {
                 result.push_str("ECI(");
-                result.push_str(&self.get_ecivalue(i).unwrap().to_string());
+                result.push_str(&self.get_ecivalue(i).map_err(|_| fmt::Error)?.to_string());
                 result.push(')');
-            } else if (self.char_at(i).unwrap() as u8) < 128 {
-                result.push('\'');
-                result.push(self.char_at(i).unwrap());
-                result.push('\'');
             } else {
-                result.push(self.char_at(i).unwrap());
+                let ch = self.char_at(i).map_err(|_| fmt::Error)?;
+                if (ch as u8) < 128 {
+                    result.push('\'');
+                    result.push(ch);
+                    result.push('\'');
+                } else {
+                    result.push(ch);
+                }
             }
         }
         write!(f, "{result}")

@@ -107,7 +107,7 @@ pub fn decode_inner(
     try_invert: bool,
     use_hybrid_binarizer: bool,
     max_number_of_symbols: u32,
-) -> Vec<Vec<u8>> {
+) -> RxingResult<Vec<Vec<u8>>> {
     let hints = DecodeHints {
         possible_formats: Some(HashSet::from([BarcodeFormat::QrCode])),
         try_harder: Some(try_harder),
@@ -115,22 +115,22 @@ pub fn decode_inner(
     };
 
     if !try_harder {
-        let source = Luma8LuminanceSource::new(luma.to_vec(), width, height);
-        return decode_one_layer(
+        let source = Luma8LuminanceSource::new(luma.to_vec(), width, height)?;
+        return Ok(decode_one_layer(
             source,
             &hints,
             use_hybrid_binarizer,
             max_number_of_symbols,
             try_invert,
             false,
-        );
+        ));
     }
 
     let mut cur_luma: Arc<Vec<u8>> = Arc::new(luma.to_vec());
     let mut cur_w = width;
     let mut cur_h = height;
     loop {
-        let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h);
+        let source = Luma8LuminanceSource::new(Arc::clone(&cur_luma), cur_w, cur_h)?;
         for &close in &[false, true] {
             let results = decode_one_layer(
                 source.clone(),
@@ -141,16 +141,16 @@ pub fn decode_inner(
                 close,
             );
             if !results.is_empty() {
-                return results;
+                return Ok(results);
             }
         }
         if cur_w.max(cur_h) <= PYRAMID_DOWNSCALE_THRESHOLD
             || cur_w.min(cur_h) < PYRAMID_DOWNSCALE_FACTOR
         {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(cur_luma.as_slice(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR);
+            downscale_luma_buffer(cur_luma.as_slice(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)?;
         cur_luma = Arc::new(next_luma);
         cur_w = next_w;
         cur_h = next_h;

@@ -30,10 +30,11 @@ impl RegressionLineTrait for DMRegressionLine {
     }
 
     fn length(&self) -> u32 {
-        if self.points.len() >= 2 {
-            Point::distance(*self.points.first().unwrap(), *self.points.last().unwrap()) as u32
-        } else {
-            0
+        match (self.points.first(), self.points.last()) {
+            (Some(first), Some(last)) if self.points.len() >= 2 => {
+                Point::distance(*first, *last) as u32
+            }
+            _ => 0,
         }
     }
 

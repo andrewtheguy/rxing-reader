@@ -19,7 +19,7 @@ use std::{borrow::Cow, fmt};
 use once_cell::sync::OnceCell;
 
 use crate::{
-    Binarizer, LuminanceSource,
+    Binarizer, Exceptions, LuminanceSource,
     common::{BitArray, BitMatrix, LineOrientation, Result},
 };
 
@@ -88,7 +88,9 @@ impl<B: Binarizer> BinaryBitmap<B> {
     pub fn get_black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.matrix
             .get_or_try_init(|| self.binarizer.get_black_matrix().cloned())?;
-        Ok(self.matrix.get_mut().unwrap())
+        self.matrix.get_mut().ok_or_else(|| {
+            Exceptions::illegal_state_with("black matrix cache was not initialized")
+        })
     }
 
     /**

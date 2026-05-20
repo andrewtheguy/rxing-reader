@@ -171,7 +171,7 @@ impl GenericGFPoly {
             ));
         }
         if self.is_zero() || other.is_zero() {
-            return Ok(self.get_zero());
+            return self.get_zero();
         }
         let a_coefficients = self.coefficients.clone();
         let a_length = a_coefficients.len();
@@ -190,12 +190,12 @@ impl GenericGFPoly {
         GenericGFPoly::new(self.field, &product)
     }
 
-    pub fn multiply_with_scalar(&self, scalar: i32) -> GenericGFPoly {
+    pub fn multiply_with_scalar(&self, scalar: i32) -> Result<GenericGFPoly> {
         if scalar == 0 {
             return self.get_zero();
         }
         if scalar == 1 {
-            return self.clone();
+            return Ok(self.clone());
         }
         let size = self.coefficients.len();
 
@@ -203,20 +203,20 @@ impl GenericGFPoly {
         for (i, prod) in product.iter_mut().enumerate().take(size) {
             *prod = self.field.multiply(self.coefficients[i], scalar);
         }
-        GenericGFPoly::new(self.field, &product).unwrap()
+        GenericGFPoly::new(self.field, &product)
     }
 
-    pub fn get_zero(&self) -> Self {
-        GenericGFPoly::new(self.field, &[0]).unwrap()
+    pub fn get_zero(&self) -> Result<Self> {
+        GenericGFPoly::new(self.field, &[0])
     }
 
-    pub fn get_one(&self) -> Self {
-        GenericGFPoly::new(self.field, &[1]).unwrap()
+    pub fn get_one(&self) -> Result<Self> {
+        GenericGFPoly::new(self.field, &[1])
     }
 
     pub fn multiply_by_monomial(&self, degree: usize, coefficient: i32) -> Result<GenericGFPoly> {
         if coefficient == 0 {
-            return Ok(self.get_zero());
+            return self.get_zero();
         }
         let size = self.coefficients.len();
         let mut product = vec![0; size + degree];
@@ -236,7 +236,7 @@ impl GenericGFPoly {
             return Err(Exceptions::illegal_argument_with("Divide by 0"));
         }
 
-        let mut quotient = self.get_zero();
+        let mut quotient = self.get_zero()?;
         let mut remainder = self.clone();
 
         let denominator_leading_term = other.get_coefficient(other.get_degree());
@@ -252,7 +252,8 @@ impl GenericGFPoly {
                 inverse_denominator_leading_term,
             );
             let term = other.multiply_by_monomial(degree_difference, scale)?;
-            let iteration_quotient = GenericGF::build_monomial(self.field, degree_difference, scale);
+            let iteration_quotient =
+                GenericGF::build_monomial(self.field, degree_difference, scale)?;
             quotient = quotient.add_or_subtract(&iteration_quotient)?;
             remainder = remainder.add_or_subtract(&term)?;
         }

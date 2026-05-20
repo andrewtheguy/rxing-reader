@@ -640,7 +640,7 @@ impl BitMatrix {
      */
     fn build_to_string(&self, set_string: &str, unset_string: &str, line_separator: &str) -> String {
         let mut result =
-            String::with_capacity((self.height * (self.width + 1)).try_into().unwrap());
+            String::with_capacity((self.height as usize).saturating_mul((self.width as usize).saturating_add(1)));
         for y in 0..self.height {
             for x in 0..self.width {
                 result.push_str(if self.get(x, y) {
