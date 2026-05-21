@@ -126,6 +126,19 @@ pub fn read_qr_codes_rgba(
 /// — one per detected symbol — carrying both the payload and the QR
 /// metadata extracted during decoding.
 ///
+/// The `binary` flag selects the payload representation uniformly across
+/// every entry returned by the call (so callers know which field to read
+/// up front):
+///
+/// - `binary = false` → each entry carries `text: string`. Valid UTF-8
+///   payloads decode directly; for invalid UTF-8 each byte maps to its
+///   Latin-1 code point (byte = char), so the round-trip is lossless.
+///   The JS value is a native string with real Unicode code points; the
+///   `\uXXXX` ASCII escaping behavior is a JSON-wire concern handled by
+///   `rxing-cli`, not by the wasm export.
+/// - `binary = true` → each entry carries `bytes_b64: string`, base64
+///   (STANDARD alphabet) of the raw payload bytes.
+///
 /// Each entry has the shape:
 /// ```js
 /// {
@@ -136,13 +149,13 @@ pub fn read_qr_codes_rgba(
 ///   structured_append: { index, count, parity } | undefined,
 ///   ecis: ["UTF8", ...],
 ///   symbology: { code: "Q", modifier: "1", ai_flag: "None" },
-///   // exactly one of:
-///   text: "hello"                     // when the payload decodes as UTF-8
-///   // or:
-///   bytes_b64: "..."                  // when it does not
+///   // when binary=false:
+///   text: "hello"
+///   // when binary=true:
+///   bytes_b64: "aGVsbG8="
 /// }
 /// ```
-/// Argument semantics match [`read_qr_codes_rgba`].
+/// Other argument semantics match [`read_qr_codes_rgba`].
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
 pub fn read_qr_codes_rgba_detailed(
@@ -154,6 +167,7 @@ pub fn read_qr_codes_rgba_detailed(
     use_hybrid_binarizer: bool,
     binarizer_fallback: bool,
     max_number_of_symbols: u32,
+    binary: bool,
 ) -> Result<JsValue, JsValue> {
     let width = width as usize;
     let height = height as usize;
@@ -170,6 +184,9 @@ pub fn read_qr_codes_rgba_detailed(
         max_number_of_symbols,
     )?;
 
-    let views: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
+    let views: Vec<SymbolView> = symbols
+        .into_iter()
+        .map(|s| symbol_to_view(s, binary))
+        .collect();
     serde_wasm_bindgen::to_value(&views).map_err(|e| JsValue::from_str(&e.to_string()))
 }

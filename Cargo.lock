@@ -774,6 +774,7 @@ dependencies = [
  "clap",
  "image",
  "rxing-reader",
+ "serde",
  "serde_json",
  "ureq",
 ]

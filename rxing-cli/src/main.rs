@@ -3,12 +3,13 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use clap::{Parser, ValueEnum};
 use image::ImageReader;
 use rxing_reader::json_view::{SymbolView, symbol_to_view};
 use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
+use serde::Serialize;
 
 const MAX_HTTP_BODY: u64 = 64 * 1024 * 1024;
 
@@ -25,6 +26,13 @@ struct Cli {
     /// Output format. `text` prints one payload; `json` prints all detections.
     #[arg(long, value_enum, default_value_t = Format::Text)]
     format: Format,
+
+    /// Emit payloads as `bytes_b64` (base64 of raw bytes) uniformly across
+    /// every symbol, instead of decoding to text. When unset, payloads
+    /// decode as UTF-8 (Latin-1 fallback for invalid bytes); JSON output
+    /// escapes non-ASCII as `\uXXXX`.
+    #[arg(long, default_value_t = false)]
+    binary: bool,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -53,7 +61,7 @@ fn run() -> Result<ExitCode> {
         Format::Json => 0,
     };
     let symbols = decode_symbols(&rgba, w, h, max)?;
-    render(symbols, cli.format)
+    render(symbols, cli.format, cli.binary)
 }
 
 fn load_bytes(source: &str) -> Result<Vec<u8>> {
@@ -110,24 +118,136 @@ fn decode_symbols(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<QrS
     Ok(fallback)
 }
 
-fn render(symbols: Vec<QrSymbol>, format: Format) -> Result<ExitCode> {
+fn render(symbols: Vec<QrSymbol>, format: Format, binary: bool) -> Result<ExitCode> {
     match format {
         Format::Text => match symbols.into_iter().next() {
             None => Ok(ExitCode::from(1)),
             Some(symbol) => {
-                match std::str::from_utf8(&symbol.bytes) {
-                    Ok(s) => println!("{s}"),
-                    Err(_) => println!("base64:{}", BASE64.encode(&symbol.bytes)),
+                if binary {
+                    println!("base64:{}", BASE64.encode(&symbol.bytes));
+                } else {
+                    let text = match std::str::from_utf8(&symbol.bytes) {
+                        Ok(s) => s.to_string(),
+                        Err(_) => symbol.bytes.iter().map(|&b| b as char).collect(),
+                    };
+                    println!("{text}");
                 }
                 Ok(ExitCode::SUCCESS)
             }
         },
         Format::Json => {
-            let entries: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
+            let entries: Vec<SymbolView> = symbols
+                .into_iter()
+                .map(|s| symbol_to_view(s, binary))
+                .collect();
             let mut stdout = io::stdout().lock();
-            serde_json::to_writer(&mut stdout, &entries).context("writing JSON to stdout")?;
+            let mut ser =
+                serde_json::Serializer::with_formatter(&mut stdout, AsciiOnlyFormatter);
+            entries
+                .serialize(&mut ser)
+                .context("writing JSON to stdout")?;
             stdout.write_all(b"\n").context("writing trailing newline")?;
             Ok(ExitCode::SUCCESS)
         }
+    }
+}
+
+/// `serde_json::Formatter` that escapes any non-ASCII code point as
+/// `\uXXXX` (with a surrogate pair for code points above U+FFFF), so the
+/// JSON wire output is pure ASCII regardless of payload content —
+/// matching Python's `json.dumps(..., ensure_ascii=True)`. The default
+/// formatter routes non-ASCII through `write_string_fragment` unchanged,
+/// so that's the only override needed; quote/backslash/control escapes
+/// retain default behavior.
+struct AsciiOnlyFormatter;
+
+impl serde_json::ser::Formatter for AsciiOnlyFormatter {
+    fn write_string_fragment<W>(&mut self, writer: &mut W, fragment: &str) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        let bytes = fragment.as_bytes();
+        let mut start = 0;
+        for (idx, ch) in fragment.char_indices() {
+            if ch.is_ascii() {
+                continue;
+            }
+            if start < idx {
+                writer.write_all(&bytes[start..idx])?;
+            }
+            let code = ch as u32;
+            if code <= 0xFFFF {
+                write!(writer, "\\u{code:04x}")?;
+            } else {
+                let c = code - 0x10000;
+                let high = 0xD800 + (c >> 10);
+                let low = 0xDC00 + (c & 0x3FF);
+                write!(writer, "\\u{high:04x}\\u{low:04x}")?;
+            }
+            start = idx + ch.len_utf8();
+        }
+        if start < bytes.len() {
+            writer.write_all(&bytes[start..])?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn to_ascii_json<T: Serialize>(value: &T) -> String {
+        let mut buf: Vec<u8> = Vec::new();
+        {
+            let mut ser = serde_json::Serializer::with_formatter(&mut buf, AsciiOnlyFormatter);
+            value.serialize(&mut ser).unwrap();
+        }
+        String::from_utf8(buf).unwrap()
+    }
+
+    #[derive(Serialize)]
+    struct StrField<'a> {
+        text: &'a str,
+    }
+
+    #[test]
+    fn ascii_payload_unchanged() {
+        let s = to_ascii_json(&StrField { text: "hello" });
+        assert_eq!(s, r#"{"text":"hello"}"#);
+        assert!(s.is_ascii());
+    }
+
+    #[test]
+    fn latin1_supplement_escaped_as_u00xx() {
+        let s = to_ascii_json(&StrField { text: "héllo" });
+        assert_eq!(s, r#"{"text":"h\u00e9llo"}"#);
+        assert!(s.is_ascii());
+    }
+
+    #[test]
+    fn bmp_non_ascii_escaped() {
+        let s = to_ascii_json(&StrField { text: "日本" });
+        assert_eq!(s, r#"{"text":"\u65e5\u672c"}"#);
+        assert!(s.is_ascii());
+    }
+
+    #[test]
+    fn supplementary_plane_emits_surrogate_pair() {
+        // U+1F600 GRINNING FACE → high D83D, low DE00.
+        let s = to_ascii_json(&StrField { text: "\u{1F600}" });
+        assert_eq!(s, r#"{"text":"\ud83d\ude00"}"#);
+        assert!(s.is_ascii());
+    }
+
+    #[test]
+    fn control_chars_still_use_default_escapes() {
+        // Default formatter behavior for "\n" and '"' must be preserved —
+        // our override only handles non-ASCII; quotes/backslash/control
+        // escapes come from the trait defaults.
+        let s = to_ascii_json(&StrField {
+            text: "a\n\"b",
+        });
+        assert_eq!(s, r#"{"text":"a\n\"b"}"#);
     }
 }

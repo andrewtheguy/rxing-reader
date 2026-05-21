@@ -4,7 +4,19 @@
 //! (serializes to a JS array of objects via `serde-wasm-bindgen`). Both
 //! consumers enable rxing-reader's `serde` feature.
 //!
-//! The on-wire shape is:
+//! Payload representation is controlled per call via the `binary` toggle
+//! passed to [`symbol_to_view`]; the choice is uniform across every
+//! symbol in the call, so consumers know up front which field to read.
+//!
+//! - `binary = false` → flattened `text: String`. Valid UTF-8 payloads
+//!   decode directly; for invalid UTF-8, each byte is mapped to its
+//!   Latin-1 code point (byte = `char`), keeping the round-trip
+//!   lossless. CLI JSON output escapes non-ASCII as `\uXXXX`, so the
+//!   wire bytes are pure ASCII regardless of payload content.
+//! - `binary = true` → flattened `bytes_b64: String` carrying base64
+//!   (STANDARD alphabet) of the raw payload bytes.
+//!
+//! The on-wire shape (with `binary = false`) is:
 //! ```json
 //! {
 //!   "version": 4,
@@ -17,8 +29,6 @@
 //!   "text": "hello"
 //! }
 //! ```
-//! Exactly one of `text` (UTF-8 valid payload) or `bytes_b64` (otherwise) is
-//! present, flattened into the parent object.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -62,12 +72,17 @@ pub enum PayloadView {
     BytesB64 { bytes_b64: String },
 }
 
-pub fn symbol_to_view(symbol: QrSymbol) -> SymbolView {
-    let payload = match std::str::from_utf8(&symbol.bytes) {
-        Ok(s) => PayloadView::Text { text: s.to_string() },
-        Err(_) => PayloadView::BytesB64 {
+pub fn symbol_to_view(symbol: QrSymbol, binary: bool) -> SymbolView {
+    let payload = if binary {
+        PayloadView::BytesB64 {
             bytes_b64: BASE64.encode(&symbol.bytes),
-        },
+        }
+    } else {
+        let text = match std::str::from_utf8(&symbol.bytes) {
+            Ok(s) => s.to_string(),
+            Err(_) => symbol.bytes.iter().map(|&b| b as char).collect(),
+        };
+        PayloadView::Text { text }
     };
     SymbolView {
         version: symbol.version,
@@ -110,5 +125,76 @@ pub fn ai_flag_str(f: AIFlag) -> &'static str {
         AIFlag::None => "None",
         AIFlag::GS1 => "GS1",
         AIFlag::Aim => "Aim",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ErrorCorrectionLevel;
+
+    fn symbol_with_bytes(bytes: Vec<u8>) -> QrSymbol {
+        QrSymbol {
+            bytes,
+            version: 1,
+            error_correction_level: ErrorCorrectionLevel::M,
+            mask: 0,
+            modes: Vec::new(),
+            structured_append: None,
+            ecis: Vec::new(),
+            symbology: SymbologyIdentifier::default(),
+        }
+    }
+
+    #[test]
+    fn text_mode_ascii_payload() {
+        let view = symbol_to_view(symbol_with_bytes(b"hello".to_vec()), false);
+        match view.payload {
+            PayloadView::Text { text } => assert_eq!(text, "hello"),
+            PayloadView::BytesB64 { .. } => panic!("expected text variant"),
+        }
+    }
+
+    #[test]
+    fn text_mode_valid_utf8_payload() {
+        let view = symbol_to_view(symbol_with_bytes("héllo".as_bytes().to_vec()), false);
+        match view.payload {
+            PayloadView::Text { text } => assert_eq!(text, "héllo"),
+            PayloadView::BytesB64 { .. } => panic!("expected text variant"),
+        }
+    }
+
+    #[test]
+    fn text_mode_invalid_utf8_maps_byte_to_latin1_char() {
+        let raw = vec![0xFFu8, 0xFE, 0x00, b'A'];
+        let view = symbol_to_view(symbol_with_bytes(raw.clone()), false);
+        let text = match view.payload {
+            PayloadView::Text { text } => text,
+            PayloadView::BytesB64 { .. } => panic!("expected text variant"),
+        };
+        let chars: Vec<u32> = text.chars().map(|c| c as u32).collect();
+        let expected: Vec<u32> = raw.iter().map(|&b| b as u32).collect();
+        assert_eq!(chars, expected);
+    }
+
+    #[test]
+    fn binary_mode_emits_base64_for_ascii_payload() {
+        let view = symbol_to_view(symbol_with_bytes(b"hello".to_vec()), true);
+        match view.payload {
+            PayloadView::BytesB64 { bytes_b64 } => assert_eq!(bytes_b64, "aGVsbG8="),
+            PayloadView::Text { .. } => panic!("expected bytes_b64 variant"),
+        }
+    }
+
+    #[test]
+    fn binary_mode_emits_base64_for_invalid_utf8() {
+        let raw = vec![0xFFu8, 0xFE, 0x00, b'A'];
+        let view = symbol_to_view(symbol_with_bytes(raw.clone()), true);
+        match view.payload {
+            PayloadView::BytesB64 { bytes_b64 } => {
+                assert_eq!(bytes_b64, BASE64.encode(&raw));
+            }
+            PayloadView::Text { .. } => panic!("expected bytes_b64 variant"),
+        }
     }
 }
