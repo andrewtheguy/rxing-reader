@@ -541,7 +541,11 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
     const PREV_IDX: isize = -1;
 
     if view.size() < min_size {
-        anyhow::bail!(Error::invalid_state("required internal state is missing"));
+        anyhow::bail!(Error::invalid_state(format!(
+            "view size {} is less than required min_size {}",
+            view.size(),
+            min_size
+        )));
     }
 
     let mut window = view.sub_view(0, LEN);
@@ -563,7 +567,7 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         window.skip_pair();
     }
 
-    anyhow::bail!(Error::invalid_state("required internal state is missing"));
+    anyhow::bail!(Error::invalid_state("no matching guard pattern found"));
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

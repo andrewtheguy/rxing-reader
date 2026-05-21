@@ -74,7 +74,7 @@ impl PerspectiveTransform {
     pub fn quadrilateral_to_quadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
         ensure!(
             src.is_convex() && dst.is_convex(),
-            Error::invalid_state("required internal state is missing")
+            Error::invalid_state("src and dst quadrilaterals must be convex")
         );
         let q_to_s = PerspectiveTransform::quadrilateral_to_square(dst)
             .context("building destination-to-square perspective transform")?;
@@ -100,7 +100,7 @@ impl PerspectiveTransform {
         for point in points.iter_mut() {
             *point = self
                 .transform_point(*point)
-                .with_context(|| Error::not_found("QR pattern was not detected"))?;
+                .with_context(|| Error::not_found("perspective transform degenerate: denominator below epsilon"))?;
         }
         Ok(())
     }
