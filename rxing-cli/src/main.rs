@@ -7,9 +7,12 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use clap::{Parser, ValueEnum};
 use image::ImageReader;
-use rxing_reader::json_view::{SymbolView, symbol_to_view};
 use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 use serde::Serialize;
+
+use crate::json_view::{SymbolView, symbol_to_view};
+
+mod json_view;
 
 const MAX_HTTP_BODY: u64 = 64 * 1024 * 1024;
 

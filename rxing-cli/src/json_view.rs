@@ -1,8 +1,9 @@
-//! Serde-serializable view of a [`QrSymbol`] for emission to JSON / JS.
+//! Serde-serializable view of a [`QrSymbol`] for emission to JSON.
 //!
-//! Shared by `rxing-cli` (writes a JSON array to stdout) and `rxing-wasm`
-//! (serializes to a JS array of objects via `serde-wasm-bindgen`). Both
-//! consumers enable rxing-reader's `serde` feature.
+//! Used by `rxing-cli` to write a JSON array to stdout. The wasm crate
+//! does not depend on this module — it returns native JS objects with
+//! `bytes: Uint8Array` directly, so text/base64 encoding is a
+//! CLI-only concern.
 //!
 //! Payload representation is controlled per call via the `binary` toggle
 //! passed to [`symbol_to_view`]; the choice is uniform across every
@@ -11,7 +12,7 @@
 //! - `binary = false` → flattened `text: String`. Valid UTF-8 payloads
 //!   decode directly; for invalid UTF-8, each byte is mapped to its
 //!   Latin-1 code point (byte = `char`), keeping the round-trip
-//!   lossless. CLI JSON output escapes non-ASCII as `\uXXXX`, so the
+//!   lossless. The JSON output escapes non-ASCII as `\uXXXX`, so the
 //!   wire bytes are pure ASCII regardless of payload content.
 //! - `binary = true` → flattened `bytes_b64: String` carrying base64
 //!   (STANDARD alphabet) of the raw payload bytes.
@@ -32,9 +33,8 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use rxing_reader::{AIFlag, QrSymbol, StructuredAppendInfo, SymbologyIdentifier};
 use serde::Serialize;
-
-use crate::{AIFlag, QrSymbol, StructuredAppendInfo, SymbologyIdentifier};
 
 #[derive(Serialize)]
 pub struct SymbolView {
@@ -131,7 +131,7 @@ pub fn ai_flag_str(f: AIFlag) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ErrorCorrectionLevel;
+    use rxing_reader::ErrorCorrectionLevel;
 
     fn symbol_with_bytes(bytes: Vec<u8>) -> QrSymbol {
         QrSymbol {

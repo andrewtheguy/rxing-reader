@@ -784,7 +784,6 @@ name = "rxing-reader"
 version = "0.0.11"
 dependencies = [
  "anyhow",
- "base64",
  "bitvec",
  "chrono",
  "codepage-437",
@@ -793,7 +792,6 @@ dependencies = [
  "multimap",
  "num",
  "once_cell",
- "serde",
  "thiserror",
 ]
 

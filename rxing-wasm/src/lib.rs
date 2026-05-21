@@ -1,6 +1,24 @@
-use rxing_reader::json_view::{ai_flag_str, ascii_byte_string};
-use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
+use rxing_reader::{AIFlag, QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 use wasm_bindgen::prelude::*;
+
+/// Render the single-byte ID portion (`code` / `modifier`) of a
+/// [`SymbologyIdentifier`] as a JS string: empty when the byte is zero,
+/// otherwise the byte as an ASCII char.
+fn ascii_byte_string(b: u8) -> String {
+    if b == 0 {
+        String::new()
+    } else {
+        String::from(b as char)
+    }
+}
+
+fn ai_flag_str(f: AIFlag) -> &'static str {
+    match f {
+        AIFlag::None => "None",
+        AIFlag::GS1 => "GS1",
+        AIFlag::Aim => "Aim",
+    }
+}
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_DETAILED_QR_SYMBOL: &'static str = r#"
@@ -102,7 +120,7 @@ fn read_luma(
 /// themselves (e.g. `new TextDecoder().decode(bytes)`). For per-symbol
 /// metadata (version, EC level, mask, modes, etc.) use
 /// [`read_qr_codes_rgba_detailed`].
-#[wasm_bindgen(unchecked_return_type = "Uint8Array[]")]
+#[wasm_bindgen]
 #[allow(clippy::too_many_arguments)] // wasm-bindgen call shape; packing into a struct hurts the JS side
 pub fn read_qr_codes_rgba(
     rgba: &[u8],

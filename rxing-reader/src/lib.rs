@@ -2,9 +2,6 @@ mod common;
 mod decode;
 mod error;
 
-#[cfg(feature = "serde")]
-pub mod json_view;
-
 use binarizer::Binarizer;
 use binary_bitmap::BinaryBitmap;
 use decode_hints::DecodeHints;
