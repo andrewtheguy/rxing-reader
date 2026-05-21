@@ -120,7 +120,7 @@ fn read_luma(
 /// themselves (e.g. `new TextDecoder().decode(bytes)`). For per-symbol
 /// metadata (version, EC level, mask, modes, etc.) use
 /// [`read_qr_codes_rgba_detailed`].
-#[wasm_bindgen]
+#[wasm_bindgen(unchecked_return_type = "Uint8Array[]")]
 #[allow(clippy::too_many_arguments)] // wasm-bindgen call shape; packing into a struct hurts the JS side
 pub fn read_qr_codes_rgba(
     rgba: &[u8],
