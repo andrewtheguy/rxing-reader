@@ -3,8 +3,6 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use clap::{Parser, ValueEnum};
 use image::ImageReader;
 use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
@@ -30,10 +28,9 @@ struct Cli {
     #[arg(long, value_enum, default_value_t = Format::Text)]
     format: Format,
 
-    /// Emit payloads as `bytes_b64` (base64 of raw bytes) uniformly across
-    /// every symbol, instead of decoding to text. When unset, payloads
-    /// decode as UTF-8 (Latin-1 fallback for invalid bytes); JSON output
-    /// escapes non-ASCII as `\uXXXX`.
+    /// JSON-only. Emit each symbol's payload as `bytes_b64` (base64 of
+    /// raw bytes) uniformly across every detection, instead of `text`.
+    /// Rejected when `--format` is anything other than `json`.
     #[arg(long, default_value_t = false)]
     binary: bool,
 }
@@ -56,6 +53,9 @@ fn main() -> ExitCode {
 
 fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
+    if cli.binary && !matches!(cli.format, Format::Json) {
+        anyhow::bail!("--binary is only valid with --format json");
+    }
     let bytes = load_bytes(&cli.source)?;
     let (rgba, w, h) = decode_image_bytes(&bytes)
         .with_context(|| format!("failed to decode image from {}", cli.source))?;
@@ -126,15 +126,11 @@ fn render(symbols: Vec<QrSymbol>, format: Format, binary: bool) -> Result<ExitCo
         Format::Text => match symbols.into_iter().next() {
             None => Ok(ExitCode::from(1)),
             Some(symbol) => {
-                if binary {
-                    println!("base64:{}", BASE64.encode(&symbol.bytes));
-                } else {
-                    let text = match std::str::from_utf8(&symbol.bytes) {
-                        Ok(s) => s.to_string(),
-                        Err(_) => symbol.bytes.iter().map(|&b| b as char).collect(),
-                    };
-                    println!("{text}");
-                }
+                let text: String = match std::str::from_utf8(&symbol.bytes) {
+                    Ok(s) => s.to_string(),
+                    Err(_) => symbol.bytes.iter().map(|&b| b as char).collect(),
+                };
+                println!("{text}");
                 Ok(ExitCode::SUCCESS)
             }
         },

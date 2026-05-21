@@ -128,9 +128,10 @@ rxing-cli qr.png
 rxing-cli --format json https://example.com/qr.png
 # [{"text":"https://qr-code-styling.com"},{"text":"jfghjghjghfkghjkghj"}]
 
-# Pass --binary to emit every payload as base64 instead of text. The
-# choice applies uniformly to every detection in the call, so consumers
-# don't have to probe each entry for shape.
+# JSON-only: pass --binary to emit every payload as base64 instead of
+# text. The choice applies uniformly to every detection in the call, so
+# consumers don't have to probe each entry for shape. Combining --binary
+# with --format text (or no --format) is rejected with an error.
 rxing-cli --format json --binary qr.png
 # [{"bytes_b64":"aGVsbG8="}]
 ```
