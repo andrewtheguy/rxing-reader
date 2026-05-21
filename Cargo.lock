@@ -767,7 +767,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "rxing-cli"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "base64",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "rxing-reader"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "base64",
@@ -798,7 +798,7 @@ dependencies = [
 
 [[package]]
 name = "rxing-wasm"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "js-sys",
  "rxing-reader",
