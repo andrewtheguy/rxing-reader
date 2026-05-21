@@ -1,6 +1,38 @@
-use rxing_reader::json_view::{SymbolView, symbol_to_view};
-use rxing_reader::{QrSymbol, decode_qr_codes_luma, rgba_to_luma};
+use rxing_reader::{AIFlag, QrSymbol, decode_qr_codes_luma, rgba_to_luma};
 use wasm_bindgen::prelude::*;
+
+/// Render the single-byte ID portion (`code` / `modifier`) of a
+/// [`SymbologyIdentifier`] as a JS string: empty when the byte is zero,
+/// otherwise the byte as an ASCII char.
+fn ascii_byte_string(b: u8) -> String {
+    if b == 0 {
+        String::new()
+    } else {
+        String::from(b as char)
+    }
+}
+
+fn ai_flag_str(f: AIFlag) -> &'static str {
+    match f {
+        AIFlag::None => "None",
+        AIFlag::GS1 => "GS1",
+        AIFlag::Aim => "Aim",
+    }
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TS_DETAILED_QR_SYMBOL: &'static str = r#"
+export interface DetailedQrSymbol {
+    version: number;
+    error_correction_level: "L" | "M" | "Q" | "H";
+    mask: number;
+    modes: string[];
+    structured_append?: { index: number; count: number; parity: number };
+    ecis: string[];
+    symbology: { code: string; modifier: string; ai_flag: "None" | "GS1" | "Aim" };
+    bytes: Uint8Array;
+}
+"#;
 
 /// Run the decode pipeline once with `use_hybrid_binarizer`, then — when
 /// `binarizer_fallback` is set and the first pass produced nothing — once
@@ -88,7 +120,7 @@ fn read_luma(
 /// themselves (e.g. `new TextDecoder().decode(bytes)`). For per-symbol
 /// metadata (version, EC level, mask, modes, etc.) use
 /// [`read_qr_codes_rgba_detailed`].
-#[wasm_bindgen]
+#[wasm_bindgen(unchecked_return_type = "Uint8Array[]")]
 #[allow(clippy::too_many_arguments)] // wasm-bindgen call shape; packing into a struct hurts the JS side
 pub fn read_qr_codes_rgba(
     rgba: &[u8],
@@ -122,9 +154,9 @@ pub fn read_qr_codes_rgba(
     Ok(out)
 }
 
-/// Read every QR code in raw RGBA pixels, returning a JS `Array` of objects
-/// — one per detected symbol — carrying both the payload and the QR
-/// metadata extracted during decoding.
+/// Read every QR code in raw RGBA pixels, returning a JS `Array` of plain
+/// objects — one per detected symbol — carrying both the raw payload and
+/// the QR metadata extracted during decoding.
 ///
 /// Each entry has the shape:
 /// ```js
@@ -136,14 +168,16 @@ pub fn read_qr_codes_rgba(
 ///   structured_append: { index, count, parity } | undefined,
 ///   ecis: ["UTF8", ...],
 ///   symbology: { code: "Q", modifier: "1", ai_flag: "None" },
-///   // exactly one of:
-///   text: "hello"                     // when the payload decodes as UTF-8
-///   // or:
-///   bytes_b64: "..."                  // when it does not
+///   bytes: Uint8Array(...)            // raw payload bytes
 /// }
 /// ```
-/// Argument semantics match [`read_qr_codes_rgba`].
-#[wasm_bindgen]
+///
+/// `bytes` is a `Uint8Array` view of the raw decoded payload — no UTF-8
+/// or base64 conversion happens on the wasm side. JS callers that need
+/// text decode it themselves (`new TextDecoder().decode(entry.bytes)`),
+/// which lets them pick the encoding and fallback strategy. Other
+/// argument semantics match [`read_qr_codes_rgba`].
+#[wasm_bindgen(unchecked_return_type = "DetailedQrSymbol[]")]
 #[allow(clippy::too_many_arguments)]
 pub fn read_qr_codes_rgba_detailed(
     rgba: &[u8],
@@ -170,6 +204,70 @@ pub fn read_qr_codes_rgba_detailed(
         max_number_of_symbols,
     )?;
 
-    let views: Vec<SymbolView> = symbols.into_iter().map(symbol_to_view).collect();
-    serde_wasm_bindgen::to_value(&views).map_err(|e| JsValue::from_str(&e.to_string()))
+    let out = js_sys::Array::new_with_length(symbols.len() as u32);
+    for (i, symbol) in symbols.into_iter().enumerate() {
+        out.set(i as u32, symbol_to_js_object(symbol)?.into());
+    }
+    Ok(out.into())
+}
+
+/// Build a plain JS object mirroring the fields of a [`QrSymbol`], with
+/// `bytes` exposed as a `Uint8Array` rather than re-encoded. Returns the
+/// object as a `js_sys::Object` so the caller can either treat it as
+/// such or `.into()` it to `JsValue`.
+fn symbol_to_js_object(symbol: QrSymbol) -> Result<js_sys::Object, JsValue> {
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(&obj, &"version".into(), &symbol.version.into())?;
+    js_sys::Reflect::set(
+        &obj,
+        &"error_correction_level".into(),
+        &symbol.error_correction_level.to_string().into(),
+    )?;
+    js_sys::Reflect::set(&obj, &"mask".into(), &u32::from(symbol.mask).into())?;
+
+    let modes = js_sys::Array::new();
+    for m in &symbol.modes {
+        modes.push(&m.to_string().into());
+    }
+    js_sys::Reflect::set(&obj, &"modes".into(), &modes)?;
+
+    if let Some(sa) = &symbol.structured_append {
+        let sa_obj = js_sys::Object::new();
+        js_sys::Reflect::set(&sa_obj, &"index".into(), &u32::from(sa.index).into())?;
+        js_sys::Reflect::set(&sa_obj, &"count".into(), &u32::from(sa.count).into())?;
+        js_sys::Reflect::set(&sa_obj, &"parity".into(), &u32::from(sa.parity).into())?;
+        js_sys::Reflect::set(&obj, &"structured_append".into(), &sa_obj)?;
+    }
+
+    let ecis = js_sys::Array::new();
+    for e in &symbol.ecis {
+        ecis.push(&e.to_string().into());
+    }
+    js_sys::Reflect::set(&obj, &"ecis".into(), &ecis)?;
+
+    let sym = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &sym,
+        &"code".into(),
+        &ascii_byte_string(symbol.symbology.code).into(),
+    )?;
+    js_sys::Reflect::set(
+        &sym,
+        &"modifier".into(),
+        &ascii_byte_string(symbol.symbology.modifier).into(),
+    )?;
+    js_sys::Reflect::set(
+        &sym,
+        &"ai_flag".into(),
+        &ai_flag_str(symbol.symbology.ai_flag).into(),
+    )?;
+    js_sys::Reflect::set(&obj, &"symbology".into(), &sym)?;
+
+    js_sys::Reflect::set(
+        &obj,
+        &"bytes".into(),
+        &js_sys::Uint8Array::from(symbol.bytes.as_slice()),
+    )?;
+
+    Ok(obj)
 }

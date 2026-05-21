@@ -117,15 +117,23 @@ The CLI accepts a local file path or an http(s) URL and supports two
 output formats:
 
 ```sh
-# Plain text (default). Caps decode at 1 result; non-UTF-8 payloads
-# are printed as `base64:<b64>`. Exits 1 when no QR is found.
+# Plain text (default). Caps decode at 1 result; invalid UTF-8 bytes are
+# mapped to Latin-1 code points (byte = char). Exits 1 when no QR is found.
 rxing-cli qr.png
 # jfghjghjghfkghjkghj
 
-# JSON. Returns every detection as an array; each entry has a
-# `text` field (for UTF-8 payloads) or `bytes_b64` (for binary).
+# JSON. Returns every detection as an array; each entry has a `text`
+# field. Non-ASCII code points are escaped as `\uXXXX` so the wire
+# bytes are pure ASCII (matches Python `json.dumps(ensure_ascii=True)`).
 rxing-cli --format json https://example.com/qr.png
 # [{"text":"https://qr-code-styling.com"},{"text":"jfghjghjghfkghjkghj"}]
+
+# JSON-only: pass --binary to emit every payload as base64 instead of
+# text. The choice applies uniformly to every detection in the call, so
+# consumers don't have to probe each entry for shape. Combining --binary
+# with --format text (or no --format) is rejected with an error.
+rxing-cli --format json --binary qr.png
+# [{"bytes_b64":"aGVsbG8="}]
 ```
 
 Decode-pipeline flags (`try_harder`, `try_invert`, binarizer choice,
