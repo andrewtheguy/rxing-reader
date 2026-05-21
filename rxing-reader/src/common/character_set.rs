@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+use anyhow::{Context, Result, bail, ensure};
+
 use crate::Error;
-use anyhow::Result;
 
 /// Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1
 /// of ISO 18004.
@@ -99,42 +100,30 @@ impl CharacterSet {
                 Ok(String::borrow_from_cp437(input, &CP437_CONTROL))
             }
             CharacterSet::UTF32BE => {
-                if !input.len().is_multiple_of(4) {
-                    return Err(Error::InvalidFormat {
-                        message: "Invalid UTF-32BE: trailing bytes".into(),
-                    }
-                    .into());
-                }
+                ensure!(
+                    input.len().is_multiple_of(4),
+                    Error::invalid_format("Invalid UTF-32BE: trailing bytes")
+                );
                 input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_be_bytes([c[0], c[1], c[2], c[3]]);
-                        char::from_u32(val).ok_or_else(|| {
-                            Error::InvalidFormat {
-                                message: "Invalid UTF-32BE".into(),
-                            }
-                            .into()
-                        })
+                        char::from_u32(val)
+                            .with_context(|| Error::invalid_format("Invalid UTF-32BE"))
                     })
                     .collect()
             }
             CharacterSet::UTF32LE => {
-                if !input.len().is_multiple_of(4) {
-                    return Err(Error::InvalidFormat {
-                        message: "Invalid UTF-32LE: trailing bytes".into(),
-                    }
-                    .into());
-                }
+                ensure!(
+                    input.len().is_multiple_of(4),
+                    Error::invalid_format("Invalid UTF-32LE: trailing bytes")
+                );
                 input
                     .chunks_exact(4)
                     .map(|c| {
                         let val = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
-                        char::from_u32(val).ok_or_else(|| {
-                            Error::InvalidFormat {
-                                message: "Invalid UTF-32LE".into(),
-                            }
-                            .into()
-                        })
+                        char::from_u32(val)
+                            .with_context(|| Error::invalid_format("Invalid UTF-32LE"))
                     })
                     .collect()
             }
@@ -145,10 +134,7 @@ impl CharacterSet {
                 let mut s = String::with_capacity(input.len());
                 for &b in input {
                     if b > 0x7F {
-                        return Err(Error::InvalidFormat {
-                            message: "Invalid ASCII".into(),
-                        }
-                        .into());
+                        bail!(Error::invalid_format("Invalid ASCII"));
                     }
                     s.push(char::from(b));
                 }
@@ -158,17 +144,11 @@ impl CharacterSet {
                 if let Some(enc) = self.encoding() {
                     let (res, _, had_errors) = enc.decode(input);
                     if had_errors {
-                        return Err(Error::InvalidFormat {
-                            message: "Could not decode character".into(),
-                        }
-                        .into());
+                        bail!(Error::invalid_format("Could not decode character"));
                     }
                     Ok(res.into_owned())
                 } else {
-                    Err(Error::InvalidFormat {
-                        message: "Unsupported encoding".into(),
-                    }
-                    .into())
+                    bail!(Error::invalid_format("Unsupported encoding"));
                 }
             }
         }

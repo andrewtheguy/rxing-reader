@@ -12,8 +12,9 @@ use std::fmt;
 
 use bitvec::prelude::*;
 
+use anyhow::{Result, ensure};
+
 use crate::Error;
-use anyhow::Result;
 
 type BaseType = super::BitFieldBaseType;
 const BASE_BITS: usize = super::BIT_FIELD_BASE_BITS;
@@ -126,14 +127,12 @@ impl BitArray {
 
     pub fn set_range(&mut self, start: usize, end: usize) -> Result<()> {
         let len = self.bits.len();
-        if end < start || end > len {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            end >= start && end <= len,
+            Error::invalid_argument(format!(
                     "set_range: start={start}, end={end} out of range for bit array of length {len}"
-                ).into(),
-            }
-            .into());
-        }
+            ))
+        );
         if end == start {
             return Ok(());
         }
@@ -147,14 +146,12 @@ impl BitArray {
 
     pub fn is_range(&self, start: usize, end: usize, value: bool) -> Result<bool> {
         let len = self.bits.len();
-        if end < start || end > len {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            end >= start && end <= len,
+            Error::invalid_argument(format!(
                     "is_range: start={start}, end={end} out of range for bit array of length {len}"
-                ).into(),
-            }
-            .into());
-        }
+            ))
+        );
         if end == start {
             return Ok(true);
         }
@@ -169,12 +166,10 @@ impl BitArray {
     /// Appends the least-significant `num_bits` of `value`, from most-significant to
     /// least-significant. For example, appending 6 bits from 0x1E appends 0,1,1,1,1,0.
     pub fn append_bits(&mut self, value: BaseType, num_bits: usize) -> Result<()> {
-        if num_bits > BASE_BITS {
-            return Err(Error::InvalidArgument {
-                message: format!("num bits must be between 0 and {}", BaseType::BITS).into(),
-            }
-            .into());
-        }
+        ensure!(
+            num_bits <= BASE_BITS,
+            Error::invalid_argument(format!("num bits must be between 0 and {}", BaseType::BITS))
+        );
         for i in (0..num_bits).rev() {
             self.bits.push((value >> i) & 1 != 0);
         }
@@ -190,16 +185,14 @@ impl BitArray {
     }
 
     pub fn xor(&mut self, other: &BitArray) -> Result<()> {
-        if self.bits.len() != other.bits.len() {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            self.bits.len() == other.bits.len(),
+            Error::invalid_argument(format!(
                     "xor: bit array sizes differ (self={}, other={})",
                     self.bits.len(),
                     other.bits.len(),
-                ).into(),
-            }
-            .into());
-        }
+            ))
+        );
         self.bits ^= &other.bits;
         Ok(())
     }

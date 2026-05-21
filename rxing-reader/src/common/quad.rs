@@ -253,16 +253,13 @@ impl TryFrom<&[Point]> for Quadrilateral {
     type Error = anyhow::Error;
 
     fn try_from(value: &[Point]) -> Result<Self, Self::Error> {
-        if value.len() == 4 {
-            Ok(Self([value[0], value[1], value[2], value[3]]))
-        } else {
-            Err(Error::InvalidArgument {
-                message: format!(
+        anyhow::ensure!(
+            value.len() == 4,
+            Error::invalid_argument(format!(
                     "quadrilateral requires exactly 4 points, got {}",
                     value.len()
-                ).into(),
-            }
-            .into())
-        }
+                ))
+        );
+        Ok(Self([value[0], value[1], value[2], value[3]]))
     }
 }

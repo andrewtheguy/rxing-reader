@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 
 use crate::{Error, Point};
 
@@ -37,12 +37,10 @@ pub trait GridSampler {
         controls: &[SamplerControl],
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            }
-            .into());
+            bail!(Error::not_found("QR pattern was not detected"));
         }
-        let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
+        let mut bits = BitMatrix::new(dimension_x, dimension_y)
+            .context("building sampled QR grid matrix")?;
         let mut points = vec![Point::default(); dimension_x];
         for y in 0..dimension_y {
             let i_value = y as f32 + 0.5;
@@ -61,9 +59,7 @@ pub trait GridSampler {
             for (x, point) in points.iter().enumerate() {
                 if image
                     .try_at_point(*point)
-                    .ok_or(Error::NotFound {
-                        message: "grid point transformed outside image bounds".into(),
-                    })?
+                    .with_context(|| Error::not_found("grid point transformed outside image bounds"))?
                 {
                     // Black(-ish) pixel
                     bits.set(x, y);
@@ -89,11 +85,11 @@ pub trait GridSampler {
     ///
     /// Returns a not-found error if an endpoint is lies outside the image boundaries
     fn check_and_nudge_points(&self, image: &BitMatrix, points: &mut [Point]) -> Result<()> {
-        let width = i32::try_from(image.width()).map_err(|_| Error::InvalidArgument {
-            message: format!("image width {} does not fit in i32", image.width()).into(),
+        let width = i32::try_from(image.width()).with_context(|| {
+            Error::invalid_argument(format!("image width {} does not fit in i32", image.width()))
         })?;
-        let height = i32::try_from(image.height()).map_err(|_| Error::InvalidArgument {
-            message: format!("image height {} does not fit in i32", image.height()).into(),
+        let height = i32::try_from(image.height()).with_context(|| {
+            Error::invalid_argument(format!("image height {} does not fit in i32", image.height()))
         })?;
         // Check and nudge points from start until we see some that are OK:
         let mut nudged;
@@ -104,10 +100,7 @@ pub trait GridSampler {
         for point in points.iter_mut().take(max_offset) {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < NUDGE_OUTSIDE_MIN || x > width || y < NUDGE_OUTSIDE_MIN || y > height {
-                return Err(Error::NotFound {
-                    message: "QR pattern was not detected".into(),
-                }
-                .into());
+                bail!(Error::not_found("QR pattern was not detected"));
             }
             nudged = false;
             if x == NUDGE_OUTSIDE_MIN {
@@ -132,10 +125,7 @@ pub trait GridSampler {
         for point in points.iter_mut().rev().take(max_offset).rev() {
             let (x, y) = (point.x as i32, point.y as i32);
             if x < NUDGE_OUTSIDE_MIN || x > width || y < NUDGE_OUTSIDE_MIN || y > height {
-                return Err(Error::NotFound {
-                    message: "QR pattern was not detected".into(),
-                }
-                .into());
+                bail!(Error::not_found("QR pattern was not detected"));
             }
             nudged = false;
             if x == NUDGE_OUTSIDE_MIN {

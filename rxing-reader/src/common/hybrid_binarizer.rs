@@ -16,8 +16,9 @@
 
 use once_cell::sync::OnceCell;
 
+use anyhow::{Context, Result};
+
 use crate::{Binarizer, Error, LuminanceSource};
-use anyhow::Result;
 
 use super::{BitMatrix, GlobalHistogramBinarizer};
 
@@ -60,12 +61,9 @@ impl<LS: LuminanceSource> Binarizer for HybridBinarizer<LS> {
     fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.black_matrix
             .get_or_try_init(|| Self::calculate_black_matrix(&self.ghb))?;
-        self.black_matrix.get_mut().ok_or_else(|| {
-            Error::InvalidState {
-                message: "black matrix cache was not initialized".into(),
-            }
-            .into()
-        })
+        self.black_matrix
+            .get_mut()
+            .with_context(|| Error::invalid_state("black matrix cache was not initialized"))
     }
 }
 
@@ -99,7 +97,8 @@ impl<LS: LuminanceSource> HybridBinarizer<LS> {
             let black_points =
                 Self::calculate_black_points(&luminances, sub_width, sub_height, width, height);
 
-            let mut new_matrix = BitMatrix::new(width, height)?;
+            let mut new_matrix = BitMatrix::new(width, height)
+                .context("building hybrid binarizer bit matrix")?;
             Self::calculate_threshold_for_block(
                 &luminances,
                 sub_width,

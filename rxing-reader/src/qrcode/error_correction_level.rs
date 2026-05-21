@@ -17,8 +17,9 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
+use anyhow::{Result, bail};
+
 use crate::Error;
-use anyhow::Result;
 
 /// See ISO 18004:2006, 6.5.1. This enum encapsulates the four error correction levels
 /// defined by the QR code standard.
@@ -44,10 +45,9 @@ impl ErrorCorrectionLevel {
             1 => Ok(Self::L),
             2 => Ok(Self::H),
             3 => Ok(Self::Q),
-            _ => Err(Error::InvalidArgument {
-                message: format!("{bits} is not a valid bit selection").into(),
-            }
-            .into()),
+            _ => bail!(Error::invalid_argument(format!(
+                "{bits} is not a valid bit selection"
+            ))),
         }
     }
 
@@ -107,10 +107,9 @@ impl FromStr for ErrorCorrectionLevel {
             return number_possible.try_into();
         }
 
-        Err(Error::InvalidArgument {
-            message: format!("could not parse {s} into an ec level").into(),
-        }
-        .into())
+        bail!(Error::invalid_argument(format!(
+            "could not parse {s} into an ec level"
+        )));
     }
 }
 

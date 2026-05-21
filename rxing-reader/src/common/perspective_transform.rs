@@ -18,7 +18,7 @@
 
 use std::ops::Mul;
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail, ensure};
 
 use crate::{Error, Point, point};
 
@@ -72,14 +72,14 @@ impl PerspectiveTransform {
 
     #[allow(clippy::too_many_arguments)]
     pub fn quadrilateral_to_quadrilateral(dst: Quadrilateral, src: Quadrilateral) -> Result<Self> {
-        if !src.is_convex() || !dst.is_convex() {
-            return Err(Error::InvalidState {
-                message: "required internal state is missing".into(),
-            }
-            .into());
-        }
-        let q_to_s = PerspectiveTransform::quadrilateral_to_square(dst)?;
-        let s_to_q = PerspectiveTransform::square_to_quadrilateral(src)?;
+        ensure!(
+            src.is_convex() && dst.is_convex(),
+            Error::invalid_state("src and dst quadrilaterals must be convex")
+        );
+        let q_to_s = PerspectiveTransform::quadrilateral_to_square(dst)
+            .context("building destination-to-square perspective transform")?;
+        let s_to_q = PerspectiveTransform::square_to_quadrilateral(src)
+            .context("building square-to-source perspective transform")?;
         Ok(s_to_q * q_to_s)
     }
 
@@ -98,9 +98,9 @@ impl PerspectiveTransform {
 
     pub fn transform_points_single(&self, points: &mut [Point]) -> Result<()> {
         for point in points.iter_mut() {
-            *point = self.transform_point(*point).ok_or(Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            })?;
+            *point = self
+                .transform_point(*point)
+                .with_context(|| Error::not_found("perspective transform degenerate: denominator below epsilon"))?;
         }
         Ok(())
     }
@@ -129,10 +129,7 @@ impl PerspectiveTransform {
 
             let denominator = d1.cross(d2);
             if denominator.abs() < DENOMINATOR_EPSILON {
-                return Err(Error::InvalidState {
-                    message: "required internal state is missing".into(),
-                }
-                .into());
+                bail!(Error::invalid_state("required internal state is missing"));
             }
             let a13 = d3.cross(d2) / denominator;
             let a23 = d1.cross(d3) / denominator;
@@ -153,7 +150,9 @@ impl PerspectiveTransform {
     #[allow(clippy::too_many_arguments)]
     pub fn quadrilateral_to_square(quad: Quadrilateral) -> Result<Self> {
         // Here, the adjoint serves as the inverse
-        Ok(PerspectiveTransform::square_to_quadrilateral(quad)?.build_adjoint())
+        Ok(PerspectiveTransform::square_to_quadrilateral(quad)
+            .context("building quadrilateral-to-square perspective transform")?
+            .build_adjoint())
     }
 
     const fn build_adjoint(&self) -> Self {

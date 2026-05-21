@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 
 use crate::Error;
 
@@ -67,10 +67,9 @@ impl TryFrom<u8> for DataMask {
             5 => Ok(Self::Pattern101),
             6 => Ok(Self::Pattern110),
             7 => Ok(Self::Pattern111),
-            _ => Err(Error::InvalidArgument {
-                message: format!("QR data-mask bits {value} out of range (expected 0..=7)").into(),
-            }
-            .into()),
+            _ => bail!(Error::invalid_argument(format!(
+                "QR data-mask bits {value} out of range (expected 0..=7)"
+            ))),
         }
     }
 }
@@ -158,17 +157,19 @@ impl FormatInformation {
             ],
         )
         .filter(|candidate| candidate.hamming_distance <= MAX_FORMAT_INFO_ERRORS)
-        .ok_or_else(|| Error::InvalidFormat {
-            message: format!(
+        .with_context(|| {
+            Error::invalid_format(format!(
                 "QR format information is too damaged to decode (top-left=0x{format_info_bits1:04X}, top-right/bottom-left=0x{format_info_bits2:04X})"
             )
-            .into(),
+            )
         })?;
 
         // Use bits 3/4 for error correction, and 0-2 for mask.
         let error_correction_level =
-            ErrorCorrectionLevel::for_bits(candidate.data >> FORMAT_INFO_ERROR_CORRECTION_SHIFT)?;
-        let data_mask = DataMask::try_from(candidate.data & FORMAT_INFO_DATA_MASK)?;
+            ErrorCorrectionLevel::for_bits(candidate.data >> FORMAT_INFO_ERROR_CORRECTION_SHIFT)
+                .context("decoding QR format error-correction level")?;
+        let data_mask = DataMask::try_from(candidate.data & FORMAT_INFO_DATA_MASK)
+            .context("decoding QR format data mask")?;
 
         Ok(Self {
             hamming_distance: candidate.hamming_distance,

@@ -1,5 +1,6 @@
+use anyhow::{Context, Result, ensure};
+
 use crate::Error;
-use anyhow::Result;
 
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct Matrix<T: Default + Copy> {
@@ -12,9 +13,7 @@ impl<T: Default + Copy> Matrix<T> {
     pub fn new(width: usize, height: usize) -> Result<Matrix<T>> {
         let size = width
             .checked_mul(height)
-            .ok_or_else(|| Error::InvalidArgument {
-                message: format!("Matrix::new: width * height overflow ({width} x {height})").into(),
-            })?;
+            .with_context(|| Error::invalid_argument(format!("Matrix::new: width * height overflow ({width} x {height})")))?;
         Ok(Self {
             width,
             height,
@@ -34,15 +33,13 @@ impl<T: Default + Copy> Matrix<T> {
     }
 
     pub fn set(&mut self, x: usize, y: usize, value: T) -> Result<T> {
-        if x >= self.width || y >= self.height {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            x < self.width && y < self.height,
+            Error::invalid_argument(format!(
                     "set: coordinates ({x}, {y}) outside {}x{} matrix",
                     self.width, self.height
-                ).into(),
-            }
-            .into());
-        }
+                ))
+        );
         let offset = Self::offset(x, y, self.width);
         self.data[offset] = Some(value);
         Ok(value)

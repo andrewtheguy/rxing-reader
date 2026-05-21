@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+use anyhow::{Context, Result, bail};
+
 use crate::{Error, Point, point};
-use anyhow::Result;
 
 use super::{BitMatrix, GridSampler, SamplerControl};
 
@@ -31,10 +32,7 @@ impl GridSampler for DefaultGridSampler {
         controls: &[SamplerControl],
     ) -> Result<BitMatrix> {
         if dimension_x == 0 || dimension_y == 0 {
-            return Err(Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            }
-            .into());
+            bail!(Error::not_found("QR pattern was not detected"));
         }
 
         for SamplerControl { p0, p1, transform } in controls {
@@ -50,22 +48,18 @@ impl GridSampler for DefaultGridSampler {
                 || !is_inside(p1.x - 1.0, p1.y - 1.0)
                 || !is_inside(p0.x, p1.y - 1.0)
             {
-                return Err(Error::NotFound {
-                    message: "QR pattern was not detected".into(),
-                }
-                .into());
+                bail!(Error::not_found("QR pattern was not detected"));
             }
         }
 
-        let mut bits = BitMatrix::new(dimension_x, dimension_y)?;
+        let mut bits = BitMatrix::new(dimension_x, dimension_y)
+            .context("building sampled QR grid matrix")?;
         for SamplerControl { p0, p1, transform } in controls {
             for y in (p0.y as usize)..(p1.y as usize) {
                 for x in (p0.x as usize)..(p1.x as usize) {
                     let p = transform
                         .transform_point(point(x as f32, y as f32).centered())
-                        .ok_or(Error::NotFound {
-                            message: "QR pattern was not detected".into(),
-                        })?;
+                        .with_context(|| Error::not_found("QR pattern was not detected"))?;
 
                     // Due to a "numerical instability" in the PerspectiveTransform generation/application it has been observed
                     // that even though all boundary grid points get projected inside the image, it can still happen that an
@@ -73,10 +67,7 @@ impl GridSampler for DefaultGridSampler {
                     // The following check takes 100% care of the issue and turned out to be less of a performance impact than feared.
                     // TODO: Check some mathematical/numercial property of mod2_pix to determine if it is a perspective transforation.
                     if !image.is_in(p) {
-                        return Err(Error::NotFound {
-                            message: "QR pattern was not detected".into(),
-                        }
-                        .into());
+                        bail!(Error::not_found("QR pattern was not detected"));
                     }
 
                     if image.at_point(p) {

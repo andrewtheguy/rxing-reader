@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
+use anyhow::{Context, Result, bail, ensure};
+
 use crate::{Error, LuminanceSource};
-use anyhow::Result;
 
 /// A simple luma8 source for bytes.
 #[derive(Debug)]
@@ -37,20 +38,18 @@ impl<'a> Luma8LuminanceSource<'a> {
         let data = source.into();
         let expected = width
             .checked_mul(height)
-            .ok_or_else(|| Error::InvalidArgument {
-                message: format!(
+            .with_context(|| {
+                Error::invalid_argument(format!(
                     "Luma8LuminanceSource::new: image dimensions overflow usize ({width} x {height})"
-                ).into(),
+                ))
             })?;
-        if data.len() != expected {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            data.len() == expected,
+            Error::invalid_argument(format!(
                     "Luma8LuminanceSource::new: luma length {} != width*height ({expected})",
                     data.len()
-                ).into(),
-            }
-            .into());
-        }
+            ))
+        );
         Ok(Self {
             dimensions: (width, height),
             data,
@@ -70,27 +69,24 @@ pub fn downscale_luma_buffer<'a>(
     factor: usize,
 ) -> Result<(Cow<'a, [u8]>, usize, usize)> {
     if factor == 0 {
-        return Err(Error::InvalidArgument {
-            message: format!("downscale_luma_buffer: factor must be at least 1 (got {factor})").into(),
-        }
-        .into());
+        bail!(Error::invalid_argument(format!(
+            "downscale_luma_buffer: factor must be at least 1 (got {factor})"
+        )));
     }
     let expected = width
         .checked_mul(height)
-        .ok_or_else(|| Error::InvalidArgument {
-            message: format!(
+        .with_context(|| {
+            Error::invalid_argument(format!(
                 "downscale_luma_buffer: image dimensions overflow usize ({width} x {height})"
-            ).into(),
+            ))
         })?;
-    if src.len() != expected {
-        return Err(Error::InvalidArgument {
-            message: format!(
+    ensure!(
+        src.len() == expected,
+        Error::invalid_argument(format!(
                 "downscale_luma_buffer: src.len() {} must equal width * height ({expected})",
                 src.len()
-            ).into(),
-        }
-        .into());
-    }
+        ))
+    );
     let new_w = width / factor;
     let new_h = height / factor;
     if factor == 1 {

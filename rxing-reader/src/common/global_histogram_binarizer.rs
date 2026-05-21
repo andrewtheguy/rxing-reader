@@ -21,8 +21,9 @@
 
 use once_cell::sync::OnceCell;
 
+use anyhow::{Context, Result, bail};
+
 use crate::{Binarizer, Error, LuminanceSource};
-use anyhow::Result;
 
 use super::BitMatrix;
 
@@ -60,12 +61,9 @@ impl<LS: LuminanceSource> Binarizer for GlobalHistogramBinarizer<LS> {
     fn black_matrix_mut(&mut self) -> Result<&mut BitMatrix> {
         self.black_matrix
             .get_or_try_init(|| Self::build_black_matrix(&self.source))?;
-        self.black_matrix.get_mut().ok_or_else(|| {
-            Error::InvalidState {
-                message: "black matrix cache was not initialized".into(),
-            }
-            .into()
-        })
+        self.black_matrix
+            .get_mut()
+            .with_context(|| Error::invalid_state("black matrix cache was not initialized"))
     }
 }
 
@@ -80,15 +78,16 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
     pub(super) fn build_black_matrix(source: &LS) -> Result<BitMatrix> {
         let width = source.width();
         let height = source.height();
-        let mut matrix = BitMatrix::new(width, height)?;
+        let mut matrix = BitMatrix::new(width, height)
+            .context("building global histogram bit matrix")?;
 
         // Quickly calculates the histogram by sampling four rows from the image. This proved to be
         // more robust on the blackbox tests than sampling a diagonal as we used to do.
         let mut local_buckets = [0; LUMINANCE_BUCKETS];
         for y in 1..5 {
             let row = height * y / 5;
-            let local_luminances = source.row(row).ok_or_else(|| Error::InvalidState {
-                message: format!("luminance source returned no data for sampled row {row}").into(),
+            let local_luminances = source.row(row).with_context(|| {
+                Error::invalid_state(format!("luminance source returned no data for sampled row {row}"))
             })?;
             let right = (width * 4) / 5;
             for pixel in &local_luminances[(width / 5)..right] {
@@ -152,10 +151,10 @@ impl<LS: LuminanceSource> GlobalHistogramBinarizer<LS> {
         // If there is too little contrast in the image to pick a meaningful black point, throw rather
         // than waste time trying to decode the image, and risk false positives.
         if second_peak - first_peak <= BUCKET_COUNT / 16 {
-            return Err(Error::NotFound {
-                message: "second_peak - first_peak <= numBuckets / 16 ".into(),
-            }
-            .into());
+            bail!(Error::not_found(format!(
+                "image histogram peaks are too close to determine a threshold (separation {} <= BUCKET_COUNT / 16)",
+                second_peak - first_peak
+            )));
         }
 
         // Find a valley between them that is low and closer to the white peak.

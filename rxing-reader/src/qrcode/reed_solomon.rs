@@ -1,21 +1,25 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use anyhow::{Context, Result, bail};
+use thiserror::Error;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub(super) enum ReedSolomonError {
+    #[error("too many errors")]
     TooManyErrors,
 }
 
 pub(super) fn correct_qr_errors(
     received: &mut [u8],
     num_data_codewords: usize,
-) -> Result<(), ReedSolomonError> {
+) -> Result<()> {
     let two_s = received
         .len()
         .checked_sub(num_data_codewords)
-        .ok_or(ReedSolomonError::TooManyErrors)?;
+        .context(ReedSolomonError::TooManyErrors)?;
     if two_s == 0 {
         return Ok(());
     }
     if received.len() >= FIELD_SIZE {
-        return Err(ReedSolomonError::TooManyErrors);
+        bail!(ReedSolomonError::TooManyErrors);
     }
 
     let field = &QR_FIELD;
@@ -39,14 +43,14 @@ pub(super) fn correct_qr_errors(
     for (&location, &magnitude) in error_locations.iter().zip(error_magnitudes.iter()) {
         let log = field.log(location)?;
         if log >= received.len() {
-            return Err(ReedSolomonError::TooManyErrors);
+            bail!(ReedSolomonError::TooManyErrors);
         }
         let position = received.len() - 1 - log;
         received[position] ^= magnitude;
     }
 
     if has_errors(field, received, two_s) {
-        return Err(ReedSolomonError::TooManyErrors);
+        bail!(ReedSolomonError::TooManyErrors);
     }
 
     Ok(())
@@ -95,16 +99,16 @@ impl QrField {
         self.exp_table[value]
     }
 
-    fn log(&self, value: u8) -> Result<usize, ReedSolomonError> {
+    fn log(&self, value: u8) -> Result<usize> {
         if value == 0 {
-            return Err(ReedSolomonError::TooManyErrors);
+            bail!(ReedSolomonError::TooManyErrors);
         }
         Ok(self.log_table[usize::from(value)])
     }
 
-    fn inverse(&self, value: u8) -> Result<u8, ReedSolomonError> {
+    fn inverse(&self, value: u8) -> Result<u8> {
         if value == 0 {
-            return Err(ReedSolomonError::TooManyErrors);
+            bail!(ReedSolomonError::TooManyErrors);
         }
         Ok(self.exp_table[FIELD_ORDER - self.log_table[usize::from(value)]])
     }
@@ -127,7 +131,7 @@ fn run_euclidean_algorithm(
     mut a: Vec<u8>,
     mut b: Vec<u8>,
     received_ec_len: usize,
-) -> Result<(Vec<u8>, Vec<u8>), ReedSolomonError> {
+) -> Result<(Vec<u8>, Vec<u8>)> {
     if poly_degree(&a) < poly_degree(&b) {
         std::mem::swap(&mut a, &mut b);
     }
@@ -144,7 +148,7 @@ fn run_euclidean_algorithm(
         t_last = t;
 
         if poly_is_zero(&r_last) {
-            return Err(ReedSolomonError::TooManyErrors);
+            bail!(ReedSolomonError::TooManyErrors);
         }
 
         r = r_last_last;
@@ -163,13 +167,13 @@ fn run_euclidean_algorithm(
 
         t = poly_add(poly_multiply(field, &q, &t_last), &t_last_last);
         if poly_degree(&r) >= poly_degree(&r_last) {
-            return Err(ReedSolomonError::TooManyErrors);
+            bail!(ReedSolomonError::TooManyErrors);
         }
     }
 
     let sigma_tilde_at_zero = poly_coefficient(&t, 0);
     if sigma_tilde_at_zero == 0 {
-        return Err(ReedSolomonError::TooManyErrors);
+        bail!(ReedSolomonError::TooManyErrors);
     }
 
     let inverse = field.inverse(sigma_tilde_at_zero)?;
@@ -182,7 +186,7 @@ fn run_euclidean_algorithm(
 fn find_error_locations(
     field: &QrField,
     error_locator: &[u8],
-) -> Result<Vec<u8>, ReedSolomonError> {
+) -> Result<Vec<u8>> {
     let num_errors = poly_degree(error_locator);
     if num_errors == 1 {
         return Ok(vec![poly_coefficient(error_locator, 1)]);
@@ -201,7 +205,7 @@ fn find_error_locations(
     if result.len() == num_errors {
         Ok(result)
     } else {
-        Err(ReedSolomonError::TooManyErrors)
+        bail!(ReedSolomonError::TooManyErrors);
     }
 }
 
@@ -209,7 +213,7 @@ fn find_error_magnitudes(
     field: &QrField,
     error_evaluator: &[u8],
     error_locations: &[u8],
-) -> Result<Vec<u8>, ReedSolomonError> {
+) -> Result<Vec<u8>> {
     let mut result = Vec::with_capacity(error_locations.len());
     for (i, &location) in error_locations.iter().enumerate() {
         let xi_inverse = field.inverse(location)?;

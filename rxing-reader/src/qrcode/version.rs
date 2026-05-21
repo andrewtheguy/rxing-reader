@@ -16,8 +16,9 @@
 
 use std::fmt;
 
+use anyhow::{Context, Result, bail, ensure};
+
 use crate::{Error, common::BitMatrix};
-use anyhow::Result;
 
 use super::ErrorCorrectionLevel;
 
@@ -94,15 +95,12 @@ impl Version {
     pub fn ec_blocks_for_level(&self, ec_level: ErrorCorrectionLevel) -> Result<&ECBlocks> {
         self.ec_blocks
             .get(ec_level.ec_blocks_index())
-            .ok_or_else(|| {
-                Error::InvalidArgument {
-                    message: format!(
+            .with_context(|| {
+                Error::invalid_argument(format!(
                         "ErrorCorrectionLevel index {} out of range for {} EC blocks",
                         ec_level.ec_blocks_index(),
                         self.ec_blocks.len()
-                    ).into(),
-                }
-                .into()
+                    ))
             })
     }
 
@@ -114,25 +112,23 @@ impl Version {
     /// Version 1 has dimension 21. Returns an invalid-format error if
     /// dimension is less than 21 or (dimension - 1) % 4 != 0.
     pub fn provisional_for_dimension(dimension: usize) -> Result<VersionRef> {
-        if dimension % DIMENSION_STEP != DIMENSION_REMAINDER || dimension < MIN_DIMENSION {
-            return Err(Error::InvalidFormat {
-                message: format!(
+        ensure!(
+            dimension % DIMENSION_STEP == DIMENSION_REMAINDER && dimension >= MIN_DIMENSION,
+            Error::invalid_format(format!(
                     "QR dimension {dimension} is invalid (expected >= 21 and (dimension - 1) % 4 == 0)"
                 )
-                .into(),
-            }
-            .into());
-        }
+            )
+        );
         Self::for_number(((dimension - DIMENSION_VERSION_OFFSET) / DIMENSION_STEP) as u32)
     }
 
     pub fn for_number(version_number: u32) -> Result<VersionRef> {
-        if !(MIN_VERSION_NUMBER..=MAX_VERSION_NUMBER).contains(&version_number) {
-            return Err(Error::InvalidArgument {
-                message: format!("QR version {version_number} is out of spec (expected 1..=40)").into(),
-            }
-            .into());
-        }
+        ensure!(
+            (MIN_VERSION_NUMBER..=MAX_VERSION_NUMBER).contains(&version_number),
+            Error::invalid_argument(format!(
+                "QR version {version_number} is out of spec (expected 1..=40)"
+            ))
+        );
         let version_index = (version_number - 1) as usize;
         Ok(&VERSIONS[version_index])
     }
@@ -163,10 +159,7 @@ impl Version {
         {
             return Self::for_number(best_version as u32);
         }
-        Err(Error::InvalidState {
-            message: "required internal state is missing".into(),
-        }
-        .into())
+        bail!(Error::invalid_state("required internal state is missing"));
     }
 
     fn is_valid_dimensions(width: usize, height: usize) -> bool {
@@ -187,15 +180,20 @@ impl Version {
     /// See ISO 18004:2006 Annex E
     pub fn build_function_pattern(&self) -> Result<BitMatrix> {
         let dimension = self.dimension();
-        let mut bit_matrix = BitMatrix::with_single_dimension(dimension)?;
+        let mut bit_matrix = BitMatrix::with_single_dimension(dimension)
+            .context("building QR function-pattern matrix")?;
 
         // Top left finder pattern + separator + format
-        bit_matrix.set_region(0, 0, 9, 9)?;
+        bit_matrix.set_region(0, 0, 9, 9).context("setting top-left finder pattern")?;
 
         // Top right finder pattern + separator + format
-        bit_matrix.set_region(dimension - 8, 0, 8, 9)?;
+        bit_matrix
+            .set_region(dimension - 8, 0, 8, 9)
+            .context("setting top-right finder pattern")?;
         // Bottom left finder pattern + separator + format
-        bit_matrix.set_region(0, dimension - 8, 9, 8)?;
+        bit_matrix
+            .set_region(0, dimension - 8, 9, 8)
+            .context("setting bottom-left finder pattern")?;
 
         // Alignment patterns
         let max = self.alignment_pattern_centers.len();
@@ -203,22 +201,32 @@ impl Version {
             let i = self.alignment_pattern_centers[x] - 2;
             for y in 0..max {
                 if (x != 0 || (y != 0 && y != max - 1)) && (x != max - 1 || y != 0) {
-                    bit_matrix.set_region(self.alignment_pattern_centers[y] - 2, i, 5, 5)?;
+                    bit_matrix
+                        .set_region(self.alignment_pattern_centers[y] - 2, i, 5, 5)
+                        .context("setting QR alignment pattern")?;
                 }
                 // else no alignment patterns near the three finder patterns
             }
         }
 
         // Vertical timing pattern
-        bit_matrix.set_region(6, 9, 1, dimension - 17)?;
+        bit_matrix
+            .set_region(6, 9, 1, dimension - 17)
+            .context("setting vertical timing pattern")?;
         // Horizontal timing pattern
-        bit_matrix.set_region(9, 6, dimension - 17, 1)?;
+        bit_matrix
+            .set_region(9, 6, dimension - 17, 1)
+            .context("setting horizontal timing pattern")?;
 
         if self.version_number > 6 {
             // Version info, top right
-            bit_matrix.set_region(dimension - 11, 0, 3, 6)?;
+            bit_matrix
+                .set_region(dimension - 11, 0, 3, 6)
+                .context("setting top-right version information")?;
             // Version info, bottom left
-            bit_matrix.set_region(0, dimension - 11, 6, 3)?;
+            bit_matrix
+                .set_region(0, dimension - 11, 6, 3)
+                .context("setting bottom-left version information")?;
         }
 
         Ok(bit_matrix)

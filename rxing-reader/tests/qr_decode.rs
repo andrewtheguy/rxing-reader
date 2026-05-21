@@ -450,7 +450,11 @@ fn binarizer_fallback_rescues_vignetted_with_global_primary() {
 #[test]
 fn rgba_length_mismatch_is_rejected() {
     let err = rgba_to_luma(&[0u8; 15], 2, 2).expect_err("expected length-mismatch error");
-    assert!(err.contains("rgba length"), "unexpected error: {}", err);
+    assert!(
+        err.to_string().contains("rgba length"),
+        "unexpected error: {}",
+        err
+    );
 }
 
 // ---------------------------------------------------------------------------

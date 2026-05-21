@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use anyhow::ensure;
+
 use crate::Error;
 
 use super::CharacterSet;
@@ -89,15 +91,12 @@ impl TryFrom<u32> for Eci {
     type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value > MAX_ECI_ASSIGNMENT_VALUE {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            value <= MAX_ECI_ASSIGNMENT_VALUE,
+            Error::invalid_argument(format!(
                     "ECI value {value} exceeds maximum assignment value {MAX_ECI_ASSIGNMENT_VALUE}"
-                )
-                .into(),
-            }
-            .into());
-        }
+                ))
+        );
 
         Ok(match value {
             0 | 2 => Eci::Cp437,

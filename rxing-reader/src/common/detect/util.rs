@@ -1,5 +1,6 @@
+use anyhow::{Result, bail};
+
 use crate::Error;
-use anyhow::Result;
 
 use super::Direction;
 
@@ -25,7 +26,8 @@ pub fn update_min_max_float(min: &mut f64, max: &mut f64, val: f64) {
 }
 
 pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String> {
-    let mut val: usize = val.into();
+    let original_val: usize = val.into();
+    let mut val = original_val;
     let mut result = vec!['0'; len];
     let mut idx = len;
     while idx > 0 && val != 0 {
@@ -34,10 +36,10 @@ pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String>
         val /= 10;
     }
     if val != 0 {
-        return Err(Error::InvalidFormat {
-            message: "Invalid value".into(),
-        }
-        .into());
+        let actual_len = original_val.to_string().len();
+        bail!(Error::invalid_format(format!(
+            "Value too large for fixed-length string: length {actual_len} exceeds maximum {len}"
+        )));
     }
 
     Ok(result.iter().collect())

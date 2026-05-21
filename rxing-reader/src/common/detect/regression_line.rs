@@ -1,5 +1,6 @@
+use anyhow::{Result, ensure};
+
 use crate::{Error, Point};
-use anyhow::Result;
 
 use super::RegressionLineTrait;
 
@@ -49,12 +50,10 @@ impl RegressionLineTrait for RegressionLine {
     }
 
     fn add(&mut self, p: Point) -> Result<()> {
-        if self.direction_inward == Point::default() {
-            return Err(Error::InvalidState {
-                message: "required internal state is missing".into(),
-            }
-            .into());
-        }
+        ensure!(
+            self.direction_inward != Point::default(),
+            Error::invalid_state("required internal state is missing")
+        );
         self.points.push(p);
         if self.points.len() == 1 {
             self.c = Point::dot(self.normal(), p);
