@@ -101,7 +101,7 @@ fn decode_image_bytes(bytes: &[u8]) -> Result<(Vec<u8>, usize, usize)> {
 }
 
 fn decode_symbols(rgba: &[u8], w: usize, h: usize, max: usize) -> Result<Vec<QrSymbol>> {
-    let luma = rgba_to_luma(rgba, w, h).map_err(anyhow::Error::msg)?;
+    let luma = rgba_to_luma(rgba, w, h).context("converting RGBA pixels to luma")?;
     let primary = decode_qr_codes_luma(&luma, w, h, true, true, true, max)?;
     if !primary.is_empty() {
         return Ok(primary);

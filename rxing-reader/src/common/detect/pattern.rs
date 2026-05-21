@@ -3,7 +3,7 @@
 */
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::{Error, common::BitMatrix};
 
@@ -541,19 +541,17 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
     const PREV_IDX: isize = -1;
 
     if view.size() < min_size {
-        return Err(Error::InvalidState {
-            message: "required internal state is missing".into(),
-        }
-        .into());
+        anyhow::bail!(Error::invalid_state("required internal state is missing"));
     }
 
     let mut window = view.sub_view(0, LEN);
     if window.is_at_first_bar() && is_guard(&window, Some(f32::MAX)) {
         return Ok(window);
     }
-    let end = Into::<usize>::into(view.end().ok_or_else(|| Error::InvalidState {
-        message: "pattern view has no end index".into(),
-    })?) - min_size;
+    let end = Into::<usize>::into(
+        view.end()
+            .with_context(|| Error::invalid_state("pattern view has no end index"))?,
+    ) - min_size;
     while (window.start + window.current) < end {
         let prev = window
             .try_index(PREV_IDX)
@@ -565,10 +563,7 @@ pub fn find_left_guard_by<const LEN: usize, Pred: Fn(&PatternView, Option<f32>) 
         window.skip_pair();
     }
 
-    Err(Error::InvalidState {
-        message: "required internal state is missing".into(),
-    }
-    .into())
+    anyhow::bail!(Error::invalid_state("required internal state is missing"));
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

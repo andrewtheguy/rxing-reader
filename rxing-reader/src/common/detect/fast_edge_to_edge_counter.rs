@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result, ensure};
 
 use crate::{Error, common::BitMatrix};
 
@@ -22,20 +22,20 @@ impl FastEdgeToEdgeCounter<'_> {
         let p = cur.p().y as isize * width + cur.p().x as isize;
         let image_len = width
             .checked_mul(height)
-            .ok_or_else(|| Error::InvalidArgument {
-                message: format!("FastEdgeToEdgeCounter: image size overflow ({width} x {height})").into(),
+            .with_context(|| {
+                Error::invalid_argument(format!(
+                    "FastEdgeToEdgeCounter: image size overflow ({width} x {height})"
+                ))
             })?;
-        if !(0..image_len).contains(&p) {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            (0..image_len).contains(&p),
+            Error::invalid_argument(format!(
                     "FastEdgeToEdgeCounter: cursor index {p} is outside image of size {width}x{height} (cursor=({}, {}))",
                     cur.p().x,
                     cur.p().y,
                 )
-                .into(),
-            }
-            .into());
-        }
+            )
+        );
         let p = p as usize;
 
         let max_steps_x: i32 = if cur.d().x != 0.0 {

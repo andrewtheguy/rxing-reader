@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use anyhow::Result as RxingResult;
+use anyhow::{Context, Result, ensure};
 
 use crate::{
-    Binarizer, BinaryBitmap, DecodeHints, Luma8LuminanceSource,
+    Binarizer, BinaryBitmap, DecodeHints, Error, Luma8LuminanceSource,
     common::{
         Eci, GlobalHistogramBinarizer, HybridBinarizer, SymbologyIdentifier,
         detect::{DecoderResult, StructuredAppendInfo},
@@ -66,18 +66,19 @@ impl QrSymbol {
     }
 }
 
-pub fn rgba_to_luma(rgba: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+pub fn rgba_to_luma(rgba: &[u8], width: usize, height: usize) -> Result<Vec<u8>> {
     let expected = width
         .checked_mul(height)
         .and_then(|n| n.checked_mul(4))
-        .ok_or_else(|| "Image dimensions overflow".to_string())?;
-    if rgba.len() != expected {
-        return Err(format!(
+        .with_context(|| Error::invalid_argument("rgba_to_luma: image dimensions overflow"))?;
+    ensure!(
+        rgba.len() == expected,
+        Error::invalid_argument(format!(
             "rgba length {} != width*height*4 ({})",
             rgba.len(),
             expected
-        ));
-    }
+        ))
+    );
     Ok(rgba
         .chunks_exact(4)
         .map(|p| {
@@ -149,11 +150,12 @@ pub fn decode_qr_codes_luma(
     try_invert: bool,
     use_hybrid_binarizer: bool,
     max_number_of_symbols: usize,
-) -> RxingResult<Vec<QrSymbol>> {
+) -> Result<Vec<QrSymbol>> {
     let hints = DecodeHints { try_harder };
 
     if !try_harder {
-        let source = Luma8LuminanceSource::new(luma, width, height)?;
+        let source = Luma8LuminanceSource::new(luma, width, height)
+            .context("building luminance source for QR decode")?;
         return Ok(decode_one_layer(
             source,
             &hints,
@@ -169,7 +171,10 @@ pub fn decode_qr_codes_luma(
     let mut cur_h = height;
     loop {
         for &close in &[false, true] {
-            let source = Luma8LuminanceSource::new(cur_luma.as_ref(), cur_w, cur_h)?;
+            let source = Luma8LuminanceSource::new(cur_luma.as_ref(), cur_w, cur_h)
+                .with_context(|| {
+                    format!("building luminance source for QR layer {cur_w}x{cur_h}")
+                })?;
             let results = decode_one_layer(
                 source,
                 &hints,
@@ -188,7 +193,8 @@ pub fn decode_qr_codes_luma(
             return Ok(Vec::new());
         }
         let (next_luma, next_w, next_h) =
-            downscale_luma_buffer(cur_luma.as_ref(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)?;
+            downscale_luma_buffer(cur_luma.as_ref(), cur_w, cur_h, PYRAMID_DOWNSCALE_FACTOR)
+                .with_context(|| format!("downscaling QR layer {cur_w}x{cur_h}"))?;
         if let Cow::Owned(next_luma) = next_luma {
             cur_luma = Cow::Owned(next_luma);
         }

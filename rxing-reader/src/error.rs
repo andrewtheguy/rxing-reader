@@ -17,3 +17,35 @@ pub enum Error {
     #[error("checksum failed: {message}")]
     Checksum { message: ErrorMessage },
 }
+
+impl Error {
+    pub(crate) fn invalid_argument(message: impl Into<ErrorMessage>) -> Self {
+        Self::InvalidArgument {
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn invalid_state(message: impl Into<ErrorMessage>) -> Self {
+        Self::InvalidState {
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn not_found(message: impl Into<ErrorMessage>) -> Self {
+        Self::NotFound {
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn invalid_format(message: impl Into<ErrorMessage>) -> Self {
+        Self::InvalidFormat {
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn checksum(message: impl Into<ErrorMessage>) -> Self {
+        Self::Checksum {
+            message: message.into(),
+        }
+    }
+}

@@ -4,7 +4,7 @@
  */
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail, ensure};
 
 use crate::Error;
 use crate::common::{
@@ -63,13 +63,10 @@ impl TryFrom<u32> for HanziSubset {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             GB2312_SUBSET => Ok(Self::Gb2312),
-            _ => Err(Error::InvalidFormat {
-                message: format!(
+            _ => bail!(Error::invalid_format(format!(
                     "Unsupported HANZI subset {value} (only GB2312_SUBSET = {GB2312_SUBSET} is supported)"
                 )
-                .into(),
-            }
-            .into()),
+            )),
         }
     }
 }
@@ -85,23 +82,24 @@ impl TryFrom<u32> for AimApplicationIndicator {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            0..=AIM_NUMERIC_MAX => Ok(Self::Numeric(usize::try_from(value).map_err(|_| {
-                Error::InvalidFormat {
-                    message: format!("AIM numeric indicator {value} does not fit in usize").into(),
-                }
-            })?)),
-            165..=190 | 197..=222 => Ok(Self::Alphabetic(
-                u8::try_from(value - AIM_ALPHA_OFFSET).map_err(|_| Error::InvalidFormat {
-                    message: format!("AIM alphabetic indicator {value} does not fit in u8").into(),
+            0..=AIM_NUMERIC_MAX => Ok(Self::Numeric(
+                usize::try_from(value).with_context(|| {
+                    Error::invalid_format(format!(
+                        "AIM numeric indicator {value} does not fit in usize"
+                    ))
                 })?,
             )),
-            _ => Err(Error::InvalidFormat {
-                message: format!(
+            165..=190 | 197..=222 => Ok(Self::Alphabetic(
+                u8::try_from(value - AIM_ALPHA_OFFSET).with_context(|| {
+                    Error::invalid_format(format!(
+                        "AIM alphabetic indicator {value} does not fit in u8"
+                    ))
+                })?,
+            )),
+            _ => bail!(Error::invalid_format(format!(
                     "Invalid AIM Application Indicator value {value} (expected 0..=99, 165..=190, or 197..=222)"
                 )
-                .into(),
-            }
-            .into()),
+            )),
         }
     }
 }
@@ -124,21 +122,20 @@ impl EciValueLength {
         if (first_byte & ECI_THREE_BYTE_PREFIX_MASK) == ECI_THREE_BYTE_PREFIX {
             return Ok(Self::ThreeBytes);
         }
-        Err(Error::InvalidFormat {
-            message: format!(
+        bail!(Error::invalid_format(format!(
                 "parse_eci_value: invalid leading byte 0x{first_byte:02X} (top bits do not match any ECI length encoding)"
             )
-            .into(),
-        }
-        .into())
+        ));
     }
 }
 
 fn read_bits_as_usize(bits: &mut BitSource, num_bits: usize, context: &str) -> Result<usize> {
-    usize::try_from(bits.read_bits(num_bits)?).map_err(|_| Error::InvalidFormat {
-        message: format!("{context} does not fit in usize (num_bits={num_bits})").into(),
-    }
-    .into())
+    let value = bits
+        .read_bits(num_bits)
+        .with_context(|| Error::invalid_format(format!("reading {context}")))?;
+    usize::try_from(value).with_context(|| {
+        Error::invalid_format(format!("{context} does not fit in usize (num_bits={num_bits})"))
+    })
 }
 
 fn read_count(bits: &mut BitSource, num_bits: usize) -> Result<usize> {
@@ -146,8 +143,8 @@ fn read_count(bits: &mut BitSource, num_bits: usize) -> Result<usize> {
 }
 
 fn append_be_u16(result: &mut ECIStringBuilder, value: u32) -> Result<()> {
-    let value = u16::try_from(value).map_err(|_| Error::InvalidFormat {
-        message: format!("double-byte character value 0x{value:X} out of range").into(),
+    let value = u16::try_from(value).with_context(|| {
+        Error::invalid_format(format!("double-byte character value 0x{value:X} out of range"))
     })?;
     let bytes = value.to_be_bytes();
     *result += bytes[0];
@@ -170,7 +167,9 @@ pub fn decode_hanzi_segment(
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let two_bytes = bits.read_bits(DOUBLE_BYTE_SEGMENT_BITS)?;
+        let two_bytes = bits
+            .read_bits(DOUBLE_BYTE_SEGMENT_BITS)
+            .context("reading HANZI double-byte segment")?;
         let mut assembled_two_bytes =
             ((two_bytes / HANZI_BYTE_MULTIPLIER) << 8) | (two_bytes % HANZI_BYTE_MULTIPLIER);
         if assembled_two_bytes < HANZI_LOW_RANGE_LIMIT {
@@ -199,7 +198,9 @@ pub fn decode_kanji_segment(
 
     while count > 0 {
         // Each 13 bits encodes a 2-byte character
-        let two_bytes = bits.read_bits(DOUBLE_BYTE_SEGMENT_BITS)?;
+        let two_bytes = bits
+            .read_bits(DOUBLE_BYTE_SEGMENT_BITS)
+            .context("reading KANJI double-byte segment")?;
         let mut assembled_two_bytes =
             ((two_bytes / KANJI_BYTE_MULTIPLIER) << 8) | (two_bytes % KANJI_BYTE_MULTIPLIER);
         if assembled_two_bytes < KANJI_LOW_RANGE_LIMIT {
@@ -224,9 +225,11 @@ pub fn decode_byte_segment(
     result.reserve(count);
 
     for _ in 0..count {
-        *result += u8::try_from(bits.read_bits(BYTE_BITS)?).map_err(|_| Error::InvalidFormat {
-            message: "byte segment produced a value outside u8".into(),
-        })?;
+        *result += u8::try_from(
+            bits.read_bits(BYTE_BITS)
+                .context("reading QR byte segment byte")?,
+        )
+        .with_context(|| Error::invalid_format("byte segment produced a value outside u8"))?;
     }
     Ok(())
 }
@@ -235,13 +238,12 @@ pub fn to_alphanumeric_char(value: usize) -> Result<char> {
     ALPHANUMERIC_CHARS
         .get(value)
         .copied()
-        .ok_or_else(|| Error::InvalidFormat {
-            message: format!(
+        .with_context(|| {
+            Error::invalid_format(format!(
                 "to_alphanumeric_char: value {value} out of range (expected 0..{})",
                 ALPHANUMERIC_CHARS.len()
-            ).into(),
-        }
-        .into())
+            ))
+        })
 }
 
 pub fn decode_alphanumeric_segment(
@@ -315,19 +317,24 @@ pub fn decode_numeric_segment(
 }
 
 pub fn parse_eci_value(bits: &mut BitSource) -> Result<Eci> {
-    let first_byte = bits.read_bits(BYTE_BITS)?;
+    let first_byte = bits.read_bits(BYTE_BITS).context("reading ECI first byte")?;
     match EciValueLength::from_first_byte(first_byte)? {
-        EciValueLength::OneByte => Eci::try_from(first_byte & ECI_ONE_BYTE_PAYLOAD_MASK),
+        EciValueLength::OneByte => Eci::try_from(first_byte & ECI_ONE_BYTE_PAYLOAD_MASK)
+            .context("decoding one-byte ECI assignment value"),
         EciValueLength::TwoBytes => {
-            let second_byte = bits.read_bits(BYTE_BITS)?;
+            let second_byte = bits.read_bits(BYTE_BITS).context("reading ECI second byte")?;
             Eci::try_from(((first_byte & ECI_TWO_BYTE_PAYLOAD_MASK) << BYTE_BITS) | second_byte)
+                .context("decoding two-byte ECI assignment value")
         }
         EciValueLength::ThreeBytes => {
-            let second_third_bytes = bits.read_bits(2 * BYTE_BITS)?;
+            let second_third_bytes = bits
+                .read_bits(2 * BYTE_BITS)
+                .context("reading ECI second and third bytes")?;
             Eci::try_from(
                 ((first_byte & ECI_THREE_BYTE_PAYLOAD_MASK) << (2 * BYTE_BITS))
                     | second_third_bytes,
             )
+            .context("decoding three-byte ECI assignment value")
         }
     }
 }
@@ -344,7 +351,11 @@ pub fn parse_eci_value(bits: &mut BitSource) -> Result<Eci> {
 pub fn is_end_of_stream(bits: &mut BitSource, version: &Version) -> Result<bool> {
     let bits_required = Mode::terminator_bit_length(version);
     let bits_available = std::cmp::min(bits.available(), bits_required);
-    Ok(bits_available == 0 || bits.peek_bits(bits_available)? == 0)
+    Ok(bits_available == 0
+        || bits
+            .peek_bits(bits_available)
+            .context("peeking QR mode terminator bits")?
+            == 0)
 }
 
 /// QR Codes can encode text as bits in one of several modes, and can use multiple modes
@@ -368,7 +379,10 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
 
     let res: Result<()> = (|| {
         while !is_end_of_stream(&mut bits, version)? {
-            let mode = Mode::codec_mode_for_bits(bits.read_bits(mode_bit_length)?)?;
+            let mode_bits = bits
+                .read_bits(mode_bit_length)
+                .context("reading QR mode indicator")?;
+            let mode = Mode::codec_mode_for_bits(mode_bits)?;
             if !modes_seen.contains(&mode) {
                 modes_seen.push(mode);
             }
@@ -379,12 +393,18 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                     result.symbology.ai_flag = AIFlag::GS1; // In Alphanumeric mode undouble doubled '%' and treat single '%' as <GS>
                 }
                 Mode::Fnc1SecondPosition => {
-                    if !result.is_empty() {
-                        return Err(Error::InvalidFormat { message: "AIM Application Indicator (FNC1 in second position) at illegal position".into() }.into());
-                    }
+                    ensure!(
+                        result.is_empty(),
+                        Error::invalid_format(
+                            "AIM Application Indicator (FNC1 in second position) at illegal position"
+                        )
+                    );
                     result.symbology.modifier = b'5';
                     // ISO/IEC 18004:2015 7.4.8.3 AIM Application Indicator (FNC1 in second position), "00-99" or "A-Za-z"
-                    match AimApplicationIndicator::try_from(bits.read_bits(BYTE_BITS)?)? {
+                    let indicator = bits
+                        .read_bits(BYTE_BITS)
+                        .context("reading AIM application indicator")?;
+                    match AimApplicationIndicator::try_from(indicator)? {
                         AimApplicationIndicator::Numeric(value) => {
                             result += padded_digits(value, 2)?;
                         }
@@ -395,9 +415,15 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                     result.symbology.ai_flag = AIFlag::Aim;
                 }
                 Mode::StructuredAppend => {
-                    let index = bits.read_bits(STRUCTURED_APPEND_INDEX_BITS)?;
-                    let count = bits.read_bits(STRUCTURED_APPEND_COUNT_BITS)?;
-                    let parity = bits.read_bits(STRUCTURED_APPEND_PARITY_BITS)?;
+                    let index = bits
+                        .read_bits(STRUCTURED_APPEND_INDEX_BITS)
+                        .context("reading structured-append index")?;
+                    let count = bits
+                        .read_bits(STRUCTURED_APPEND_COUNT_BITS)
+                        .context("reading structured-append count")?;
+                    let parity = bits
+                        .read_bits(STRUCTURED_APPEND_PARITY_BITS)
+                        .context("reading structured-append parity")?;
                     structured_append = Some(StructuredAppendInfo {
                         index: index as u8,
                         count: count as u8,
@@ -411,7 +437,10 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                 Mode::Hanzi => {
                     // First handle Hanzi mode which does not start with character count
                     // chinese mode contains a sub set indicator right after mode indicator
-                    let _subset = HanziSubset::try_from(bits.read_bits(HANZI_SUBSET_BITS)?)?;
+                    let subset = bits
+                        .read_bits(HANZI_SUBSET_BITS)
+                        .context("reading HANZI subset")?;
+                    let _subset = HanziSubset::try_from(subset)?;
                     let count = read_count(&mut bits, mode.character_count_bits(version))?;
                     decode_hanzi_segment(&mut bits, count, &mut result)?;
                 }
@@ -427,12 +456,9 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
                         Mode::Byte => decode_byte_segment(&mut bits, count, &mut result)?,
                         Mode::Kanji => decode_kanji_segment(&mut bits, count, &mut result)?,
                         other => {
-                            return Err(Error::InvalidFormat {
-                                message: format!(
+                            bail!(Error::invalid_format(format!(
                                     "Invalid CodecMode {other:?} encountered in data segment (count={count})"
-                                ).into(),
-                            }
-                            .into());
+                                )));
                         }
                     };
                 }
@@ -451,56 +477,52 @@ pub fn decode_bit_stream(bytes: &[u8], version: &Version) -> Result<DecoderResul
 }
 
 pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
-    if !Version::has_valid_size(bits) {
-        return Err(Error::InvalidFormat {
-            message: format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()).into(),
-        }
-        .into());
-    }
-    let format_info = read_format_information(bits).map_err(|e| Error::InvalidFormat {
-        message: format!(
-            "Invalid format information in {}x{} symbol: {e}",
+    ensure!(
+        Version::has_valid_size(bits),
+        Error::invalid_format(format!("Invalid QR symbol size: {}x{}", bits.width(), bits.height()))
+    );
+    let format_info = read_format_information(bits).with_context(|| {
+        Error::invalid_format(format!(
+            "Invalid format information in {}x{} symbol",
             bits.width(),
             bits.height()
-        ).into(),
+        ))
     })?;
 
-    let version = read_version(bits).map_err(|e| Error::InvalidFormat {
-        message: format!(
-            "Invalid version in {}x{} QR symbol: {e}",
+    let version = read_version(bits).with_context(|| {
+        Error::invalid_format(format!(
+            "Invalid version in {}x{} QR symbol",
             bits.width(),
             bits.height()
-        ).into(),
+        ))
     })?;
 
     // Read codewords
-    let codewords = read_codewords(bits, version, &format_info)?;
-    if codewords.is_empty() {
-        return Err(Error::InvalidFormat {
-            message: format!(
+    let codewords = read_codewords(bits, version, &format_info)
+        .context("reading QR codewords from sampled matrix")?;
+    ensure!(
+        !codewords.is_empty(),
+        Error::invalid_format(format!(
                 "Failed to read codewords for version {} ({}x{} symbol)",
                 version.number(),
                 bits.width(),
                 bits.height()
-            ).into(),
-        }
-        .into());
-    }
+            ))
+    );
 
     // Separate into data blocks
     let data_blocks: Vec<DataBlock> =
-        DataBlock::data_blocks(&codewords, version, format_info.error_correction_level)?;
-    if data_blocks.is_empty() {
-        return Err(Error::InvalidFormat {
-            message: format!(
+        DataBlock::data_blocks(&codewords, version, format_info.error_correction_level)
+            .context("splitting QR codewords into data blocks")?;
+    ensure!(
+        !data_blocks.is_empty(),
+        Error::invalid_format(format!(
                 "Failed to get data blocks for version {} (codewords={}, ec_level={:?})",
                 version.number(),
                 codewords.len(),
                 format_info.error_correction_level
-            ).into(),
-        }
-        .into());
-    }
+            ))
+    );
 
     // Count total number of data bytes
     let op =
@@ -514,7 +536,8 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
         let num_data_codewords = data_block.num_data_codewords();
         let mut codeword_bytes = data_block.codewords;
 
-        correct_errors(&mut codeword_bytes, num_data_codewords)?;
+        correct_errors(&mut codeword_bytes, num_data_codewords)
+            .context("correcting QR data block errors")?;
 
         result_bytes[result_iterator..(result_iterator + num_data_codewords)]
             .copy_from_slice(&codeword_bytes[..num_data_codewords]);
@@ -522,7 +545,8 @@ pub fn decode(bits: &BitMatrix) -> Result<DecoderResult> {
     }
 
     // decode the contents of that stream of bytes
-    let decoder_result = decode_bit_stream(&result_bytes, version)?;
+    let decoder_result = decode_bit_stream(&result_bytes, version)
+        .context("decoding corrected QR bit stream")?;
     Ok(decoder_result.with_format(
         version.number(),
         format_info.error_correction_level,
@@ -548,18 +572,17 @@ impl DataBlock {
         version: VersionRef,
         ec_level: ErrorCorrectionLevel,
     ) -> Result<Vec<Self>> {
-        if raw_codewords.len() != version.total_codewords() {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            raw_codewords.len() == version.total_codewords(),
+            Error::invalid_argument(format!(
                     "raw codewords length {} does not match expected total codewords {}",
                     raw_codewords.len(),
                     version.total_codewords()
-                ).into(),
-            }
-            .into());
-        }
+                ))
+        );
 
-        let ec_blocks = version.ec_blocks_for_level(ec_level)?;
+        let ec_blocks = version.ec_blocks_for_level(ec_level)
+            .context("looking up QR error-correction blocks")?;
 
         let mut result = Vec::new();
         let mut num_result_blocks = 0;
@@ -576,13 +599,10 @@ impl DataBlock {
             }
         }
 
-        if result.is_empty() {
-            return Err(Error::InvalidArgument {
-                message: "result block list is empty; possible data corruption or misconfiguration"
-                    .into(),
-            }
-            .into());
-        }
+        ensure!(
+            !result.is_empty(),
+            Error::invalid_argument("result block list is empty; possible data corruption or misconfiguration")
+        );
 
         let shorter_blocks_total_codewords = result[0].codewords.len();
         let mut longer_blocks_start_at = result.len() - 1;
@@ -633,8 +653,7 @@ impl DataBlock {
 }
 
 fn correct_errors(codeword_bytes: &mut [u8], num_data_codewords: usize) -> Result<()> {
-    correct_qr_errors(codeword_bytes, num_data_codewords).map_err(|e| Error::Checksum {
-        message: format!("{e:?}").into(),
-    })?;
+    correct_qr_errors(codeword_bytes, num_data_codewords)
+        .with_context(|| Error::checksum("QR Reed-Solomon error correction failed"))?;
     Ok(())
 }

@@ -16,8 +16,9 @@
 
 use std::fmt;
 
+use anyhow::{Context, Result, bail, ensure};
+
 use crate::{Error, Point, point};
-use anyhow::Result;
 
 use super::BitArray;
 
@@ -56,14 +57,12 @@ impl BitMatrix {
     /// - `width`: bit matrix width
     /// - `height`: bit matrix height
     pub fn new(width: usize, height: usize) -> Result<Self> {
-        if width < 1 || height < 1 {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            width >= 1 && height >= 1,
+            Error::invalid_argument(format!(
                     "BitMatrix::new: both dimensions must be greater than 0 (got width={width}, height={height})"
-                ).into(),
-            }
-            .into());
-        }
+            ))
+        );
         Ok(Self {
             width,
             height,
@@ -146,12 +145,9 @@ impl BitMatrix {
                         row_length = bits_pos - row_start_pos;
                     } else if bits_pos - row_start_pos != row_length {
                         let this_row_length = bits_pos - row_start_pos;
-                        return Err(Error::InvalidArgument {
-                            message: format!(
+                        bail!(Error::invalid_argument(format!(
                                 "parse_strings: row lengths do not match (row {n_rows} has {this_row_length} cells, expected {row_length})"
-                            ).into(),
-                        }
-                        .into());
+                        )));
                     }
                     row_start_pos = bits_pos;
                     n_rows += 1;
@@ -166,13 +162,10 @@ impl BitMatrix {
                 bits[bits_pos] = false;
                 bits_pos += 1;
             } else {
-                return Err(Error::InvalidArgument {
-                    message: format!(
+                bail!(Error::invalid_argument(format!(
                         "illegal character encountered: {}",
                         &string_representation[pos..]
-                    ).into(),
-                }
-                .into());
+                )));
             }
         }
 
@@ -182,17 +175,14 @@ impl BitMatrix {
                 row_length = bits_pos - row_start_pos;
             } else if bits_pos - row_start_pos != row_length {
                 let this_row_length = bits_pos - row_start_pos;
-                return Err(Error::InvalidArgument {
-                    message: format!(
+                bail!(Error::invalid_argument(format!(
                         "parse_strings: final row lengths do not match (row {n_rows} has {this_row_length} cells, expected {row_length})"
-                    ).into(),
-                }
-                .into());
+                )));
             }
             n_rows += 1;
         }
 
-        let mut matrix = BitMatrix::new(row_length, n_rows)?;
+        let mut matrix = BitMatrix::new(row_length, n_rows).context("building parsed bit matrix")?;
         for (i, bit) in bits.iter().enumerate().take(bits_pos) {
             if *bit {
                 matrix.set(i % row_length, i / row_length);
@@ -330,17 +320,14 @@ impl BitMatrix {
     ///
     /// - `mask`: XOR mask
     pub fn xor(&mut self, mask: &BitMatrix) -> Result<()> {
-        if self.width != mask.width || self.height != mask.height || self.row_size != mask.row_size
-        {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            self.width == mask.width && self.height == mask.height && self.row_size == mask.row_size,
+            Error::invalid_argument(format!(
                     "BitMatrix::xor: input matrix dimensions do not match (self={}x{} row_size={}, mask={}x{} row_size={})",
                     self.width, self.height, self.row_size,
                     mask.width, mask.height, mask.row_size,
-                ).into(),
-            }
-            .into());
-        }
+                ))
+        );
         for y in 0..self.height {
             let offset = y * self.row_size;
             let row_array = mask.row(y);
@@ -365,33 +352,29 @@ impl BitMatrix {
     /// - `width`: The width of the region
     /// - `height`: The height of the region
     pub fn set_region(&mut self, left: usize, top: usize, width: usize, height: usize) -> Result<()> {
-        if height < 1 || width < 1 {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            height >= 1 && width >= 1,
+            Error::invalid_argument(format!(
                     "set_region: width and height must be at least 1 (got width={width}, height={height})"
-                ).into(),
-            }
-            .into());
-        }
-        let right = left.checked_add(width).ok_or_else(|| Error::InvalidArgument {
-            message: format!(
+                ))
+        );
+        let right = left.checked_add(width).with_context(|| {
+            Error::invalid_argument(format!(
                 "set_region: left + width overflowed (left={left}, width={width})"
-            ).into(),
+            ))
         })?;
-        let bottom = top.checked_add(height).ok_or_else(|| Error::InvalidArgument {
-            message: format!(
+        let bottom = top.checked_add(height).with_context(|| {
+            Error::invalid_argument(format!(
                 "set_region: top + height overflowed (top={top}, height={height})"
-            ).into(),
+            ))
         })?;
-        if bottom > self.height || right > self.width {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            bottom <= self.height && right <= self.width,
+            Error::invalid_argument(format!(
                     "set_region: region (left={left}, top={top}, width={width}, height={height} -> right={right}, bottom={bottom}) does not fit inside matrix {}x{}",
                     self.width, self.height,
-                ).into(),
-            }
-            .into());
-        }
+                ))
+        );
         for y in top..bottom {
             let offset = y * self.row_size;
             for x in left..right {
@@ -457,12 +440,9 @@ impl BitMatrix {
                 self.rotate180();
                 Ok(())
             }
-            other => Err(Error::InvalidArgument {
-                message: format!(
+            other => bail!(Error::invalid_argument(format!(
                     "rotate: degrees must be 0, 90, 180, or 270 (got {degrees}, normalized to {other})"
-                ).into(),
-            }
-            .into()),
+                ))),
         }
     }
 
@@ -621,26 +601,20 @@ impl BitMatrix {
     }
 
     pub fn crop(&self, top: usize, left: usize, height: usize, width: usize) -> Result<BitMatrix> {
-        if width == 0 || height == 0 {
-            return Err(Error::InvalidArgument {
-                message: format!(
+        ensure!(
+            width != 0 && height != 0,
+            Error::invalid_argument(format!(
                     "crop: width and height must be greater than 0 (got width={width}, height={height})"
-                ).into(),
-            }
-            .into());
-        }
-        if left.saturating_add(width) > self.width
-            || top.saturating_add(height) > self.height
-        {
-            return Err(Error::InvalidArgument {
-                message: format!(
+                ))
+        );
+        ensure!(
+            left.saturating_add(width) <= self.width && top.saturating_add(height) <= self.height,
+            Error::invalid_argument(format!(
                     "crop: region (left={left}, top={top}, width={width}, height={height}) does not fit inside matrix {}x{}",
                     self.width, self.height,
-                ).into(),
-            }
-            .into());
-        }
-        let mut new_bm = BitMatrix::new(width, height)?;
+                ))
+        );
+        let mut new_bm = BitMatrix::new(width, height).context("building cropped bit matrix")?;
         for y in top..top + height {
             for x in left..left + width {
                 if self.get(x, y) {

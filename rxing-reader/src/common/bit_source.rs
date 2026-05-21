@@ -17,8 +17,9 @@
 use std::cmp;
 use std::io::{ErrorKind, Read};
 
+use anyhow::{Result, bail};
+
 use crate::Error;
-use anyhow::Result;
 
 /// This provides an easy abstraction to read bits at a time from a sequence of bytes, where the
 /// number of bits read is not often a multiple of 8.
@@ -55,10 +56,7 @@ impl<'a> BitSource<'a> {
             if num_bits > available_bits {
                 message.push_str(&format!("; available bits: {available_bits}"));
             }
-            return Err(Error::InvalidArgument {
-                message: message.into(),
-            }
-            .into());
+            bail!(Error::invalid_argument(message));
         }
 
         let mut result: u32 = 0;
@@ -109,10 +107,7 @@ impl<'a> BitSource<'a> {
             if num_bits > available_bits {
                 message.push_str(&format!("; available bits: {available_bits}"));
             }
-            return Err(Error::InvalidArgument {
-                message: message.into(),
-            }
-            .into());
+            bail!(Error::invalid_argument(message));
         }
 
         let mut bit_offset = self.bit_offset;

@@ -103,7 +103,7 @@ pub fn read_qr_codes_rgba(
     let width = width as usize;
     let height = height as usize;
     let max_number_of_symbols = max_number_of_symbols as usize;
-    let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
+    let luma = rgba_to_luma(rgba, width, height).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let symbols = read_luma(
         luma,
         width,
@@ -158,7 +158,7 @@ pub fn read_qr_codes_rgba_detailed(
     let width = width as usize;
     let height = height as usize;
     let max_number_of_symbols = max_number_of_symbols as usize;
-    let luma = rgba_to_luma(rgba, width, height).map_err(|m| JsValue::from_str(&m))?;
+    let luma = rgba_to_luma(rgba, width, height).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let symbols = read_luma(
         luma,
         width,

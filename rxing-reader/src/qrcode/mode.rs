@@ -16,8 +16,9 @@
 
 use std::fmt;
 
+use anyhow::{Context, Result, bail};
+
 use crate::Error;
-use anyhow::Result;
 
 use super::Version;
 
@@ -63,10 +64,7 @@ impl Mode {
             {
                 Ok(Self::Hanzi)
             }
-            _ => Err(Error::InvalidArgument {
-                message: format!("{bits} is not valid").into(),
-            }
-            .into()),
+            _ => bail!(Error::invalid_argument(format!("{bits} is not valid"))),
         }
     }
 
@@ -121,10 +119,8 @@ impl Mode {
     ///
     /// Returns an invalid-format error if `bits` does not correspond to a known mode.
     pub fn codec_mode_for_bits(bits: u32) -> Result<Self> {
-        Mode::try_from(bits).map_err(|_| Error::InvalidFormat {
-            message: format!("Invalid QR codec mode bits 0x{bits:X}").into(),
-        }
-        .into())
+        Mode::try_from(bits)
+            .with_context(|| Error::invalid_format(format!("Invalid QR codec mode bits 0x{bits:X}")))
     }
 }
 
@@ -146,9 +142,8 @@ impl TryFrom<u32> for Mode {
     type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let value = u8::try_from(value).map_err(|_| Error::InvalidArgument {
-            message: format!("{value} is not valid").into(),
-        })?;
+        let value = u8::try_from(value)
+            .with_context(|| Error::invalid_argument(format!("{value} is not valid")))?;
         Self::for_bits(value)
     }
 }

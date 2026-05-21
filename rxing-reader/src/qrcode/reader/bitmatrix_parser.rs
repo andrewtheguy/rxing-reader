@@ -4,7 +4,7 @@
 // */
 // // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Result;
+use anyhow::{Context, Result, ensure};
 
 use crate::{
     Error,
@@ -24,16 +24,16 @@ fn module_bit(bit_matrix: &BitMatrix, x: usize, y: usize, mirrored: bool) -> boo
 }
 
 pub fn read_version(bit_matrix: &BitMatrix) -> Result<VersionRef> {
-    let number = Version::number_from_matrix(bit_matrix).ok_or_else(|| Error::InvalidFormat {
-        message: format!(
+    let number = Version::number_from_matrix(bit_matrix).with_context(|| {
+        Error::invalid_format(format!(
             "QR data is malformed: matrix size {}x{} is not a valid QR size",
             bit_matrix.width(),
             bit_matrix.height(),
         )
-        .into(),
+        )
     })?;
 
-    Version::for_number(number)
+    Version::for_number(number).context("resolving QR version from matrix size")
 }
 
 pub fn read_format_information(bit_matrix: &BitMatrix) -> Result<FormatInformation> {
@@ -71,7 +71,9 @@ pub fn read_codewords(
     version: VersionRef,
     format_info: &FormatInformation,
 ) -> Result<Vec<u8>> {
-    let function_pattern: BitMatrix = version.build_function_pattern()?;
+    let function_pattern: BitMatrix = version
+        .build_function_pattern()
+        .context("building QR function pattern before reading codewords")?;
 
     let mut result: Vec<u8> = Vec::with_capacity(version.total_codewords());
     let mut current_byte: u8 = 0;
@@ -115,14 +117,12 @@ pub fn read_codewords(
     }
     let expected_codewords = version.total_codewords();
     let actual_codewords = result.len();
-    if actual_codewords != expected_codewords {
-        return Err(Error::InvalidFormat {
-            message: format!(
+    ensure!(
+        actual_codewords == expected_codewords,
+        Error::invalid_format(format!(
                 "QR data is malformed: expected {expected_codewords} codewords, found {actual_codewords}"
-            ).into(),
-        }
-        .into());
-    }
+            ))
+    );
 
     Ok(result)
 }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result, bail, ensure};
 use multimap::MultiMap;
 
 use crate::{
@@ -271,15 +271,11 @@ fn estimate_module_size(
 ) -> Result<f64> {
     let mut cur = EdgeTracer::new(image, a.p, b.p - a.p);
     if !cur.is_black() {
-        return Err(Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        }
-        .into());
+        bail!(Error::not_found("QR pattern was not detected"));
     }
 
-    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2).ok_or(Error::NotFound {
-        message: "QR pattern was not detected".into(),
-    })?;
+    let pattern = read_symmetric_pattern::<5, _>(&mut cur, a.size * 2)
+        .with_context(|| Error::not_found("QR pattern was not detected"))?;
 
     if !(is_pattern::<E2E, 5, 7, false>(
         &PatternView::from_bars(&pattern),
@@ -289,10 +285,7 @@ fn estimate_module_size(
         0.0,
     ) != 0.0)
     {
-        return Err(Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        }
-        .into());
+        bail!(Error::not_found("QR pattern was not detected"));
     }
 
     Ok(
@@ -501,12 +494,8 @@ pub fn read_version(
 }
 
 fn module_dimension(dimension: i32) -> Result<usize> {
-    usize::try_from(dimension).map_err(|_| {
-        Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        }
-        .into()
-    })
+    usize::try_from(dimension)
+        .with_context(|| Error::not_found("QR pattern was not detected"))
 }
 
 pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorResult> {
@@ -522,10 +511,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
         (Some(top), None) => top,
         (None, Some(left)) => left,
         (None, None) => {
-            return Err(Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            }
-            .into());
+            bail!(Error::not_found("QR pattern was not detected"));
         }
     };
 
@@ -545,18 +531,22 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
 
     // generate 4 lines: outer and inner edge of the 1 module wide black line between the two outer and the inner
     // (tl) finder pattern
-    let bl_outer = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Outer)?;
-    let bl_inner = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Inner)?;
-    let tr_outer = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Outer)?;
-    let tr_inner = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Inner)?;
+    let bl_outer = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Outer)
+        .context("tracing bottom-left finder outer edge")?;
+    let bl_inner = trace_line(image, fp.bl.p, fp.tl.p, FinderPatternEdge::Inner)
+        .context("tracing bottom-left finder inner edge")?;
+    let tr_outer = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Outer)
+        .context("tracing top-right finder outer edge")?;
+    let tr_inner = trace_line(image, fp.tr.p, fp.tl.p, FinderPatternEdge::Inner)
+        .context("tracing top-right finder inner edge")?;
 
     if bl_outer.is_valid() && tr_outer.is_valid() && bl_inner.is_valid() && tr_inner.is_valid() {
         // intersect both outer and inner line pairs and take the center point between the two intersection points
-        let br_inter = (intersect(&bl_outer, &tr_outer).ok_or(Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        })? + intersect(&bl_inner, &tr_inner).ok_or(Error::NotFound {
-            message: "QR pattern was not detected".into(),
-        })?) / 2.0;
+        let br_inter = (intersect(&bl_outer, &tr_outer)
+            .with_context(|| Error::not_found("QR pattern was not detected"))?
+            + intersect(&bl_inner, &tr_inner)
+                .with_context(|| Error::not_found("QR pattern was not detected"))?)
+            / 2.0;
 
         if dimension > 21
             && let Some(br_cp) = locate_alignment_pattern(image, module_size, br_inter)
@@ -591,19 +581,16 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
 
     if dimension_usize >= Version::dimension_for_number(7) {
         let version =
-            read_version(image, dimension_usize, mod_to_pix).map_err(|_| Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            })?;
+            read_version(image, dimension_usize, mod_to_pix)
+                .with_context(|| Error::not_found("QR pattern was not detected"))?;
         let version_dimension = version.dimension();
         let version_dimension_i32 = version_dimension as i32;
 
         // if the version bits are garbage -> discard the detection
-        if (version_dimension_i32 - dimension).abs() > 8 {
-            return Err(Error::NotFound {
-                message: "QR pattern was not detected".into(),
-            }
-            .into());
-        }
+        ensure!(
+            (version_dimension_i32 - dimension).abs() <= 8,
+            Error::not_found("QR pattern was not detected")
+        );
         if version_dimension_i32 != dimension {
             dimension = version_dimension_i32;
             dimension_usize = version_dimension;
@@ -614,19 +601,15 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
             )?;
         }
         let ap_m = version.alignment_pattern_centers(); // alignment pattern positions in modules
-        let mut ap_p = Matrix::new(ap_m.len(), ap_m.len())?; // found/guessed alignment pattern positions in pixels
+        let mut ap_p = Matrix::new(ap_m.len(), ap_m.len())
+            .context("building alignment-pattern matrix")?; // found/guessed alignment pattern positions in pixels
         let n = (ap_m.len()) - 1;
 
         // project the alignment pattern at module coordinates x/y to pixel coordinate based on current mod2_pix
         let project_m2_p = |x, y, mod2_pix: &PerspectiveTransform| -> Result<Point> {
             mod2_pix
                 .transform_point(point(ap_m[x] as f32, ap_m[y] as f32).centered())
-                .ok_or_else(|| {
-                    Error::NotFound {
-                        message: "QR pattern was not detected".into(),
-                    }
-                    .into()
-                })
+                .with_context(|| Error::not_found("QR pattern was not detected"))
         };
 
         let mut find_inner_corner_of_concentric_pattern =
@@ -711,9 +694,7 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
                         &RegressionLine::with_two_points(hori[0], hori[1]),
                         &RegressionLine::with_two_points(verti[0], verti[1]),
                     )
-                    .ok_or(Error::InvalidState {
-                        message: "required internal state is missing".into(),
-                    })?;
+                    .with_context(|| Error::invalid_state("required internal state is missing"))?;
                     let found = locate_alignment_pattern(image, module_size, guessed);
                     // search again near that intersection and if the search fails, use the intersection
                     ap_p.set(x, y, if let Some(f) = found { f } else { guessed })?;
@@ -762,18 +743,18 @@ pub fn sample_qr(image: &BitMatrix, fp: &FinderPatternSet) -> Result<DetectorRes
                             x0 as f32, x1 as f32, y0 as f32, y1 as f32, None,
                         ),
                         Quadrilateral::from([
-                            ap_p.get(x, y).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".into(),
-                            })?,
-                            ap_p.get(x + 1, y).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".into(),
-                            })?,
-                            ap_p.get(x + 1, y + 1).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".into(),
-                            })?,
-                            ap_p.get(x, y + 1).ok_or(Error::InvalidState {
-                                message: "required internal state is missing".into(),
-                            })?,
+                            ap_p
+                                .get(x, y)
+                                .with_context(|| Error::invalid_state("required internal state is missing"))?,
+                            ap_p
+                                .get(x + 1, y)
+                                .with_context(|| Error::invalid_state("required internal state is missing"))?,
+                            ap_p
+                                .get(x + 1, y + 1)
+                                .with_context(|| Error::invalid_state("required internal state is missing"))?,
+                            ap_p
+                                .get(x, y + 1)
+                                .with_context(|| Error::invalid_state("required internal state is missing"))?,
                         ]),
                     )?,
                 });

@@ -1,5 +1,6 @@
+use anyhow::{Result, bail};
+
 use crate::Error;
-use anyhow::Result;
 
 use super::Direction;
 
@@ -34,10 +35,7 @@ pub fn to_fixed_len_string<T: Into<usize>>(val: T, len: usize) -> Result<String>
         val /= 10;
     }
     if val != 0 {
-        return Err(Error::InvalidFormat {
-            message: "Invalid value".into(),
-        }
-        .into());
+        bail!(Error::invalid_format("Invalid value"));
     }
 
     Ok(result.iter().collect())
